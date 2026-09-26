@@ -1,0 +1,22 @@
+# runtime state
+logs/
+loot/
+qcli/
+models/
+__pycache__/
+*.pyc
+.pytest_cache/
+.qcli_flash/
+
+# secrets — never commit
+.env
+*.pem
+logs/.lootkey
+
+# build outputs
+agents/build/out/
+weapons/poc/bin/
+dist/*.apk
+build/
+.gradle/
+local.properties
