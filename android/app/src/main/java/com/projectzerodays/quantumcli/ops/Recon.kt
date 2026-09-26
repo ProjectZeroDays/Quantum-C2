@@ -34,7 +34,7 @@ object Recon {
     fun fingerprint(ip: String): JSONObject {
         val fp = JSONObject()
             .put("ip", ip)
-            .put("ports", JSONObject().let { _ -> org.json.JSONArray() })
+            .put("ports", org.json.JSONArray())
             .put("banners", JSONObject())
             .put("smb", JSONObject())
             .put("camera", false)

