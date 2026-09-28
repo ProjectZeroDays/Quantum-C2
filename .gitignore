@@ -20,3 +20,10 @@ dist/*.apk
 build/
 .gradle/
 local.properties
+
+# video2code plugin hook state + plan gate artifacts
+android/.v2c/
+android/out/
+
+# Mimosa plugin state (uninstalled 2026-09-28)
+.mimosa/

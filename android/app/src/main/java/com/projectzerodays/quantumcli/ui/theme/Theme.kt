@@ -81,7 +81,7 @@ private fun monoStyle(size: Int, lineH: Int = size + 4, weight: Int? = null) = T
     fontWeight = weight?.let { androidx.compose.ui.text.font.FontWeight(it) },
 )
 
-private val QuantumTypography = Typography(
+val QuantumTypography = Typography(
     displayLarge = monoStyle(48, 52),
     displayMedium = monoStyle(40, 44),
     displaySmall = monoStyle(32, 36),

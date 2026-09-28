@@ -8,6 +8,7 @@ import androidx.compose.material.icons.outlined.Devices
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Videocam
+import androidx.compose.material.icons.outlined.Wifi
 import androidx.compose.ui.graphics.vector.ImageVector
 
 /** Sidebar destination pages. */
@@ -15,6 +16,7 @@ enum class Page(val title: String, val icon: ImageVector) {
     DASHBOARD("Dashboard", Icons.Outlined.Dashboard),
     IMPLANTS("Implants", Icons.Outlined.Devices),
     CAMERAS("Cameras", Icons.Outlined.Videocam),
+    NETWORK("Network", Icons.Outlined.Wifi),
     EXPLOITS("Exploits", Icons.Outlined.BugReport),
     LOOT("Loot", Icons.Outlined.Inventory2),
     CHAT("Chat", Icons.Outlined.Chat),

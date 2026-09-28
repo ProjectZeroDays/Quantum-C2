@@ -1,0 +1,125 @@
+package com.projectzerodays.quantumcli.ai
+
+import com.projectzerodays.quantumcli.QuantumApp
+import com.projectzerodays.quantumcli.c2.C2State
+import com.projectzerodays.quantumcli.data.QuantSettings
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import java.io.File
+
+/**
+ * Local AI fallback downloader — pulls a MediaPipe LLM Inference-compatible
+ * model (Gemma-2B int4, the model documented for the MediaPipe LLM API) into
+ * the app files dir so on-device inference works without an API key.
+ *
+ * Auto-download runs once per launch when `autoDownload` is enabled, the
+ * local mode is selected (or no model exists yet) and nothing is downloading
+ * already. Progress is surfaced to the UI as 0f..1f and mirrored to the audit
+ * log, so the Dashboard console shows it live.
+ */
+object AiModelDownloader {
+
+    /** Official MediaPipe LLM Inference sample weights (~1.4 GB, int4). */
+    const val MODEL_URL =
+        "https://storage.googleapis.com/mediapipe-assets/gemma-2b-it-gpu-int4.bin"
+
+    const val MODEL_NAME = "gemma-2b-it-gpu-int4.bin"
+
+    private val _downloading = MutableStateFlow(false)
+    val downloading: StateFlow<Boolean> = _downloading.asStateFlow()
+
+    private val _progress = MutableStateFlow(0f)
+    val progress: StateFlow<Float> = _progress.asStateFlow()
+
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error.asStateFlow()
+
+    /**
+     * Kick off the fallback-model download when it makes sense. Returns true
+     * when a download was actually started.
+     */
+    fun maybeAutoDownload(scope: CoroutineScope = QuantumApp.appScope): Boolean {
+        val s = QuantSettings.state.value
+        if (_downloading.value || AiClient.localAvailable()) return false
+        if (!s.autoDownload) return false
+        if (s.wizardDone && s.aiMode != AiClient.MODE_LOCAL) return false
+        return start(scope)
+    }
+
+    /** Explicit download (setup wizard). Returns false when already running. */
+    fun start(scope: CoroutineScope = QuantumApp.appScope): Boolean {
+        if (_downloading.value) return false
+        _downloading.value = true
+        _progress.value = 0f
+        _error.value = null
+        C2State.audit("AI", "local fallback model download started ($MODEL_NAME)")
+        scope.launch(Dispatchers.IO) {
+            try {
+                download()
+                C2State.audit("AI", "local fallback model ready — on-device AI enabled")
+            } catch (e: Exception) {
+                _error.value = e.message ?: e.javaClass.simpleName
+                C2State.audit("AI", "fallback model download failed: ${e.message}")
+                File(C2State.filesRoot, "$MODEL_NAME.tmp").delete()
+            } finally {
+                _downloading.value = false
+            }
+        }
+        return true
+    }
+
+    private fun download() {
+        val tmp = File(C2State.filesRoot, "$MODEL_NAME.tmp")
+        val final = File(C2State.filesRoot, MODEL_NAME)
+        tmp.parentFile?.mkdirs()
+        // Stream in chunks so we can report progress without buffering 1.4 GB.
+        val conn = java.net.URL(MODEL_URL).openConnection() as java.net.HttpURLConnection
+        conn.connectTimeout = 30_000
+        conn.readTimeout = 60_000
+        conn.instanceFollowRedirects = true
+        var lastReported = 0f
+        try {
+            val total = conn.contentLengthLong.takeIf { it > 0 } ?: -1L
+            var lastSizeLog = 0L
+            conn.inputStream.use { input ->
+                tmp.outputStream().use { out ->
+                    val buf = ByteArray(256 * 1024)
+                    var read = 0L
+                    while (true) {
+                        val n = input.read(buf)
+                        if (n < 0) break
+                        out.write(buf, 0, n)
+                        read += n
+                        if (total > 0) {
+                            val p = (read.toFloat() / total).coerceIn(0f, 1f)
+                            _progress.value = p
+                            if (p - lastReported >= 0.1f) {
+                                lastReported = p
+                                C2State.audit(
+                                    "AI",
+                                    "fallback model download ${(p * 100).toInt()}% " +
+                                        "(${read / (1024 * 1024)} MB)"
+                                )
+                            }
+                        } else if (read - lastSizeLog >= 200L * 1024 * 1024) {
+                            // No Content-Length: report pace by bytes only.
+                            lastSizeLog = read
+                            C2State.audit("AI", "fallback model download ${read / (1024 * 1024)} MB…")
+                        }
+                    }
+                }
+            }
+        } finally {
+            conn.disconnect()
+        }
+        if (final.isFile) final.delete()
+        if (!tmp.renameTo(final)) {
+            tmp.copyTo(final, overwrite = true)
+            tmp.delete()
+        }
+    }
+}

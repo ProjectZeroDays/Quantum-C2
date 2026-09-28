@@ -160,6 +160,7 @@ object Kerberos {
                         out.add("\$krb5asrep\$$etype\$$userStr@$realmStr:${cipherNode.hex()}")
                     }
                     // 0x6E = KDC-ERR: PREAUTH_REQUIRED or PRINCIPAL_UNKNOWN — no hash
+                    else -> {}
                 }
             }
         } catch (e: Exception) {

