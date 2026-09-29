@@ -21,6 +21,10 @@ data class SettingsData(
     val overlordIntervalSec: Int = 45,
     val wizardDone: Boolean = false,
     val autoDownload: Boolean = true,
+    val overlordAggression: String = "balanced", // balanced | aggressive | patient
+    val overlordCycles: Int = 0,                 // 0 = infinite
+    val overlordScope: String = "",              // blank = local /24; else CIDR
+    val c2Domain: String = "",                   // GhostDNS / DoH operator domain
 )
 
 /**
@@ -68,6 +72,10 @@ object QuantSettings {
         overlordIntervalSec = prefs.getInt("overlord_interval", 45),
         wizardDone = prefs.getBoolean("wizard_done", false),
         autoDownload = prefs.getBoolean("auto_download", true),
+        overlordAggression = prefs.getString("overlord_aggression", "balanced") ?: "balanced",
+        overlordCycles = prefs.getInt("overlord_cycles", 0),
+        overlordScope = prefs.getString("overlord_scope", "") ?: "",
+        c2Domain = prefs.getString("c2_domain", "") ?: "",
     )
 
     fun update(transform: (SettingsData) -> SettingsData) {
@@ -84,6 +92,10 @@ object QuantSettings {
             .putInt("overlord_interval", next.overlordIntervalSec)
             .putBoolean("wizard_done", next.wizardDone)
             .putBoolean("auto_download", next.autoDownload)
+            .putString("overlord_aggression", next.overlordAggression)
+            .putInt("overlord_cycles", next.overlordCycles)
+            .putString("overlord_scope", next.overlordScope)
+            .putString("c2_domain", next.c2Domain)
             .apply()
         _state.value = next
     }

