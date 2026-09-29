@@ -189,8 +189,8 @@ object QuantServerManager {
 
     fun start(port: Int): Boolean {
         stop()
-        BeaconCrypto.ensureKeys()
         return try {
+            BeaconCrypto.ensureKeys()
             val s = C2Server(port, QcliApi())
             s.start(NanoHTTPD.SOCKET_READ_TIMEOUT, true)
             server = s

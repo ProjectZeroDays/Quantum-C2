@@ -235,7 +235,8 @@ fun QuantumUi() {
     // First open: step-by-step setup + local AI fallback auto-download.
     LaunchedEffect(Unit) {
         if (!QuantSettings.state.value.wizardDone) showWizard = true
-        AiModelDownloader.maybeAutoDownload()
+        runCatching { AiModelDownloader.maybeAutoDownload() }
+            .onFailure { C2State.audit("ERR", "startup model check failed: ${it.message}") }
     }
 
     val uiActions = UiActions(

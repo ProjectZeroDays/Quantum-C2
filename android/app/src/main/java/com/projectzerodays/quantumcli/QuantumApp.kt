@@ -22,9 +22,14 @@ class QuantumApp : Application() {
     override fun onCreate() {
         super.onCreate()
         ctx = this
-        C2State.init(filesDir)
-        QuantSettings.init(this)
-        Notifications.createChannel(this)
+        // Each step is isolated so a failure in one subsystem (keygen, keystore,
+        // port bind) can never take the whole app down at launch.
+        runCatching { C2State.init(filesDir) }
+            .onFailure { android.util.Log.e("QuantumApp", "C2State.init failed", it) }
+        runCatching { QuantSettings.init(this) }
+            .onFailure { android.util.Log.e("QuantumApp", "QuantSettings.init failed", it) }
+        runCatching { Notifications.createChannel(this) }
+            .onFailure { android.util.Log.e("QuantumApp", "channel create failed", it) }
         if (QuantSettings.state.value.autostart) {
             val port = QuantSettings.state.value.c2Port
             if (QuantServerManager.start(port)) {
