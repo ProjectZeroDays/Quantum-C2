@@ -16,8 +16,9 @@ jobs:
         with:
           distribution: "temurin"
           java-version: "17"
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      # Android SDK is preinstalled on ubuntu-latest runners (ANDROID_HOME
+      # set, licenses accepted) — android-actions/setup-android fails now
+      # that the legacy 'tools' package is gone from the SDK repository.
       - name: Grant execute permission to gradlew
         run: chmod +x android/gradlew
       - name: Unit tests
