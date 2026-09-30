@@ -92,6 +92,52 @@ data class HorizonEntry(
 )
 
 /**
+ * Hourly catalog refresh (v4.4): pulls the live Exploit-DB CSV and the
+ * CISA KEV json into filesDir/catalog/. Failures are silent-by-design —
+ * the bundled seed stays authoritative until a fresh copy lands.
+ */
+object CatalogSync {
+    private const val EDB_URL =
+        "https://gitlab.com/exploit-database/exploitdb/-/raw/main/files_exploits.csv"
+    private const val KEV_URL =
+        "https://raw.githubusercontent.com/cisagov/kev-data/main/known_exploited_vulnerabilities.json"
+
+    fun syncOnce(ctx: Context): String {
+        var synced = 0
+        var failed = 0
+        val dir = File(ctx.filesDir, "catalog").apply { mkdirs() }
+        // Exploit-DB: stream -> gzip -> file
+        try {
+            val r = Net.httpGet(EDB_URL, timeoutMs = 120_000)
+            if (r.error == null && r.body.size > 1_000_000) {
+                val gz = File(dir, "files_exploits.csv.gz")
+                val tmp = File(dir, "files_exploits.csv.gz.tmp")
+                java.util.zip.GZIPOutputStream(tmp.outputStream()).use { it.write(r.body) }
+                if (tmp.length() > 100_000) {
+                    tmp.renameTo(gz)
+                    synced++
+                } else {
+                    tmp.delete()
+                }
+            } else failed++
+        } catch (e: Exception) {
+            failed++
+        }
+        // KEV: straight JSON download
+        try {
+            val r = Net.httpGet(KEV_URL, timeoutMs = 60_000)
+            if (r.error == null && r.body.size > 50_000) {
+                File(dir, "kev.json").writeBytes(r.body)
+                synced++
+            } else failed++
+        } catch (e: Exception) {
+            failed++
+        }
+        return "catalog sync: $synced ok, $failed failed"
+    }
+}
+
+/**
  * Pattern-observant nightly maintenance.
  *
  * Windows are scored over the next 24h in 30-minute slots: quiet hours
@@ -121,6 +167,20 @@ object MaintenanceScheduler {
                 runWindow(budgetMs = window.durationMs)
                 // Sleep through the rest of tonight so one check-in == one run.
                 delay(22L * 60 * 60 * 1000)
+            }
+        }
+    }
+
+    /** Hourly catalog refresh (Exploit-DB + KEV) — seed stays authoritative
+     *  on failure, so a dead network degrades gracefully. */
+    fun armHourlyCatalogSync() {
+        if (!::scope.isInitialized) return
+        scope.launch {
+            while (isActive) {
+                runCatching { CatalogSync.syncOnce(appCtx) }
+                    .onSuccess { audit("hourly $it") }
+                    .onFailure { audit("hourly catalog sync failed: ${it.message?.take(80)}") }
+                delay(60L * 60 * 1000)
             }
         }
     }

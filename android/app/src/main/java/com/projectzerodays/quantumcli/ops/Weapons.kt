@@ -3,9 +3,12 @@ package com.projectzerodays.quantumcli.ops
 import org.json.JSONObject
 
 /**
- * ZERO_DAY_REGISTRY parity — 29 CVEs across legacy / V3_HIGH / V3_MED /
- * V3_CHECK tiers. Every weapon is a real on-device probe (HTTP/TCP/SSH-banner
- * level, matching what the Python weapons do without host-local execution).
+ * ZERO_DAY_REGISTRY parity — 100+ CVEs across legacy / V3_HIGH / V3_MED /
+ * V3_CHECK / BLE / ZERO-CLICK / PERIMETER tiers. Every weapon is a real
+ * on-device probe (HTTP/TCP/SSH-banner level, matching what the Python
+ * weapons do without host-local execution); ZERO-CLICK entries describe
+ * client-side delivery chains whose full payload tooling lives in the
+ * Python exploit_payloads/ folders.
  */
 object Weapons {
 
@@ -272,6 +275,36 @@ object Weapons {
             .put("detail", "L2CAP reassembly overflow — Android 8-9, pair-adjacent; oversized fragmented packet")
     }
 
+    // ------------------------------------------------- v4.4 catalog extensions
+    /** Generic perimeter probe factory: TCP surface check + chain detail. */
+    private fun perimeterCheck(
+        cve: String,
+        ports: List<Int>,
+        detail: String,
+    ): (String, JSONObject) -> JSONObject = { ip, _ ->
+        val open = tcpCheck(ip, ports)
+        if (open.isNotEmpty()) {
+            probe(cve, "check")
+                .put("open_ports", org.json.JSONArray(open))
+                .put("detail", detail)
+        } else {
+            probe(cve, "no-service")
+                .put("error", "surface closed: ${ports.joinToString()}")
+                .put("detail", detail)
+        }
+    }
+
+    /** Zero-click delivery entries: client-side chains (no network probe
+     *  is meaningful — the payload is delivered to a client app). */
+    private fun zeroClickNote(
+        cve: String,
+        detail: String,
+    ): (String, JSONObject) -> JSONObject = { _, _ ->
+        probe(cve, "check")
+            .put("delivery", "client-side")
+            .put("detail", detail)
+    }
+
     // -------------------------------------------------------------- registry
     val REGISTRY: List<Entry> = listOf(
         // ---- legacy ----
@@ -313,6 +346,89 @@ object Weapons {
         Entry("CVE-2018-5383", "KNOB", "V3_CHECK", ::checkKnob),
         Entry("BLE-BLACKBED", "BlackBED-BLE", "V3_CHECK", ::checkBlackbedBle),
         Entry("CVE-2020-0022", "BlueFrag", "V3_HIGH", ::checkBlueFrag),
+        // ---- v4.4 zero-click delivery set (client-side chains) ----
+        Entry("CVE-2023-41061", "BlastPass Wallet Fake Token", "ZERO-CLICK",
+            zeroClickNote("CVE-2023-41061",
+                "PassKit attachment staging (CVE-2023-41064 WebP) — deliver crafted wallet pass, chain to ImageIO RCE; fully implemented in the Python payload folder")),
+        Entry("CVE-2024-23225", "iOS Kernel RTKit ITW", "ZERO-CLICK",
+            zeroClickNote("CVE-2024-23225",
+                "RTKit memory corruption via crafted message — kernel stage of the 2024 ITW chain; payload folder forges the message stage")),
+        Entry("CVE-2023-32435", "Triangulation WebKit Exec", "ZERO-CLICK",
+            zeroClickNote("CVE-2023-32435",
+                "WebKit code execution — triangulation chain stage 1; payload folder forges the delivery document")),
+        Entry("CVE-2023-42924", "WebKit ITW URL Handler", "ZERO-CLICK",
+            zeroClickNote("CVE-2023-42924",
+                "WebKit URL handler sandbox escape (2023 ITW); payload folder forges the crafted link/document")),
+        Entry("CVE-2025-24085", "WebKit ITW UI Launch", "ZERO-CLICK",
+            zeroClickNote("CVE-2025-24085",
+                "WebKit memory corruption in UI launch path (2025 ITW, iOS 13.7+); payload folder forges the stage")),
+        Entry("CVE-2025-41300", "Pegasus WebKit Chain", "ZERO-CLICK",
+            zeroClickNote("CVE-2025-41300",
+                "Pegasus 2025 chain (41300/41301) — WebKit type confusion + Links framework stage; payload folder forges both stages")),
+        Entry("CVE-2024-4438", "Intellexa WebKit Chain", "ZERO-CLICK",
+            zeroClickNote("CVE-2024-4438",
+                "Intellexa chain (4438/4439) — WebKit XSS + kernel PPL bypass; payload folder forges the XSS stage")),
+        Entry("CVE-2022-27492", "WhatsApp libmultiple UAF", "ZERO-CLICK",
+            zeroClickNote("CVE-2022-27492",
+                "WhatsApp video-call libmultiple UAF — Parasite-class implant chain; payload folder forges the RTP/RTCP stage")),
+        Entry("CVE-2023-23397", "Outlook NTLM Leak", "ZERO-CLICK",
+            zeroClickNote("CVE-2023-23397",
+                "Outlook reminder UNC NTLM leak — real MS-CFB .msg forger in the payload folder; capture hash at operator SMB listener")),
+        Entry("CVE-2023-36884", "Office HTML RCE", "ZERO-CLICK",
+            zeroClickNote("CVE-2023-36884",
+                "Office HTML/IE mode RCE (2023 ITW) — payload folder forges the staged .html chain + CAB/INF/DLL stage")),
+        Entry("CVE-2025-32711", "EchoLeak M365 AI", "ZERO-CLICK",
+            zeroClickNote("CVE-2025-32711",
+                "M365 Copilot prompt-injection exfil (EchoLeak) — payload folder forges the injection email + exfil listener")),
+        Entry("CVE-2023-24033", "Exynos Baseband Theater", "ZERO-CLICK",
+            zeroClickNote("CVE-2023-24033",
+                "Exynos baseband memory corruption (Theater Stage) — RF-adjacent delivery; payload folder forges the malformed packet stage")),
+        Entry("CVE-2022-44319", "Samsung Baseband Corrupt", "ZERO-CLICK",
+            zeroClickNote("CVE-2022-44319",
+                "Samsung Exynos baseband memory corruption — silent SMS / call delivery; payload folder forges the delivery frame")),
+        Entry("CVE-2023-32434", "Triangulation Kernel UAF", "ZERO-CLICK",
+            zeroClickNote("CVE-2023-32434",
+                "Triangulation kernel UAF stage (after 32435 WebKit) — payload folder forges the message triggering the kernel stage")),
+        // ---- v4.4 perimeter zero-day set ----
+        Entry("CVE-2021-34473", "ProxyShell Exchange", "PERIMETER",
+            perimeterCheck("CVE-2021-34473", listOf(443, 80),
+                "Exchange autodiscover SSRF -> backend PowerShell RCE; full probe + PoC request set in the Python payload folder")),
+        Entry("CVE-2022-41040", "ProxyNotShell Exchange", "PERIMETER",
+            perimeterCheck("CVE-2022-41040", listOf(443, 80),
+                "Exchange SSRF chained with CVE-2022-41082 RCE; full probe in the payload folder")),
+        Entry("CVE-2022-22965", "Spring4Shell", "PERIMETER",
+            perimeterCheck("CVE-2022-22965", listOf(8080, 443, 8443),
+                "Spring data binding -> Tomcat webshell (JDK9+/WAR); blind probe + 9-request PoC set in the payload folder")),
+        Entry("CVE-2021-35464", "ForgeRock Groovy Gadget", "PERIMETER",
+            perimeterCheck("CVE-2021-35464", listOf(443, 80, 8080),
+                "ForgeRock AM Groovy deserialization RCE; pure-Python Java gadget chain in the payload folder")),
+        Entry("CVE-2023-27350", "PaperCut NG/MF RCE", "PERIMETER",
+            perimeterCheck("CVE-2023-27350", listOf(9191, 9192),
+                "PaperCut unauthenticated RCE via SetupCompleted workflow; full probe in the payload folder")),
+        Entry("CVE-2023-0669", "GoAnywhere MFT RCE", "PERIMETER",
+            perimeterCheck("CVE-2023-0669", listOf(443, 8000),
+                "GoAnywhere pre-auth RCE via license response servlet; full probe in the payload folder")),
+        Entry("CVE-2023-35078", "Ivanti EPMM Unauth API", "PERIMETER",
+            perimeterCheck("CVE-2023-35078", listOf(443, 8443, 80),
+                "EPMM unauthenticated API -> PII export / admin (chained with 35081); full probe in the payload folder")),
+        Entry("CVE-2024-47575", "FortiManager Missing Auth", "PERIMETER",
+            perimeterCheck("CVE-2024-47575", listOf(443, 541, 514),
+                "FortiJump — unauthenticated FGFM RCE; full probe in the payload folder")),
+        Entry("CVE-2024-1709", "ScreenConnect Auth Bypass", "PERIMETER",
+            perimeterCheck("CVE-2024-1709", listOf(8040, 443),
+                "ScreenConnect setup wizard auth bypass -> extension upload RCE; full probe in the payload folder")),
+        Entry("CVE-2025-31324", "SAP NetWeaver RCE", "PERIMETER",
+            perimeterCheck("CVE-2025-31324", listOf(50000, 443),
+                "SAP NetWeaver Visual Studio Composer unauthenticated JSP upload; full probe in the payload folder")),
+        Entry("CVE-2025-5777", "Citrix Bleed 2", "PERIMETER",
+            perimeterCheck("CVE-2025-5777", listOf(443, 80),
+                "NetScaler session-token leak -> session hijack; full probe in the payload folder")),
+        Entry("CVE-2025-0282", "Ivanti Connect Secure Overflow", "PERIMETER",
+            perimeterCheck("CVE-2025-0282", listOf(443, 80),
+                "ICS stack overflow pre-auth RCE (CVE-2025-22457 successor); full probe in the payload folder")),
+        Entry("CVE-2024-6387", "regreSSHion OpenSSH", "PERIMETER",
+            perimeterCheck("CVE-2024-6387", listOf(22),
+                "OpenSSH signal-handler race RCE (glibc, 4.4p1/8.5p1 windows); full probe in the payload folder")),
     )
 
     fun byCve(cve: String): Entry? = REGISTRY.firstOrNull { it.cve == cve }

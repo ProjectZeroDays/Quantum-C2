@@ -233,7 +233,9 @@ def main(argv=None):
                             "phish", "keygen", "deployai", "zerologon", "mitre", "federation",
                             "posixagent", "zerocheck", "mshtmaldoc", "flashfill", "emoji",
                             "macreset", "keylog", "wipe", "persist", "ghostdns", "cagebreak",
-                            "agents", "skills", "workflows", "p0feed", "providers"],
+                            "agents", "skills", "workflows", "p0feed", "providers",
+                            "exploitdb", "payloads", "badusb", "kev", "gitdork",
+                            "lockknife", "tools"],
                    help="direct command (optional)")
     p.add_argument("--menu", action="store_true", help="manual console")
     p.add_argument("--scope", "-c", dest="cidr", help="autonomous/scan scope CIDR")
@@ -250,6 +252,16 @@ def main(argv=None):
     p.add_argument("--kill", action="store_true",
                    help="with 'serve'less direct run: arm the kill-switch against live C2 via /kill")
     p.add_argument("--domain", help="operator-controlled domain for DoH egress beacons (ghostdns)")
+    p.add_argument("-q", "--query", help="search query (exploitdb/payloads/badusb/kev/gitdork)")
+    p.add_argument("--get", dest="get_id", help="fetch one record by id (exploitdb/badusb)")
+    p.add_argument("--section", help="payloads_all section (payloads)")
+    p.add_argument("--repo", help="gitdork scope (owner/repo)")
+    p.add_argument("--user", help="gitdork scope (user/org)")
+    p.add_argument("--os", dest="os_filter",
+                   choices=["windows", "macos", "linux"], help="badusb OS filter")
+    p.add_argument("--sync", action="store_true",
+                   help="catalog sync (exploitdb/payloads)")
+    p.add_argument("--out", dest="out_path", help="output file (badusb export)")
     p.add_argument("-g", "--gateway"); p.add_argument("--iface")
     p.add_argument("--peer", help="federation peer .onion to sync")
     p.add_argument("-dc-ip"); p.add_argument("-dc-name"); p.add_argument("-d")
@@ -421,6 +433,69 @@ def main(argv=None):
     elif a.cmd == "providers":
         from quantum.ai.providers import provider_status
         print(json.dumps(provider_status(), indent=2, default=str)); return
+    elif a.cmd == "exploitdb":
+        from quantum.catalog import exploitdb as edb
+        if a.sync:
+            print(json.dumps(edb.sync(), indent=2, default=str)); return
+        if a.get_id:
+            print(json.dumps(edb.get(a.get_id), indent=2, default=str)); return
+        if a.query:
+            print(json.dumps(edb.search(a.query, limit=25), indent=2,
+                              default=str)); return
+        print(json.dumps(edb.stats(), indent=2, default=str)); return
+    elif a.cmd == "payloads":
+        from quantum.catalog import payloads_all as patt
+        if a.sync:
+            print(json.dumps(patt.sync(), indent=2, default=str)); return
+        if a.section:
+            print(json.dumps(patt.get_payload(a.section, a.file),
+                             indent=2, default=str)); return
+        if a.query:
+            print(json.dumps(patt.search(a.query), indent=2, default=str)); return
+        print(json.dumps(patt.stats(), indent=2, default=str)); return
+    elif a.cmd == "badusb":
+        from quantum.catalog import badusb
+        if a.get_id:
+            r = badusb.get(a.get_id)
+            if a.out_path and r.get("ok"):
+                r = badusb.export(a.get_id, a.out_path)
+            print(json.dumps(r, indent=2, default=str)); return
+        if a.query:
+            print(json.dumps(badusb.search(a.query), indent=2, default=str)); return
+        print(json.dumps(badusb.list_payloads(os_filter=a.os_filter),
+                         indent=2, default=str)); return
+    elif a.cmd == "kev":
+        from quantum.recon import kev
+        if a.query:
+            print(json.dumps(kev.lookup(a.query), indent=2, default=str)); return
+        print(json.dumps(kev.check_kev(), indent=2, default=str)); return
+    elif a.cmd == "gitdork":
+        from quantum.recon import gitdork
+        if not (a.repo or a.user):
+            print(json.dumps(gitdork.list_dorks(), indent=2, default=str)); return
+        print(json.dumps(gitdork.scan(repo=a.repo, user=a.user,
+                                      max_dorks=None if a.force else 10),
+                         indent=2, default=str)); return
+    elif a.cmd == "lockknife":
+        from quantum.weapons.techniques import lockknife
+        if a.query == "connect" and a.target:
+            print(json.dumps(lockknife.connect(a.target), indent=2,
+                             default=str)); return
+        if a.query == "packages":
+            print(json.dumps(lockknife.extract_packages(), indent=2,
+                             default=str)); return
+        if a.query == "settings":
+            print(json.dumps(lockknife.extract_settings(), indent=2,
+                             default=str)); return
+        if a.query == "report":
+            print(json.dumps(lockknife.full_report(), indent=2,
+                             default=str)); return
+        print(json.dumps(lockknife.devices(), indent=2, default=str)); return
+    elif a.cmd == "tools":
+        from quantum.ops import tools
+        if a.query:
+            print(json.dumps(tools.detect(a.query), indent=2, default=str)); return
+        print(json.dumps(tools.detect_all(), indent=2, default=str)); return
 
 
 if __name__ == "__main__":
