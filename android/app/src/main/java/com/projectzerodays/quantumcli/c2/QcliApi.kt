@@ -3,6 +3,8 @@ package com.projectzerodays.quantumcli.c2
 import com.projectzerodays.quantumcli.ops.Artifacts
 import com.projectzerodays.quantumcli.ops.Brute
 import com.projectzerodays.quantumcli.ops.CamWar
+import com.projectzerodays.quantumcli.ops.CatalogSync
+import com.projectzerodays.quantumcli.ops.ExploitDb
 import com.projectzerodays.quantumcli.ops.Kerberos
 import com.projectzerodays.quantumcli.ops.Net
 import com.projectzerodays.quantumcli.ops.Overlord
@@ -50,6 +52,17 @@ class QcliApi {
                 )
                 "camwar", "camdiscover" -> camwar(params)
                 "mitre" -> MitreMapper.mapAudit(C2State.audit.value)
+                "exploitdb" -> ExploitDb.search(
+                    com.projectzerodays.quantumcli.QuantumApp.ctx,
+                    params.optString("query", params.optString("q", "")),
+                    params.optInt("limit", 25),
+                )
+                "exploitdb_stats" -> ExploitDb.stats(
+                    com.projectzerodays.quantumcli.QuantumApp.ctx
+                )
+                "catalog_sync" -> JSONObject()
+                    .put("result", CatalogSync.syncOnce(
+                        com.projectzerodays.quantumcli.QuantumApp.ctx))
                 "decide" -> QBrain.decide(
                     params.optJSONObject("state") ?: JSONObject(),
                     params.optJSONArray("acts")?.let { arr ->

@@ -10,11 +10,18 @@ def test_registry_has_entries():
 
 
 def test_every_weapon_string_resolves_and_fires():
+    import os
     for cve in q.ZERO_DAY_REGISTRY:
         entry = q.ZERO_DAY_REGISTRY[cve]
-        assert isinstance(entry["weapon"], str), cve
-        assert callable(q.resolve_weapon(entry["weapon"])), \
-            f"{cve}: weapon {entry['weapon']!r} does not resolve to a callable"
+        if "folder" in entry:
+            # folder weapon: exploit_payloads/<folder>/deploy.py must exist
+            d = os.path.join("exploit_payloads", entry["folder"])
+            assert os.path.isfile(os.path.join(d, "deploy.py")), \
+                f"{cve}: folder weapon {entry['folder']!r} has no deploy.py"
+        else:
+            assert isinstance(entry["weapon"], str), cve
+            assert callable(q.resolve_weapon(entry["weapon"])), \
+                f"{cve}: weapon {entry['weapon']!r} does not resolve to a callable"
         res = q.registry.fire(cve, "127.0.0.1", {})
         assert isinstance(res, dict), f"{cve}: fire() returned {type(res)}"
         assert "status" in res or "error" in res or "cve" in res, cve

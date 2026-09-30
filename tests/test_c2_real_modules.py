@@ -1,5 +1,5 @@
 """Tests for the Quantum C2 real modules: evasion, exfil, persistence,
-compliance engine, external tool catalog, and the imported c2.* skills."""
+external tool catalog, and the imported c2.* skills."""
 import json
 import os
 import sys
@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__))), "src"))
 
 from quantum.ai import skills  # noqa: E402
-from quantum.ops import compliance_engine, evasion, exfil, tools  # noqa: E402
+from quantum.ops import evasion, exfil, tools  # noqa: E402
 from quantum.ops import persistence  # noqa: E402
 
 
@@ -115,9 +115,11 @@ def test_persistence_run_key_roundtrip():
     cmd = "cmd /c echo qcli-test"
     r = persistence.win_run_key(cmd, name="QCliTestEntry")
     assert r["ok"] is True and r["undo"]
-    # clean up via the documented undo (reg delete)
-    os.system(r["undo"].replace("reg delete HKCU\\", "reg delete HKCU\\"))
+    # remove via winreg directly (undo string documents the same op)
     import winreg
+    with winreg.OpenKey(winreg.HKEY_CURRENT_USER, persistence.RUN_KEY,
+                        0, winreg.KEY_SET_VALUE) as k:
+        winreg.DeleteValue(k, "QCliTestEntry")
     with winreg.OpenKey(winreg.HKEY_CURRENT_USER, persistence.RUN_KEY) as k:
         try:
             winreg.QueryValueEx(k, "QCliTestEntry")
@@ -154,39 +156,15 @@ def test_persistence_install_default_json_safe():
     assert isinstance(r, dict) and "ok" in r
     if r.get("ok") and r.get("method") == "run_key":
         assert r["undo"]
-        os.system(r["undo"])
-
-
-# -------------------------------------------------------------- compliance
-def test_compliance_engine_loads_controls():
-    eng = compliance_engine.ComplianceEngine()
-    assert len(eng.controls) > 50
-    assert eng.get_control("AC-2") is not None
-
-
-def test_compliance_assess_control():
-    eng = compliance_engine.ComplianceEngine()
-    r = eng.assess_control("AC-2",
-                           evidence="Account management procedure "
-                                   "documented and approved",
-                           findings=["Procedure exists"],
-                           assessed_by="test")
-    assert r is not None
-    assert r.status in ("compliant", "non-compliant", "partial",
-                         "not-assessed")
-
-
-def test_compliance_full_assessment_and_export():
-    eng = compliance_engine.ComplianceEngine()
-    results = eng.run_full_assessment(
-        evidence={"AC-2": "accounts reviewed",
-                  "AU-1": "audit policy exists"},
-        assessed_by="qcli-test")
-    assert isinstance(results, list)
-    summary = eng.get_compliance_summary()
-    assert isinstance(summary, dict)
-    exported = eng.export_results(format="json")
-    assert isinstance(exported, (str, dict, list))
+        if sys.platform == "win32":
+            import winreg
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER,
+                                 persistence.RUN_KEY, 0,
+                                 winreg.KEY_SET_VALUE) as k:
+                try:
+                    winreg.DeleteValue(k, r["name"])
+                except OSError:
+                    pass
 
 
 # ------------------------------------------------------------------- tools

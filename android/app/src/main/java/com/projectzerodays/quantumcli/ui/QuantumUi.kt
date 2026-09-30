@@ -109,6 +109,7 @@ import com.projectzerodays.quantumcli.c2.QuantServerManager
 import com.projectzerodays.quantumcli.c2.UpdateChecker
 import com.projectzerodays.quantumcli.data.QuantSettings
 import com.projectzerodays.quantumcli.ops.CamWar
+import com.projectzerodays.quantumcli.ops.ExploitDb
 import com.projectzerodays.quantumcli.ops.Net
 import com.projectzerodays.quantumcli.ops.NetDiag
 import com.projectzerodays.quantumcli.ops.Overlord
@@ -1880,6 +1881,9 @@ fun ExploitsPage() {
                             "V3_HIGH" -> Danger
                             "V3_MED" -> Ok
                             "legacy" -> SoftCyan
+                            "ZERO-CLICK" -> Danger
+                            "PERIMETER" -> Ok
+                            "MALWARE" -> Danger
                             else -> Muted // V3_CHECK
                         },
                         modifier = Modifier.width(70.dp),
@@ -1892,6 +1896,47 @@ fun ExploitsPage() {
                 }
             }
         }
+
+        Spacer(Modifier.height(12.dp))
+
+        // ---- Exploit-DB catalog search (47k+ exploits, seed + hourly sync)
+        var edbQuery by rememberSaveable { mutableStateOf("") }
+        Text(
+            "EXPLOIT-DB CATALOG — search 47k+ exploits",
+            style = QuantumTypography.titleSmall,
+            color = SoftCyan,
+        )
+        Spacer(Modifier.height(6.dp))
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            OutlinedTextField(
+                value = edbQuery,
+                onValueChange = { edbQuery = it },
+                label = { Text("keyword or CVE-YYYY-NNNN") },
+                singleLine = true,
+                modifier = Modifier.weight(1f),
+            )
+            OutlinedButton(
+                onClick = {
+                    run("EDB") {
+                        ExploitDb.search(
+                            com.projectzerodays.quantumcli.QuantumApp.ctx,
+                            edbQuery.trim(),
+                        )
+                    }
+                },
+                enabled = !busy && edbQuery.isNotBlank(),
+            ) { Text("SEARCH") }
+        }
+        Text(
+            "Bundled seed refreshed hourly when online (catalog/ in app storage).",
+            style = QuantumTypography.bodySmall,
+            color = Muted,
+            fontSize = 10.sp,
+        )
 
         Spacer(Modifier.height(12.dp))
         Text("Last result", style = QuantumTypography.titleSmall, color = SoftCyan)

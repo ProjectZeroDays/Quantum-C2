@@ -122,5 +122,60 @@ object SkillStore {
                 "targets and results, MITRE techniques touched, loot collected and the " +
                 "recommended cleanup pass. Terminal tone, tight prose."
         ),
+        // ---- c2.* operator playbooks (from the Quantum C2 skill library) ----
+        SkillDef(
+            "c2.evasive-maneuvers", "Evasive maneuvers",
+            "Adversary emulation with detection evasion in mind.",
+            "Plan the engagement for stealth: assume EDR/SIEM coverage. Prefer " +
+                "living-off-the-land techniques, jittered timing, masqueraded " +
+                "process names, and reversible persistence. Map every evasion " +
+                "choice to its MITRE ATT&CK defense-evasion technique and state " +
+                "the rollback step."
+        ),
+        SkillDef(
+            "c2.zero-day-research", "Zero-day research",
+            "Triage a new CVE: exploitability and weapon fit.",
+            "For the given CVE: summarize the root cause class (memory corruption, " +
+                "logic, injection), the prerequisites, whether it is remotely " +
+                "exploitable pre-auth, whether it is in the CISA KEV, and " +
+                "whether the app's ZERO_DAY registry or exploit_payloads folders " +
+                "already weaponize it. Cite sources, mark uncertainty honestly."
+        ),
+        SkillDef(
+            "c2.incident-response", "Incident response",
+            "Structured IR: triage, contain, eradicate, recover.",
+            "Act as the incident commander: triage the reported indicators, form " +
+                "containment options ranked by business impact, list eradication " +
+                "steps (persistence sweep, credential resets), and the recovery " +
+                "verification pass. Keep a strict evidence timeline."
+        ),
+        SkillDef(
+            "c2.threat-intel", "Threat intel digest",
+            "KEV-driven prioritization of vulnerabilities.",
+            "Given the current CISA KEV feed (kev command), rank the entries by " +
+                "exposure of our environment, highlight zero-click and pre-auth " +
+                "entries, and produce a patch-priority table."
+        ),
+        SkillDef(
+            "c2.evasion", "OPSEC doctrine",
+            "Operate as if watched — breadcrumbs minimized.",
+            "Assume defenders have full telemetry. Review the planned technique " +
+                "chain and flag attribution breadcrumbs, noisy artifacts and " +
+                "irreversible actions; propose quieter alternates."
+        ),
+        SkillDef(
+            "c2.payload-customizer", "Payload craft",
+            "Adapt payload staging to the target profile.",
+            "Given the target OS/build/AV context, recommend the delivery format " +
+                "(document, script, wrapper APK), the stage protocol and the " +
+                "beacon schedule. Justify each choice in one line."
+        ),
+        SkillDef(
+            "c2.osint", "Social engineering OSINT",
+            "Pretext building from open sources.",
+            "For the given organization, build a pretext: likely roles, " +
+                "communication norms, public events to reference, and a " +
+                "credibility plan. No fabrication — only verifiable details."
+        ),
     )
 }

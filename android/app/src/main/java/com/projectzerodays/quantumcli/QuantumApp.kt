@@ -91,6 +91,7 @@ class QuantumApp : Application() {
                     listOf(LogRotationJob, HotFixStagingJob, ContentHotFixJob),
                 )
                 MaintenanceScheduler.armNightly()
+                MaintenanceScheduler.armHourlyCatalogSync()
             },
         )
         for (bp in phases) {

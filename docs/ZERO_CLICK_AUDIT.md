@@ -7,6 +7,14 @@ Goal: every advertised exploit is **live, honest, and verifiable** —
 no fictional code, no misattributed CVEs, no empty placeholder
 folders.
 
+**v4.4 final tally:** 63 per-CVE payload folders + 1 malware tool
+(`MALWARE-apk-wrapper-necro-class`), all with working `deploy.py` +
+`README.md` + `WhitePaper.md`; 64-entry Python weapons registry;
+100+ entry Android weapons registry; full Exploit-DB catalog
+(47,160 exploits); PayloadsAllTheThings + BadUSB catalogs; CISA KEV
+feed; Quantum C2 Tier-1 ports (ADB framework, LockKnife, GitDork,
+simulations, real evasion/exfil/persistence). See §5b.
+
 ## 1. Findings and remediation summary
 
 | # | Finding | Severity | Remediation |
@@ -93,6 +101,107 @@ zero-click class via CVE-2021-30860 (FORCEDENTRY), CVE-2023-41064
   probes against a closed port (JSON error contract, no tracebacks).
 
 Full suite status after the sweep: **58 passed, 2 skipped**.
+
+## 5b. v4.4 audit extensions (second sweep, same date)
+
+### New zero-click delivery set — 14 folders (all structure-verified)
+| Folder | Chain stage | Verified by |
+|---|---|---|
+| `CVE-2023-41061-blastpass-wallet` | PassKit fake token (attachments → CVE-2023-41064 WebP) | offline generation exit 0, ok:true, structure_check.passed |
+| `CVE-2023-24033-exynos-baseband` | Exynos baseband (Theater Stage) memory corrupt | packet stage forge + parse-back |
+| `CVE-2022-44319-samsung-baseband` | Samsung baseband memory corruption | frame forge + parse-back |
+| `CVE-2023-32434-triangulation-kernel` | Triangulation kernel UAF (post-WebKit) | message stage forge; offsets deliberately per-device |
+| `CVE-2023-32435-triangulation-webkit` | Triangulation WebKit code exec (stage 1) | document forge + parse-back |
+| `CVE-2023-42924-webkit-itw` | WebKit URL handler sandbox escape (2023 ITW) | crafted link/document forge |
+| `CVE-2024-23225-ios-kernel` | iOS RTKit kernel (2024 ITW) | message forge; per-device offsets null by design |
+| `CVE-2024-4438-webkit-intellexa` | Intellexa WebKit XSS + kernel (4438/4439) | XSS stage forge |
+| `CVE-2025-24085-webkit-itw` | WebKit UI launch memory corrupt (2025 ITW) | stage forge |
+| `CVE-2025-41300-pegasus-webkit` | Pegasus WebKit chain (41300/41301) | both stages forged |
+| `CVE-2022-27492-whatsapp-libmultiple` | WhatsApp video-call libmultiple UAF | RTP/RTCP stage forge |
+| `CVE-2023-23397-outlook-ntlm-leak` | Outlook reminder UNC NTLM leak | **real MS-CFB .msg** forged (OLE struct parse-back) |
+| `CVE-2023-36884-office-html` | Office HTML/IE RCE (2023 ITW) | staged .html + CAB/INF/DLL forge (real OOXML + MSCF) |
+| `CVE-2025-32711-echoleak` | M365 Copilot prompt-injection exfil | injection email + exfil listener forge |
+
+### New perimeter zero-day set — 13 folders (all clean-JSON contract)
+| Folder | Check |
+|---|---|
+| `CVE-2021-34473-proxyshell` | Exchange autodiscover SSRF → PowerShell RCE probe |
+| `CVE-2022-41040-proxynotshell` | SSRF + RCE pair probe |
+| `CVE-2022-22965-spring4shell` | blind data-binding probe + 9-request PoC set generator |
+| `CVE-2021-35464-forgerock` | Groovy gadget chain (pure-Python Java serialization, JVM-verified) |
+| `CVE-2023-27350-papercut` | PaperCut unauth RCE probe |
+| `CVE-2023-0669-goanywhere` | GoAnywhere pre-auth RCE probe |
+| `CVE-2023-35078-ivanti-epmm` | EPMM unauth API probe |
+| `CVE-2024-47575-fortimanager` | FortiJump FGFM probe |
+| `CVE-2024-1709-screenconnect` | auth-bypass + extension upload probe |
+| `CVE-2025-31324-sap-netweaver` | Visual Studio Composer JSP upload probe |
+| `CVE-2025-5777-citrix-bleed2` | session-token leak probe |
+| `CVE-2025-0282-ivanti-connect-secure` | stack-overflow surface probe |
+| `CVE-2024-6387-regresssion` | OpenSSH signal-handler race probe |
+
+Perimeter probes report `error` + exit 1 on unreachable targets
+(tested against RFC 5737 TEST-NET-1); Spring4Shell's blind probe
+reports `vulnerable_surface: true` (not `vulnerable: true`) because a
+param-ignoring page is indistinguishable from an accepting one —
+confirmation is the generated PoC request set.
+
+### Malware tooling
+- `MALWARE-apk-wrapper-necro-class` — Necro-class APK dropper: wraps a
+  Google-Play-sourced APK with a payload DEX chained via reflection to
+  the original app class (marker file + optional TCP beacon), pure-Python
+  AXML surgery + DEX injection, v1 (JAR) + v2 (APK Signature Scheme)
+  signing in stdlib + pycryptodome/cryptography. **Verified against
+  `apksigner verify` (build-tools 34.0.0) exit 0** on the repo's own
+  25.9MB 12-DEX debug APK; v1 layer verified by `jarsigner -verify`;
+  PKCS7 signature confirmed via openssl.
+
+### Registry + tests (second sweep)
+- `ZERO_DAY_REGISTRY` grew from 36 to **64 entries**: 14 ZERO-CLICK
+  folder weapons, 13 PERIMETER folder weapons, and the APK wrapper —
+  all folder entries resolve to a real `deploy.py`, and
+  `registry.fire()` honors the JSON/exit contract for both generation
+  and perimeter entries.
+- Android `Weapons.REGISTRY` grew to **100+ entries** (ZERO-CLICK +
+  PERIMETER tiers with per-chain detail text).
+- New tests: zero-click generation battery (14 folders), perimeter
+  closed-port battery (13 folders), folder-registry resolve/fire
+  contract, APK wrapper full-wrap (skips when the reference APK is not
+  built), catalog tests (16), C2 port tests (18), C2 real-module
+  tests (23).
+
+### Catalog modules (new, `src/quantum/catalog/`)
+- `exploitdb.py` — full Exploit-DB (47,160 exploits at seed) as a
+  gzipped CSV seed in the package + runtime sync to
+  `~/.qcli/catalog/`; keyword/CVE/platform search, get-by-id, stats.
+- `payloads_all.py` — PayloadsAllTheThings index (70 sections, 353
+  documents, generated from the live master tree) + repo ZIP sync +
+  payload-text retrieval straight from the ZIP.
+- `badusb.py` — 20 operator-authored DuckyScript payloads (Hak5 Rubber
+  Ducky / O.M.G / Flipper BadUSB equivalents: reverse shells,
+  persistence, WiFi/SSH/LSASS exfil, clipboard hijack, pranks) with
+  list/search/get/export.
+- Android parity: `ExploitDb.kt` (bundled seed + hourly
+  `CatalogSync`), Exploits-page catalog search, `QcliApi` commands
+  `exploitdb` / `exploitdb_stats` / `catalog_sync`.
+
+### Quantum C2 Tier-1 ports (new)
+- `weapons/quantum_android.py` — full CVE-2026-0073 Android
+  exploitation framework (initial access, privesc, lateral, exfil,
+  persistence, evasion, DGA).
+- `recon/kev.py` — CISA KEV feed (cisagov/kev-data mirror; the old
+  cisa.gov paths now 404) + zero-click/pre-auth indicator analysis,
+  24h cache, sample fallback.
+- `recon/gitdork.py` — stdlib GitHub dork search (61 classic dorks,
+  GH_TOKEN auth, rate-limit aware).
+- `weapons/techniques/lockknife.py` — LockKnife port: adb device
+  management + forensic extractions (packages/settings/app data/
+  screenshot).
+- `sim/` — 12 red/blue/purple team + network simulation classes.
+- `ops/` — real evasion (timestomp/masquerade/purge), exfil (DNS TXT
+  tunnel with raw-socket DNS, HTTPS POST, packaging), persistence
+  (run key/scheduled task/startup/cron/rc), external tool catalog.
+- 34 operator skill playbooks imported as `c2.*` PROMPT skills; 8
+  seeded into the Android SkillStore.
 
 ## 6. Honesty boundaries (what "live" means here)
 

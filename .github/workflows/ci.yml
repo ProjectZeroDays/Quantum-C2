@@ -20,7 +20,7 @@ jobs:
       - name: Install deps
         run: |
           python -m pip install --upgrade pip
-          pip install flask requests waitress pycryptodome colorama impacket pysmb pytest
+          pip install flask requests waitress pycryptodome cryptography colorama impacket pysmb pytest
       - name: Smoke — launcher imports
         run: python -c "import quantum_cli; assert len(quantum_cli.ZERO_DAY_REGISTRY) >= 25"
       - name: Full pytest suite (dirtypipe live on Linux)
