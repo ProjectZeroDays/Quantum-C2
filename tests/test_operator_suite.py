@@ -258,7 +258,9 @@ def test_perimeter_folders_never_crash_on_closed_port():
         "CVE-2024-6387-regresssion",
     ]
     for folder in folders:
-        rc, result, err = _run_gen(folder, "--target", "127.0.0.1",
+        # TEST-NET-1 (RFC 5737): never routable, never local — a true
+        # closed-port case even on machines running local web services.
+        rc, result, err = _run_gen(folder, "--target", "192.0.2.1",
                                    "--timeout", "1")
         assert rc in (0, 1), f"{folder} crashed (rc={rc}): {err}"
         assert isinstance(result, dict), f"{folder} no JSON: {err}"
