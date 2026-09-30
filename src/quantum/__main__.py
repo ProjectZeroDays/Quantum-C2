@@ -54,6 +54,42 @@ NEEDS_TARGET = {"osint", "recon", "validator", "auto", "phish", "brute", "router
                 "worm", "camshot", "quantum", "cottonmouth", "zerocheck"}
 
 
+def _qcli_dispatch(args):
+    """Workflow tool surface — the CLI mirror of the Android QcliApi."""
+    from quantum.recon.scan import ReconModule
+    from quantum.recon.fingerprint import Validator
+    from quantum.weapons.registry import registry
+
+    def dispatch(cmd, params=None):
+        params = params or {}
+        ip = params.get("ip") or args.target or ""
+        if cmd == "scan":
+            hosts = ReconModule().scan(params.get("cidr", local_scope()))
+            return {"hosts": [{"ip": h.get("ip"), "ports": h.get("ports", [])}
+                             for h in hosts]}
+        if cmd == "fingerprint":
+            return ReconModule().fingerprint(ip)
+        if cmd == "validator":
+            return Validator().score(ip, ReconModule().fingerprint(ip))
+        if cmd == "zerocheck":
+            return {k: registry.fire(cve, ip)
+                    for k, cve in [("log4shell", "CVE-2021-44228"),
+                                   ("citrixbleed", "CVE-2023-4966"),
+                                   ("panos", "CVE-2024-3400"),
+                                   ("blueborne", "CVE-2017-0781")]}
+        if cmd == "fire":
+            return registry.fire(params.get("cve", ""), ip)
+        if cmd == "camwar":
+            return CAMWAR.pwn_network(params.get("cidr", local_scope()))
+        if cmd == "brute":
+            return BruteEngineV3().run({"ip": ip})
+        if cmd == "mitre":
+            return MitreMapper().map_audit()
+        raise ValueError(f"unknown workflow tool: {cmd}")
+
+    return dispatch
+
+
 def _is_ipv4(s):
     return bool(re.match(r"^\d{1,3}(\.\d{1,3}){3}$", s or ""))
 
@@ -196,7 +232,8 @@ def main(argv=None):
                             "cottonmouth", "validator", "tor", "seal", "unseal", "brute",
                             "phish", "keygen", "deployai", "zerologon", "mitre", "federation",
                             "posixagent", "zerocheck", "mshtmaldoc", "flashfill", "emoji",
-                            "macreset", "keylog", "wipe", "persist", "ghostdns", "cagebreak"],
+                            "macreset", "keylog", "wipe", "persist", "ghostdns", "cagebreak",
+                            "agents", "skills", "workflows", "p0feed", "providers"],
                    help="direct command (optional)")
     p.add_argument("--menu", action="store_true", help="manual console")
     p.add_argument("--scope", "-c", dest="cidr", help="autonomous/scan scope CIDR")
@@ -358,6 +395,32 @@ def main(argv=None):
         print(json.dumps({"staged": CottonMouth().stage_payload(a.target or local_ip())})); return
     elif a.cmd == "brute":     print(json.dumps(BruteEngineV3().run({"ip": a.target}), indent=2)); return
     elif a.cmd == "phish":     print(json.dumps(PhishEngine().launch({"target_email": a.target}), indent=2, default=str)); return
+    elif a.cmd == "agents":
+        from quantum.ai.agents import load_all, get as agent_get
+        if a.target and a.target.startswith("id:"):
+            print(json.dumps(agent_get(a.target[3:]), indent=2, default=str)); return
+        print(json.dumps(list(load_all().values()), indent=2, default=str)); return
+    elif a.cmd == "skills":
+        from quantum.ai.skills import load_all, compose_prompt
+        if a.target and a.target.startswith("compose:"):
+            print(compose_prompt(a.target[8:].split(","))); return
+        print(json.dumps(list(load_all().values()), indent=2, default=str)); return
+    elif a.cmd == "workflows":
+        from quantum.ai.workflows import load_all, get as wf_get, run as wf_run
+        if a.target and a.target.startswith("run:"):
+            wf = wf_get(a.target[4:])
+            if not wf:
+                print(f"error: workflow '{a.target[4:]}' not found"); return
+            print(json.dumps(wf_run(wf, dispatch=_qcli_dispatch(a)), indent=2, default=str)); return
+        print(json.dumps(list(load_all().values()), indent=2, default=str)); return
+    elif a.cmd == "p0feed":
+        from quantum.recon.project_zero import zero_day_candidates, as_markdown, latest
+        if a.force:
+            print(json.dumps(zero_day_candidates(n=20), indent=2, default=str)); return
+        print(as_markdown(latest(n=15))); return
+    elif a.cmd == "providers":
+        from quantum.ai.providers import provider_status
+        print(json.dumps(provider_status(), indent=2, default=str)); return
 
 
 if __name__ == "__main__":
