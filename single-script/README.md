@@ -6,6 +6,16 @@
 
 \### Unified Autonomous Offensive Framework — Camera Dominance, 27-CVE Registry, Production WSGI C2
 
+\## Files in this directory
+
+| File | Purpose |
+|---|---|
+| `quantum-cli_Single-Version.py` | Single-file Quantum CLI (full framework) |
+| `Q-Android-ADB-Zero-Click-Exploit.py` | Q-Android v15.1 ADB zero-click framework (ZeroClickArsenal: webkit/iMessage/WhatsApp/BlueFrag/KRACK; Kyber/Dilithium PQ crypto; AI model management; exfiltration) |
+| `tao_nexus_v20.py` | TAO v20.1 NEXUS COMMANDER standalone (auto-exploitation, WebSocket C2, RDoH, PQ crypto, Bash Bunny payload generation) — interactive menu |
+
+See `../docs/ZERO_CLICK_AUDIT.md` for the zero-click exploit audit that verified these frameworks.
+
 
 
 \[!\[Python](https://img.shields.io/badge/Python-3.9%2B-3776AB?logo=python\&logoColor=white)](https://python.org)

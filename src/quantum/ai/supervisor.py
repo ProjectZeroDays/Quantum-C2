@@ -21,17 +21,19 @@ class AI_Supervisor:
 
     def __init__(self):
         env = load_env_file()
-        self.key = (os.environ.get("ABLITERATION_KEY")
-                    or env.get("ABLITERATION_KEY") or "")
-        self.url = os.environ.get("QCLI_AI_URL", "https://api.abliteration.ai/v1")
-        self.model = (os.environ.get("QCLI_PINNED_MODEL")
-                     or "abliterated-model-large-v2")
-        self.mode = "abliterated" if self.key else "local"
+        from quantum.ai.providers import resolve_provider
+        pid, provider, key = resolve_provider(env)
+        self.provider_id = pid
+        self.url = provider["url"]
+        self.key = key
+        self.model = provider["model"]
+        self.mode = provider["label"] if key else "local"
 
     def bootstrap(self):
         """Resolve provider; journal to logs/ai_bootstrap.json; no network."""
         from quantum.core.env import LOG_DIR
         info = {"ts": datetime.now().isoformat(), "mode": self.mode,
+                "provider": self.provider_id,
                 "model": self.model, "key_found": bool(self.key),
                 "no_ai": no_ai_mode()}
         if not self.key and not no_ai_mode() and sys.stdin is not None \
@@ -51,7 +53,7 @@ class AI_Supervisor:
         if self.mode == "local":
             log("AI bootstrap: no key — QBrain/local fallback active", "AI")
         else:
-            log(f"AI bootstrap: Abliterated.ai primary ({self.model})", "AI")
+            log(f"AI bootstrap: {self.mode} primary ({self.model})", "AI")
         return info
 
     def query(self, prompt, system=None, timeout=60):

@@ -45,6 +45,15 @@ ZERO_DAY_REGISTRY = {
     "CVE-2023-41064": {"name": "Apple ImageIO", "tier": "V3_CHECK", "weapon": "check_apple_imageio"},
     "CVE-2021-30858": {"name": "WebKit Escape", "tier": "V3_CHECK", "weapon": "check_webkit_escape"},
     "CVE-2022-21894": {"name": "BootHole", "tier": "V3_CHECK", "weapon": "check_boothole"},
+    # ---- bluetooth (BlueBorne family + BlackBED-class BLE) ----
+    "CVE-2017-0781": {"name": "BlueBorne BNEP", "tier": "V3_CHECK", "weapon": "check_blueborne_bnep"},
+    "CVE-2017-0785": {"name": "BlueBorne SDP", "tier": "V3_CHECK", "weapon": "check_blueborne_sdp"},
+    "CVE-2018-5383": {"name": "Bluetooth KNOB", "tier": "V3_CHECK", "weapon": "check_knob"},
+    "BLACKBED-BLE": {"name": "BlackBED BLE", "tier": "V3_CHECK", "weapon": "check_blackbed"},
+    "CVE-2020-0022": {"name": "BlueFrag L2CAP", "tier": "V3_CHECK", "weapon": "check_bluefrag"},
+    "CVE-2017-13077": {"name": "KRACK WPA2", "tier": "V3_CHECK", "weapon": "check_krack"},
+    # ---- adb (adbd TLS auth bypass) ----
+    "CVE-2026-0073": {"name": "adbd TLS Auth Bypass", "tier": "V3_CHECK", "weapon": "check_adb_tls_bypass"},
 }
 
 
@@ -54,7 +63,9 @@ def resolve_weapon(name):
     import quantum.weapons.legacy as _l
     import quantum.weapons.media_v3 as _m
     import quantum.weapons.remote_v3 as _r
-    for mod in (_r, _k, _m, _l):
+    import quantum.weapons.bluetooth as _b
+    import quantum.weapons.adb as _a
+    for mod in (_r, _k, _m, _l, _b, _a):
         fn = getattr(mod, name, None)
         if callable(fn):
             return fn
