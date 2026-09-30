@@ -209,6 +209,107 @@ def test_payload_folders_generate_and_verify(tmp_path):
         assert result.get("error") is None, f"{folder} error: {result}"
 
 
+def test_zero_click_folders_generate_and_verify(tmp_path):
+    """The 2022-2026 zero-click delivery set: every folder forges a
+    structurally valid delivery payload offline (no live target)."""
+    folders = [
+        "CVE-2023-41061-blastpass-wallet",
+        "CVE-2023-24033-exynos-baseband",
+        "CVE-2022-44319-samsung-baseband",
+        "CVE-2023-32434-triangulation-kernel",
+        "CVE-2023-32435-triangulation-webkit",
+        "CVE-2023-42924-webkit-itw",
+        "CVE-2024-23225-ios-kernel",
+        "CVE-2024-4438-webkit-intellexa",
+        "CVE-2025-24085-webkit-itw",
+        "CVE-2025-41300-pegasus-webkit",
+        "CVE-2022-27492-whatsapp-libmultiple",
+        "CVE-2023-23397-outlook-ntlm-leak",
+        "CVE-2023-36884-office-html",
+        "CVE-2025-32711-echoleak",
+    ]
+    for folder in folders:
+        rc, result, err = _run_gen(folder, "--out", str(tmp_path / folder))
+        assert rc == 0, f"{folder} failed: {err}\n{result}"
+        assert result.get("ok") is True, f"{folder} not ok: {result}"
+        assert result.get("error") is None, f"{folder} error: {result}"
+        out = result.get("out") or result.get("path") or result.get("file")
+        if out:
+            assert os.path.isfile(out), f"{folder} missing artifact {out}"
+
+
+def test_perimeter_folders_never_crash_on_closed_port():
+    """The 2021-2025 perimeter zero-day set: probing a closed port must
+    yield clean JSON (populated top-level error) and exit 1 — never a
+    traceback or exit code > 1."""
+    folders = [
+        "CVE-2021-34473-proxyshell",
+        "CVE-2022-41040-proxynotshell",
+        "CVE-2022-22965-spring4shell",
+        "CVE-2021-35464-forgerock",
+        "CVE-2023-27350-papercut",
+        "CVE-2023-0669-goanywhere",
+        "CVE-2023-35078-ivanti-epmm",
+        "CVE-2024-47575-fortimanager",
+        "CVE-2024-1709-screenconnect",
+        "CVE-2025-31324-sap-netweaver",
+        "CVE-2025-5777-citrix-bleed2",
+        "CVE-2025-0282-ivanti-connect-secure",
+        "CVE-2024-6387-regresssion",
+    ]
+    for folder in folders:
+        rc, result, err = _run_gen(folder, "--target", "127.0.0.1",
+                                   "--timeout", "1")
+        assert rc in (0, 1), f"{folder} crashed (rc={rc}): {err}"
+        assert isinstance(result, dict), f"{folder} no JSON: {err}"
+        assert result.get("error"), f"{folder} expected error on closed port: {result}"
+
+
+def test_payload_folder_registry_entries_resolve_and_fire():
+    """Every folder-based ZERO_DAY_REGISTRY entry points at a real
+    deploy.py; fire() honors the JSON contract for both a generation
+    entry and a perimeter (needs_target) entry."""
+    from quantum.weapons.registry import PAYLOADS_DIR, registry
+    folder_entries = {c: e for c, e in ZERO_DAY_REGISTRY.items()
+                      if e.get("folder")}
+    assert len(folder_entries) >= 28
+    for cve, entry in folder_entries.items():
+        deploy = os.path.join(PAYLOADS_DIR, entry["folder"], "deploy.py")
+        assert os.path.isfile(deploy), f"{cve}: missing {deploy}"
+
+    # generation entry: forges offline, exit ok
+    r = registry.fire("CVE-2023-41061", "127.0.0.1")
+    assert r["cve"] == "CVE-2023-41061" and r["status"] == "ok", r
+    assert r.get("ok") is True and r.get("error") is None
+
+    # perimeter entry: closed port -> clean JSON error, no raise
+    r2 = registry.fire("CVE-2021-34473", "127.0.0.1", {"timeout": 1})
+    assert r2["cve"] == "CVE-2021-34473" and r2["status"] == "error", r2
+    assert r2.get("error")
+
+    # operator arg override
+    r3 = registry.fire("MALWARE-APK-WRAPPER-NECRO", "127.0.0.1",
+                        {"args": ["--wrap", "no-such.apk"]})
+    assert r3["status"] == "error" and r3.get("error"), r3
+
+
+def test_apk_wrapper_wraps_reference_apk(tmp_path):
+    """Full wrap of the repo's own debug APK (when built) — internal
+    structural verification must pass."""
+    repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    apk = os.path.join(repo, "android", "app", "build", "outputs", "apk",
+                      "full", "debug", "app-full-debug.apk")
+    if not os.path.isfile(apk):
+        pytest.skip("reference debug APK not built")
+    out = str(tmp_path / "wrapped.apk")
+    rc, result, err = _run_gen("MALWARE-apk-wrapper-necro-class",
+                               "--wrap", apk, "--out", out)
+    assert rc == 0, f"wrapper failed: {err}\n{result}"
+    assert result.get("error") is None, result
+    assert result.get("verify", {}).get("passed") is True, result
+    assert os.path.isfile(out)
+
+
 def test_legacy_probes_never_crash_on_closed_port():
     for folder in ("CVE-2017-0144-eternalblue", "CVE-2020-1472-zerologon",
                    "CVE-2021-1675-printnightmare", "CVE-2021-36942-petitpotam",
