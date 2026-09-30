@@ -1,0 +1,14 @@
+{
+  "id": "c2.social-engineering-osint",
+  "name": "Social Engineering Osint",
+  "kind": "PROMPT",
+  "description": "Advanced OSINT and social engineering orchestration. Focuses on target research, profile building, and the creation of highly convincing manipulation vectors.",
+  "content": "# Social Engineering & OSINT\n\nThis skill handles the \"human element\" of the attack chain.\n\n## OSINT Workflows\n- **Deep Profiling**: Automating the collection of data from social media, public records, and leaked databases.\n- **Relationship Mapping**: Identifying key personnel and their connections to find the \"weakest link.\"\n- **Infrastructure Mapping**: Finding leaked API keys, forgotten dev servers, and exposed `.git` directories.\n\n## Social Engineering (SE)\n- **Pretexting**: Creating a believable persona and backstory for the target.\n- **Phishing Generation**: Using AI to write highly personalized emails/messages based on OSINT profiles.\n- **Payload Delivery**: coordinating with `pegasus-stealth-net` to deliver the payload via the social vector.",
+  "tags": [
+    "c2",
+    "operator",
+    "social-engineering-osint"
+  ],
+  "source": "Quantum C2 skills/social-engineering-osint",
+  "updated": "2026-09-30T22:29:19Z"
+}

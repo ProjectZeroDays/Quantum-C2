@@ -1,0 +1,14 @@
+{
+  "id": "c2.apt-hunting-detection",
+  "name": "Apt Hunting Detection",
+  "kind": "PROMPT",
+  "description": "Advanced Persistent Threat (APT) hunting and threat detection. Focuses on identifying stealthy intruders using TTP mapping, IoC analysis, and behavioral anomalies.",
+  "content": "# APT Hunting & Threat Detection\n\nThis skill focuses on finding the \"unfindable\" intruders.\n\n## Hunting Methodologies\n- **Indicator-Based Hunting**: Searching for known hashes, IPs, and domains (IoCs).\n- **Behavioral Hunting**: Identifying anomalous patterns (e.g., unusual PowerShell usage, unexpected outbound traffic to rare TLDs).\n- **TTP Mapping**: Aligning observed behaviors to the MITRE ATT&CK framework to predict the attacker's next move.\n\n## Detection Focus Areas\n- **Persistence**: Hunting for unusual scheduled tasks, registry keys, or WMI event consumers.\n- **Lateral Movement**: Monitoring for abnormal SMB/RPC traffic or credential dumping (LSASS access).\n- **Exfiltration**: Detecting high-volume data transfers or \"heartbeat\" patterns in DoH/DNS traffic.\n\n## The Hunting Loop\n1. **Hypothesis**: \"I believe an attacker is using [TTP] to maintain persistence.\"\n2. **Data Collection**: Gather logs (Event Logs, Sysmon, Network PCAPs).\n3. **Analysis**: Filter noise and look for the hypothesis pattern.\n4. **Verification**: Confirm the finding is malicious and not a system fluke.",
+  "tags": [
+    "c2",
+    "operator",
+    "apt-hunting-detection"
+  ],
+  "source": "Quantum C2 skills/apt-hunting-detection",
+  "updated": "2026-09-30T22:29:19Z"
+}

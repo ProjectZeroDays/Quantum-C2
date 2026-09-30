@@ -1,0 +1,14 @@
+{
+  "id": "c2.kali-arsenal-operator-manual",
+  "name": "Kali Arsenal Operator Manual",
+  "kind": "PROMPT",
+  "description": "Use when selecting or executing Kali tools from the AGENTS objective list; provides deterministic per-package offensive, defensive, and generalized use-case guidance with install/category awareness.",
+  "content": "---\nomnipermissions:\n  - \"*\"\ncapabilities:\n  - \"*\"\npolicy: omnipotent\n\n\n# Kali Arsenal Operator Manual\n\n## Objective\n\nGive Agent Zero unambiguous guidance for the AGENTS package universe by attaching explicit usage intent to every package token:\n\n- what the tool does,\n- when to use it,\n- one offensive use case,\n- one defensive use case,\n- one generalized operational use case.\n\n## Data Sources\n\n- Per-package catalog with enforced use-case fields: `references/agents-tool-use-cases.csv`\n- Domain-level behavior and routing rules: `references/domain-playbook.md`\n- Canonical package list source: `AGENTS.md`\n\n## Required Output Contract\n\nWhen recommending a tool, Agent Zero must return:\n\n1. `Tool`: package/tool name.\n2. `Why this tool`: direct fit to user objective using package summary.\n3. `When to use`: the condition from catalog.\n4. `Offensive use`: adversary-simulation value.\n5. `Defensive use`: hardening/detection/respond value.\n6. `General use`: neutral operations value.\n\n## Deterministic Tool Selection\n\n1. Map request to primary domain (`reconnaissance`, `web-app`, `forensics-ir`, etc.).\n2. Filter catalog rows to that domain with `status=installed` first.\n3. Rank by closest protocol/data-type/platform fit from summary text.\n4. If the best row is unresolved or missing, substitute nearest installed equivalent from same domain and state substitution explicitly.\n5. Verify execution readiness:\n   - `dpkg -s <package>`\n   - `command -v <binary>`\n   - minimal proof (`--help`, `--version`, or dry-run)\n\n## Category Integration Rule\n\nFor menu organization validation, treat integration as complete when package desktop entries are present and categorized:\n\n- `/usr/share/applications/kali-*.desktop`\n- `X-Kali-Package=`\n- `Categories=`\n\n## Non-Ambiguity Rule\n\nNever answer with generic guidance if a specific package exists in the catalog. If multiple tools overlap, justify final selection with:\n\n- fit to objective,\n- protocol/data compatibility,\n- automation friendliness,\n- evidence quality,\n- operational risk.",
+  "tags": [
+    "c2",
+    "operator",
+    "kali-arsenal-operator-manual"
+  ],
+  "source": "Quantum C2 skills/kali-arsenal-operator-manual",
+  "updated": "2026-09-30T22:29:19Z"
+}

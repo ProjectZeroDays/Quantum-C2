@@ -1,0 +1,14 @@
+{
+  "id": "c2.monitoring-evasion",
+  "name": "Monitoring Evasion",
+  "kind": "PROMPT",
+  "description": "",
+  "content": "# Monitoring & Evasion\n\n## Description\nBuilds triggers for intrusion detection, environmental analysis, and evasion. Enhances security by preventing undiscovered breaches through continuous monitoring and adaptive countermeasures.\n\n## When to Use\n- Setting up intrusion detection systems\n- Monitoring for anomalous behavior\n- Implementing evasion tactics\n- Analyzing environmental security posture\n\n## Implementation Method\n- Python3 with socket and CLI tools for network monitoring\n- Prometheus integration for metrics collection\n- Automated alert generation and response\n- Behavioral analysis and pattern recognition\n\n## Usage\n```bash\n# Start monitoring\nPOST /api/monitor/start\n{\n  \"targets\": [\"network\", \"system\", \"application\"],\n  \"alert_threshold\": 0.75\n}\n\n# Check monitoring status\nGET /api/monitor/status\n\n# Trigger evasion protocol\nPOST /api/evasion/activate\n{\n  \"level\": \"stealth|aggressive\",\n  \"duration\": \"minutes\"\n}\n```\n\n## Benefits\n- Provides continuous security monitoring\n- Detects breaches before they escalate\n- Implements adaptive evasion countermeasures\n- Maintains operational security posture",
+  "tags": [
+    "c2",
+    "operator",
+    "monitoring-evasion"
+  ],
+  "source": "Quantum C2 skills/monitoring-evasion",
+  "updated": "2026-09-30T22:29:19Z"
+}

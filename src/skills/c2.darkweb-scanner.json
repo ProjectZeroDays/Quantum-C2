@@ -1,0 +1,14 @@
+{
+  "id": "c2.darkweb-scanner",
+  "name": "Darkweb_Scanner",
+  "kind": "PROMPT",
+  "description": ">",
+  "content": "# DarkWebScanner\n\nDark web (.onion) content scanner via Tor proxy. Read-only, safe browsing with structured results.\n\n## Purpose\nIndex and display .onion service content through Tor isolation. No exploitation -- read-only crawling with structured output for the dark web browser UI.\n\n## Safety\n- **Read-only**: never writes to or interacts with target services beyond HTTP GET\n- **Tor-isolated**: all traffic routed through local Tor SOCKS proxy (port 9050)\n- **No authentication bypass**: does not attempt login or credential harvesting\n- **Rate-limited**: respects crawl depth and page count limits to avoid flooding\n\n## Capabilities\n- `.onion` URL resolution via Tor SOCKS5 proxy\n- Multi-depth BFS crawling with configurable depth and page limits\n- Title extraction, content length, link discovery\n- Structured JSON/CSV report generation\n- Quick single-host lookup for known .onion addresses\n\n## Usage\n```python\nfrom agents.specialized.darkweb_scanner.darkweb_scanner_agent import DarkWebScanner\n\nscanner = DarkWebScanner(tor_socks_port=9050)\n\n# Check Tor connectivity\nprint(scanner.is_tor_available())  # True if Tor running\n\n# Quick single-page lookup\nresult = scanner.quick_lookup('duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twHQwzur4q.onion')\n\n# Crawl starting from a known .onion directory\ncrawl = scanner.crawl('http://exampleonion123.onion/', max_depth=2, max_pages=20)\n\n# Generate report\nreport_json = scanner.generate_report('json')\nreport_csv = scanner.export_csv()\nreport_dict = scanner.generate_report('dict')\n\n# Agent describe\ninfo = scanner.describe()\n```\n\n## Result Display\nResults are structured for the dark web browser UI:\n- `title`: page title extracted from HTML\n- `content_length`: bytes of content retrieved\n- `onion_links`: discovered .onion links on the page (up to 20)\n- `preview`: first 2000 chars of page content\n- `status`: HTTP status code or error message\n- `timestamp`: scan timestamp\n\n## Dependencies\n- Python stdlib only (urllib, socket, re, json, csv, io)\n- Tor running locally on port 9050 (SOCKS5) or 9150 (Tor Browser)\n- No external packages required",
+  "tags": [
+    "c2",
+    "operator",
+    "darkweb-scanner"
+  ],
+  "source": "Quantum C2 skills/darkweb_scanner",
+  "updated": "2026-09-30T22:29:19Z"
+}

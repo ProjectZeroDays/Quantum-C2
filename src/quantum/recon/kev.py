@@ -18,9 +18,9 @@ import urllib.request
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-KEV_URL_PRIMARY = "https://www.cisa.gov/sites/default/files/cve/kev.json"
-KEV_URL_BACKUP = ("https://www.cisa.gov/sites/default/files/2025-01/"
-                  "kev_crowd-sourced-trends_2025-01-14.json")
+KEV_URL_PRIMARY = ("https://raw.githubusercontent.com/cisagov/kev-data/"
+                   "main/known_exploited_vulnerabilities.json")
+KEV_URL_BACKUP = "https://www.cisa.gov/sites/default/files/cve/kev.json"
 
 ZERO_CLICK_INDICATORS = [
     "zero-click", "zero click", "zero-click exploit",

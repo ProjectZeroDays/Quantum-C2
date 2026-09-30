@@ -1,0 +1,14 @@
+{
+  "id": "c2.spoofing-master",
+  "name": "Spoofing Master",
+  "kind": "PROMPT",
+  "description": "Advanced identity and location fabrication. Supports spoofing of SMS, Messenger, Signal, WhatsApp, Snapchat, Twitter, Discord, Emails, and GPS coordinates.",
+  "content": "# Spoofing Master\n\nThis skill provides the capability to manipulate identity and presence across multiple platforms.\n\n## Spoofing Capabilities\n- **Social Platforms**: Fabricate messages on Signal, WhatsApp, Discord, and Twitter by manipulating session headers or utilizing API flaws.\n- **Mobile Messaging**: Spoof SMS sender IDs (Alphanumeric) to impersonate official entities.\n- **Email Fabrication**: Forge SMTP 'From' headers to bypass basic trust filters.\n- **Geographic Presence**: Inject fake GPS/GLONASS coordinates into mobile devices to bypass location-based security.\n\n## Operational Workflow\n1. **Target Identification**: Determine the platform and identity to be spoofed.\n2. **Vector Selection**: Choose between protocol-level spoofing, API manipulation, or session hijacking.\n3. **Payload Construction**: Craft the message or coordinate set.\n4. **Execution**: Deploy the spoof via the `pegasus-spoof-ctrl` MCP.\n5. **Verification**: Confirm the spoof was received as intended by the target.",
+  "tags": [
+    "c2",
+    "operator",
+    "spoofing-master"
+  ],
+  "source": "Quantum C2 skills/spoofing-master",
+  "updated": "2026-09-30T22:29:19Z"
+}
