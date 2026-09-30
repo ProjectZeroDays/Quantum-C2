@@ -6,6 +6,9 @@ on:
       - "v*"
   workflow_dispatch:
 
+permissions:
+  contents: write   # softprops/action-gh-release needs this to publish
+
 jobs:
   build-apk:
     runs-on: ubuntu-latest
