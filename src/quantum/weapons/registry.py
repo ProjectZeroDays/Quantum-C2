@@ -2,9 +2,15 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 
 from quantum.core.logging import log
+
+# repo-root/exploit_payloads — per-CVE operator tooling folders
+PAYLOADS_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__))))), "exploit_payloads")
 
 # ----------------------------------------------------------------------------
 # ZERO_DAY_REGISTRY — weapon entries reference callables BY NAME; resolution
@@ -54,7 +60,117 @@ ZERO_DAY_REGISTRY = {
     "CVE-2017-13077": {"name": "KRACK WPA2", "tier": "V3_CHECK", "weapon": "check_krack"},
     # ---- adb (adbd TLS auth bypass) ----
     "CVE-2026-0073": {"name": "adbd TLS Auth Bypass", "tier": "V3_CHECK", "weapon": "check_adb_tls_bypass"},
+    # ---- payload-folder weapons (exploit_payloads/, per-CVE operator tooling).
+    # "folder" = subfolder of exploit_payloads/ containing deploy.py;
+    # "needs_target" = default fire() probes the target, otherwise fire()
+    # forges the delivery payload to a temp file (operators pass
+    # params={"args": [...]} to control the full CLI).
+    # ---- zero-click delivery set (client-side, 2022-2026) ----
+    "CVE-2023-41061": {"name": "BlastPass Wallet Fake Token", "tier": "ZERO-CLICK",
+                       "folder": "CVE-2023-41061-blastpass-wallet"},
+    "CVE-2023-24033": {"name": "Exynos Baseband (Theater Stage)", "tier": "ZERO-CLICK",
+                       "folder": "CVE-2023-24033-exynos-baseband"},
+    "CVE-2022-44319": {"name": "Samsung Baseband Memory Corrupt", "tier": "ZERO-CLICK",
+                       "folder": "CVE-2022-44319-samsung-baseband"},
+    "CVE-2023-32434": {"name": "Triangulation Kernel UAF", "tier": "ZERO-CLICK",
+                       "folder": "CVE-2023-32434-triangulation-kernel"},
+    "CVE-2023-32435": {"name": "Triangulation WebKit Code Exec", "tier": "ZERO-CLICK",
+                       "folder": "CVE-2023-32435-triangulation-webkit"},
+    "CVE-2023-42924": {"name": "WebKit ITW WebKit URL Handler", "tier": "ZERO-CLICK",
+                       "folder": "CVE-2023-42924-webkit-itw"},
+    "CVE-2024-23225": {"name": "iOS Kernel RTKit In-the-Wild", "tier": "ZERO-CLICK",
+                       "folder": "CVE-2024-23225-ios-kernel"},
+    "CVE-2024-4438": {"name": "Intellexa WebKit Chain (4438/4439)", "tier": "ZERO-CLICK",
+                      "folder": "CVE-2024-4438-webkit-intellexa"},
+    "CVE-2025-24085": {"name": "WebKit ITW UI Launch", "tier": "ZERO-CLICK",
+                      "folder": "CVE-2025-24085-webkit-itw"},
+    "CVE-2025-41300": {"name": "Pegasus WebKit Chain (41300/41301)", "tier": "ZERO-CLICK",
+                      "folder": "CVE-2025-41300-pegasus-webkit"},
+    "CVE-2022-27492": {"name": "WhatsApp libmultiple UAF", "tier": "ZERO-CLICK",
+                      "folder": "CVE-2022-27492-whatsapp-libmultiple"},
+    "CVE-2023-23397": {"name": "Outlook NTLM Leak", "tier": "ZERO-CLICK",
+                       "folder": "CVE-2023-23397-outlook-ntlm-leak"},
+    "CVE-2023-36884": {"name": "Office HTML RCE (ITW)", "tier": "ZERO-CLICK",
+                      "folder": "CVE-2023-36884-office-html"},
+    "CVE-2025-32711": {"name": "EchoLeak M365 AI Prompt Injection", "tier": "ZERO-CLICK",
+                      "folder": "CVE-2025-32711-echoleak"},
+    # ---- perimeter zero-day set (2021-2025) ----
+    "CVE-2021-34473": {"name": "ProxyShell Exchange SSRF", "tier": "PERIMETER", "needs_target": True,
+                       "folder": "CVE-2021-34473-proxyshell"},
+    "CVE-2022-41040": {"name": "ProxyNotShell Exchange SSRF", "tier": "PERIMETER", "needs_target": True,
+                      "folder": "CVE-2022-41040-proxynotshell"},
+    "CVE-2022-22965": {"name": "Spring4Shell ClassLoader", "tier": "PERIMETER", "needs_target": True,
+                      "folder": "CVE-2022-22965-spring4shell"},
+    "CVE-2021-35464": {"name": "ForgeRM/ForgeRock Groovy Gadget", "tier": "PERIMETER", "needs_target": True,
+                      "folder": "CVE-2021-35464-forgerock"},
+    "CVE-2023-27350": {"name": "PaperCut NG/MF Unauth RCE", "tier": "PERIMETER", "needs_target": True,
+                      "folder": "CVE-2023-27350-papercut"},
+    "CVE-2023-0669": {"name": "GoAnywhere MFT Pre-Auth RCE", "tier": "PERIMETER", "needs_target": True,
+                     "folder": "CVE-2023-0669-goanywhere"},
+    "CVE-2023-35078": {"name": "Ivanti EPMM Unauth API", "tier": "PERIMETER", "needs_target": True,
+                      "folder": "CVE-2023-35078-ivanti-epmm"},
+    "CVE-2024-47575": {"name": "FortiManager Missing Auth (FortiJump)", "tier": "PERIMETER", "needs_target": True,
+                      "folder": "CVE-2024-47575-fortimanager"},
+    "CVE-2024-1709": {"name": "ScreenConnect Auth Bypass", "tier": "PERIMETER", "needs_target": True,
+                     "folder": "CVE-2024-1709-screenconnect"},
+    "CVE-2025-31324": {"name": "SAP NetWeaver Visual Studio RCE", "tier": "PERIMETER", "needs_target": True,
+                      "folder": "CVE-2025-31324-sap-netweaver"},
+    "CVE-2025-5777": {"name": "Citrix Bleed 2 Session Hijack", "tier": "PERIMETER", "needs_target": True,
+                     "folder": "CVE-2025-5777-citrix-bleed2"},
+    "CVE-2025-0282": {"name": "Ivanti Connect Secure Stack Overflow", "tier": "PERIMETER", "needs_target": True,
+                     "folder": "CVE-2025-0282-ivanti-connect-secure"},
+    "CVE-2024-6387": {"name": "regreSSHion OpenSSH RCE", "tier": "PERIMETER", "needs_target": True,
+                     "folder": "CVE-2024-6387-regresssion"},
+    # ---- malware tooling ----
+    "MALWARE-APK-WRAPPER-NECRO": {"name": "APK Wrapper (Necro-class dropper)",
+                                  "tier": "MALWARE",
+                                  "folder": "MALWARE-apk-wrapper-necro-class"},
 }
+
+
+def _fire_folder(cve, entry, ip, params):
+    """Run a payload-folder deploy.py. Default args: --target probe when the
+    entry needs a target, else forge the delivery payload to a temp file.
+    Operators override the full CLI via params={"args": [...]}. Never raises;
+    deploy.py's own JSON + exit-code contract is passed through."""
+    import sys
+    import tempfile
+    params = params or {}
+    deploy = os.path.join(PAYLOADS_DIR, entry["folder"], "deploy.py")
+    if not os.path.isfile(deploy):
+        return {"cve": cve, "status": "error", "error": "deploy.py missing"}
+    args = [str(a) for a in (params.get("args") or [])]
+    if not args:
+        if entry.get("needs_target"):
+            args = ["--target", str(ip), "--timeout", str(params.get("timeout", 5))]
+        else:
+            outdir = os.path.join(tempfile.gettempdir(), "qcli")
+            try:
+                os.makedirs(outdir, exist_ok=True)
+            except OSError:
+                outdir = tempfile.gettempdir()
+            args = ["--out", os.path.join(outdir, cve.replace("/", "_") + ".bin")]
+    try:
+        proc = subprocess.run(
+            [sys.executable, deploy, *args],
+            capture_output=True, text=True,
+            timeout=float(params.get("proc_timeout", 90)),
+            cwd=os.path.dirname(deploy))
+    except Exception as exc:
+        return {"cve": cve, "status": "error", "error": str(exc)}
+    try:
+        payload = json.loads(proc.stdout or "{}")
+    except Exception:
+        payload = None
+    status = "ok" if proc.returncode == 0 else "error"
+    if isinstance(payload, dict):
+        payload.setdefault("cve", cve)
+        payload.setdefault("status", status)
+        return payload
+    if payload is not None:
+        return {"cve": cve, "status": status, "result": payload}
+    return {"cve": cve, "status": status,
+            "raw": ((proc.stdout or "") + (proc.stderr or ""))[:2000]}
 
 
 def resolve_weapon(name):
@@ -89,6 +205,8 @@ class _Registry:
         entry = ZERO_DAY_REGISTRY.get(cve)
         if not entry:
             raise KeyError(f"unknown CVE: {cve}")
+        if entry.get("folder"):
+            return _fire_folder(cve, entry, ip, params)
         fn = resolve_weapon(entry["weapon"])
         if not callable(fn):
             return {"cve": cve, "status": "error",
@@ -131,6 +249,8 @@ class ExploitOrchestrator:
         if cve not in ZERO_DAY_REGISTRY:
             log(f"fire: '{cve}' not in registry", "WARN"); return {"error": cve}
         rec = ZERO_DAY_REGISTRY[cve]
+        if rec.get("folder"):
+            return _fire_folder(cve, rec, ip, params)
         fn = resolve_weapon(rec["weapon"])
         if not callable(fn):
             return {"cve": cve, "status": "error", "error": f"weapon {rec['weapon']!r} unresolved"}
