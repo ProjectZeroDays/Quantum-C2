@@ -3,6 +3,7 @@ package com.projectzerodays.quantumcli.ops
 import com.projectzerodays.quantumcli.c2.C2State
 import com.projectzerodays.quantumcli.c2.CameraHit
 import com.projectzerodays.quantumcli.c2.Grayfish
+import com.projectzerodays.quantumcli.education.WalkthroughEngine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -104,6 +105,7 @@ object Overlord {
         this.targetScope = targetScope?.takeIf { it.isNotBlank() }
         val acts = if (cameraOnly) CAMERA_ONLY_ACTS else ACTIONS
         _running.value = true
+        WalkthroughEngine.triggered("overlord.started")
         C2State.audit(
             "C2",
             "OVERLORD cycle started (interval ${intervalSec}s, camera_only=$cameraOnly, " +

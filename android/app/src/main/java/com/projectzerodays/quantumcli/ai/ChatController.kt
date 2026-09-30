@@ -65,7 +65,7 @@ object ChatController {
                 val mode = QuantSettings.state.value.aiMode
                 when (mode) {
                     AiClient.MODE_ONLINE -> {
-                        if (QuantSettings.state.value.apiKey.isBlank()) {
+                        if (Providers.resolve(QuantSettings.state.value).key.isBlank()) {
                             addAssistant(
                                 "Online AI selected but no API key set — add it in Settings. " +
                                     deterministic(text, onAction)

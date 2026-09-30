@@ -25,6 +25,10 @@ data class SettingsData(
     val overlordCycles: Int = 0,                 // 0 = infinite
     val overlordScope: String = "",              // blank = local /24; else CIDR
     val c2Domain: String = "",                   // GhostDNS / DoH operator domain
+    val clipboardClearSec: Int = 30,             // clipboard hygiene TTL (CopyChip/MaskedSecretCell)
+    val hotFixChannel: String = "",              // signed content hot-fix base URL; blank = disabled
+    val aiProvider: String = "abliteration",     // Providers preset id (ai/Providers.kt)
+    val aiApiKey: String = "",                   // per-provider key; blank = legacy apiKey (migration)
 )
 
 /**
@@ -76,6 +80,10 @@ object QuantSettings {
         overlordCycles = prefs.getInt("overlord_cycles", 0),
         overlordScope = prefs.getString("overlord_scope", "") ?: "",
         c2Domain = prefs.getString("c2_domain", "") ?: "",
+        clipboardClearSec = prefs.getInt("clipboard_clear_sec", 30),
+        hotFixChannel = prefs.getString("hotfix_channel", "") ?: "",
+        aiProvider = prefs.getString("ai_provider", "abliteration") ?: "abliteration",
+        aiApiKey = prefs.getString("ai_api_key", "") ?: "",
     )
 
     fun update(transform: (SettingsData) -> SettingsData) {
@@ -96,6 +104,10 @@ object QuantSettings {
             .putInt("overlord_cycles", next.overlordCycles)
             .putString("overlord_scope", next.overlordScope)
             .putString("c2_domain", next.c2Domain)
+            .putInt("clipboard_clear_sec", next.clipboardClearSec)
+            .putString("hotfix_channel", next.hotFixChannel)
+            .putString("ai_provider", next.aiProvider)
+            .putString("ai_api_key", next.aiApiKey)
             .apply()
         _state.value = next
     }

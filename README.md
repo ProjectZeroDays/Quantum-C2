@@ -113,6 +113,13 @@ python quantum_cli.py keygen                      # (re)generate implant crypto 
 python quantum_cli.py mitre                      # regenerate logs/mitre_map.json from the audit log
 python quantum_cli.py --menu                     # manual console (all of the above, menu-driven)
 
+# OPERATOR SUITE (v4.4)
+python quantum_cli.py providers                   # list AI provider presets + key status (abliteration/openrouter/venice/agnes/opencode)
+python quantum_cli.py agents                      # list/create/edit SLDR + NS-org agent presets
+python quantum_cli.py skills                     # list/seed skill packs (PROMPT/TOOL/SCRIPT) + compose prompts
+python quantum_cli.py workflows                  # list/create/run workflows (variable substitution, ${first_host} chaining)
+python quantum_cli.py p0feed                     # Google Project Zero feed: latest posts + zero-day candidates
+
 # AUTONOMOUS MODES
 python quantum_cli.py                            # fully autonomous, camera-first, local /24
 python quantum_cli.py --no-ai --cycles 5         # deterministic (QBrain), 5 cycles, no AI calls
@@ -151,24 +158,25 @@ quantum-cli/
 │   ├── ai/                       # AI_Supervisor (Abliterated.ai primary) + local model bootstrap
 │   ├── recon/                    # scan, fingerprint/Validator, OSINT, DoH, WS-Discovery/ONVIF
 │   ├── camwar/                   # CAMWAR engine, vendor tables, RTSP, brute/phish v3
-│   ├── weapons/                  # 29-CVE registry, kernel/remote/media/legacy tiers, PolyMorph,
-│   │   │                         #   techniques (cagebreak, flashfill, macreset, emojisms)
+│   ├── weapons/                  # 29+ CVE registry, kernel/remote/media/legacy/bluetooth/adb tiers,
+│   │   │                         #   PolyMorph, techniques (cagebreak, flashfill, macreset, emojisms)
 │   │   └── ...
 │   ├── postexploit/              # persistx, kitlogger, killswitch, harvest, footprint
 │   ├── c2/                       # Flask app + routes, waitress WSGI, transports, agents (ghostfang, ghostdns)
 │   ├── overlord/                 # AutonomousOverlord, decide policy, engagement engines
 │   └── dash/                     # live ops dashboard (served at /dash)
 ├── agents/build/variant.py       # deterministic per-target OBSIDIAN agent variant builder
-├── agents/build/out/             # generated variant stagers (obsidian_<ip>_e<epoch>_<tag>.ps1)
-├── exploit_payloads/             # staged exploit payloads (built alongside the framework)
-├── tests/                        # pytest suite (registry, polymorph, emoji, variant)
+├── agents/build/out/            # generated variant stagers (obsidian_<ip>_e<epoch>_<tag>.ps1)
+├── exploit_payloads/             # per-CVE deploy folders (deploy.py + README + WhitePaper each;
+│                                 #   includes the verified zero-click suite — see docs/ZERO_CLICK_AUDIT.md)
+├── tests/                        # pytest suite (registry, polymorph, emoji, variant, operator suite)
 ├── dist/quantum-cli-v3.1-single.py   # archived single-file V3.1 spec (reference)
-├── single-script/                # legacy single-file reference copy
+├── single-script/                # legacy single-file reference copy + standalone zero-click frameworks
 ├── qcli/                         # runtime: keys/, obsidian.ps1, ghostfang.sh, ghostdns.sh
 ├── logs/                         # audit.jsonl, decisions.jsonl, mitre_map.json, .lootkey (immutable!)
 ├── loot/                         # sealed loot (*.gfy)
 ├── models/                       # local AI models
-└── docs/                         # WIKI, OPERATOR_MANUAL, TROUBLESHOOTING, HOWTOs
+└── docs/                         # WIKI, OPERATOR_MANUAL, TROUBLESHOOTING, HOWTOs, ZERO_CLICK_AUDIT
 ```
 
 ## Testing
@@ -191,6 +199,9 @@ byte-identical; different epochs differ bytewise).
 - [docs/WIKI.md](docs/WIKI.md) — architecture, module map, MITRE mapping, C2 REST API reference.
 - [docs/OPERATOR_MANUAL.md](docs/OPERATOR_MANUAL.md) — step-by-step operator runbook.
 - [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) — symptom → fix table.
+- [docs/ZERO_CLICK_AUDIT.md](docs/ZERO_CLICK_AUDIT.md) — the v4.4 zero-click exploit audit: every payload folder verified, misattributed CVEs rejected, honesty boundaries.
+- [docs/SLDR_AGENT_PROMPT.md](docs/SLDR_AGENT_PROMPT.md) — the SLDR agent doctrine (sovereign operator + NS-org presets).
+- [docs/ROADMAP_TASKS.md](docs/ROADMAP_TASKS.md) — the operator task list / development master document.
 - [docs/HOWTOs.md](docs/HOWTOs.md) — in-depth guides (autonomous runs, DoH exfil, variants, registry).
 
 ## License
