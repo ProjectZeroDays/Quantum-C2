@@ -35,36 +35,36 @@ object AiClient {
         messages: List<Pair<String, String>>,
         timeoutMs: Int = 60_000,
     ): String? {
-        val s = QuantSettings.state.value
-        if (s.apiUrl.isBlank() || s.apiKey.isBlank()) return null
-        val url = s.apiUrl.trimEnd('/') + "/chat/completions"
+        val r = Providers.resolve(QuantSettings.state.value)
+        if (r.url.isBlank() || r.key.isBlank()) return null
+        val url = r.url.trimEnd('/') + "/chat/completions"
         val arr = JSONArray()
         for ((role, content) in messages) {
             arr.put(JSONObject().put("role", role).put("content", content))
         }
-        val body = JSONObject().put("model", s.model).put("messages", arr).toString()
-        val r = Net.httpPost(
+        val body = JSONObject().put("model", r.model).put("messages", arr).toString()
+        val resp = Net.httpPost(
             url,
             body.toByteArray(Charsets.UTF_8),
             mapOf(
-                "Authorization" to "Bearer ${s.apiKey}",
+                "Authorization" to "Bearer ${r.key}",
                 "Content-Type" to "application/json"
             ),
             timeoutMs
         )
-        if (r.error != null) {
-            C2State.audit("AI", "online chat failed: ${r.error}")
+        if (resp.error != null) {
+            C2State.audit("AI", "online chat failed: ${resp.error}")
             return null
         }
         return try {
-            val parsed = JSONObject(r.text())
+            val parsed = JSONObject(resp.text())
             parsed
                 .getJSONArray("choices")
                 .getJSONObject(0)
                 .getJSONObject("message")
                 .getString("content")
         } catch (e: Exception) {
-            C2State.audit("AI", "online reply parse failed: ${r.text(120)}")
+            C2State.audit("AI", "online reply parse failed: ${resp.text(120)}")
             null
         }
     }

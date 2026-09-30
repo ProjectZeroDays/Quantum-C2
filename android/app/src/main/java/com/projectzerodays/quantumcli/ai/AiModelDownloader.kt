@@ -23,11 +23,24 @@ import java.io.File
  */
 object AiModelDownloader {
 
-    /** Official MediaPipe LLM Inference sample weights (~1.4 GB, int4). */
+    /**
+     * Known-good mirrors for the Gemma-2B int4 tflite weights — tried in
+     * order. The official MediaPipe asset bucket stays first; the LiteRT
+     * community HuggingFace repo is the fallback.
+     */
+    val MODEL_URLS = listOf(
+        "https://storage.googleapis.com/mediapipe-assets/gemma-2b-it-gpu-int4.bin",
+        "https://huggingface.co/litert-community/Gemma-2B-it-GLu/resolve/main/gemma-2b-it-gpu-int4.tflite",
+    )
+
+    /** Kept for compatibility — the primary mirror (index 0 of MODEL_URLS). */
     const val MODEL_URL =
         "https://storage.googleapis.com/mediapipe-assets/gemma-2b-it-gpu-int4.bin"
 
     const val MODEL_NAME = "gemma-2b-it-gpu-int4.bin"
+
+    /** A model smaller than this is a corrupt/truncated mirror, not weights. */
+    const val MIN_MODEL_BYTES = 10L * 1024 * 1024
 
     private val _downloading = MutableStateFlow(false)
     val downloading: StateFlow<Boolean> = _downloading.asStateFlow()
@@ -72,23 +85,76 @@ object AiModelDownloader {
         return true
     }
 
+    /**
+     * Try every mirror in order; a failed mirror falls back to the next.
+     * Partial files resume via the Range header and the final size must pass
+     * the sanity check before the download is accepted.
+     */
     private fun download() {
         val tmp = File(C2State.filesRoot, "$MODEL_NAME.tmp")
         val final = File(C2State.filesRoot, MODEL_NAME)
         tmp.parentFile?.mkdirs()
-        // Stream in chunks so we can report progress without buffering 1.4 GB.
-        val conn = java.net.URL(MODEL_URL).openConnection() as java.net.HttpURLConnection
+        var lastError: Exception? = null
+        var ok = false
+        for (url in MODEL_URLS) {
+            try {
+                downloadFrom(url, tmp)
+                if (tmp.length() <= MIN_MODEL_BYTES) {
+                    throw java.io.IOException(
+                        "model too small (${tmp.length()} B) — corrupt mirror?"
+                    )
+                }
+                ok = true
+                break
+            } catch (e: Exception) {
+                lastError = e
+                tmp.delete()
+                C2State.audit(
+                    "AI",
+                    "mirror failed (${e.message}) — ${MODEL_URLS.indexOf(url) + 1}/" +
+                        "${MODEL_URLS.size} exhausted, trying next"
+                )
+            }
+        }
+        if (!ok) {
+            throw lastError ?: java.io.IOException("all model mirrors failed")
+        }
+        if (final.isFile) final.delete()
+        if (!tmp.renameTo(final)) {
+            tmp.copyTo(final, overwrite = true)
+            tmp.delete()
+        }
+    }
+
+    /** Stream one mirror into [tmp], resuming a partial file via Range. */
+    private fun downloadFrom(url: String, tmp: File) {
+        val resumeFrom = if (tmp.isFile) tmp.length() else 0L
+        val conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
         conn.connectTimeout = 30_000
         conn.readTimeout = 60_000
         conn.instanceFollowRedirects = true
+        if (resumeFrom > 0) {
+            conn.setRequestProperty("Range", "bytes=$resumeFrom-")
+        }
         var lastReported = 0f
+        var lastSizeLog = resumeFrom
         try {
-            val total = conn.contentLengthLong.takeIf { it > 0 } ?: -1L
-            var lastSizeLog = 0L
+            val status = conn.responseCode
+            if (status !in 200..299) throw java.io.IOException("HTTP $status")
+            // 206 = server honored the Range resume; 200 = full restart.
+            val resumed = status == 206
+            if (!resumed && resumeFrom > 0) {
+                C2State.audit("AI", "mirror does not support resume — restarting from 0")
+            }
+            val total = conn.contentLengthLong.takeIf { it > 0 }
+                ?.let { if (resumed) it + resumeFrom else it } ?: -1L
             conn.inputStream.use { input ->
-                tmp.outputStream().use { out ->
+                java.io.FileOutputStream(tmp, resumed).use { out ->
                     val buf = ByteArray(256 * 1024)
-                    var read = 0L
+                    var read = resumeFrom
+                    if (resumed) {
+                        C2State.audit("AI", "resuming model download at ${read / (1024 * 1024)} MB")
+                    }
                     while (true) {
                         val n = input.read(buf)
                         if (n < 0) break
@@ -108,18 +174,16 @@ object AiModelDownloader {
                         } else if (read - lastSizeLog >= 200L * 1024 * 1024) {
                             // No Content-Length: report pace by bytes only.
                             lastSizeLog = read
-                            C2State.audit("AI", "fallback model download ${read / (1024 * 1024)} MB…")
+                            C2State.audit(
+                                "AI",
+                                "fallback model download ${read / (1024 * 1024)} MB…"
+                            )
                         }
                     }
                 }
             }
         } finally {
             conn.disconnect()
-        }
-        if (final.isFile) final.delete()
-        if (!tmp.renameTo(final)) {
-            tmp.copyTo(final, overwrite = true)
-            tmp.delete()
         }
     }
 }

@@ -6,4 +6,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 object UiBus {
     /** CIDR to scan when the Cameras page next resumes (null = local /24). */
     val cameraScanRequest = MutableStateFlow<String?>(null)
+
+    /** Bump (increment) to request the floating chat overlay to open. */
+    val chatOpenRequest = MutableStateFlow(0)
 }

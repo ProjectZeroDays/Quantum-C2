@@ -20,11 +20,15 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AttachFile
 import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.ChatBubble
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Code
+import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material.icons.outlined.MenuBook
@@ -36,9 +40,12 @@ import androidx.compose.material.icons.outlined.Stop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -61,6 +68,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -72,15 +80,25 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.projectzerodays.quantumcli.QuantumApp
+import com.projectzerodays.quantumcli.ai.AgentDef
+import com.projectzerodays.quantumcli.ai.AgentStore
 import com.projectzerodays.quantumcli.ai.AiClient
 import com.projectzerodays.quantumcli.ai.AiModelDownloader
 import com.projectzerodays.quantumcli.ai.ChatController
 import com.projectzerodays.quantumcli.ai.IntentParser
+import com.projectzerodays.quantumcli.ai.Providers
+import com.projectzerodays.quantumcli.ai.SkillDef
+import com.projectzerodays.quantumcli.ai.SkillStore
+import com.projectzerodays.quantumcli.ai.WorkflowDef
+import com.projectzerodays.quantumcli.ai.WorkflowRunner
+import com.projectzerodays.quantumcli.ai.WorkflowStore
 import com.projectzerodays.quantumcli.c2.AuditEvent
 import com.projectzerodays.quantumcli.c2.CameraHit
 import com.projectzerodays.quantumcli.c2.C2State
@@ -94,12 +112,19 @@ import com.projectzerodays.quantumcli.ops.CamWar
 import com.projectzerodays.quantumcli.ops.Net
 import com.projectzerodays.quantumcli.ops.NetDiag
 import com.projectzerodays.quantumcli.ops.Overlord
+import com.projectzerodays.quantumcli.ops.ProjectZeroFeed
 import com.projectzerodays.quantumcli.ops.Weapons
+import com.projectzerodays.quantumcli.selfhealing.FeatureRegistry
+import com.projectzerodays.quantumcli.widgetengine.WidgetGrid
+import com.projectzerodays.quantumcli.widgetengine.components.JobCard
+import com.projectzerodays.quantumcli.widgetengine.components.JobCardState
+import com.projectzerodays.quantumcli.widgetengine.components.JobPhase
 import com.projectzerodays.quantumcli.ui.theme.Cyan
 import com.projectzerodays.quantumcli.ui.theme.Danger
 import com.projectzerodays.quantumcli.ui.theme.Muted
 import com.projectzerodays.quantumcli.ui.theme.Ok
 import com.projectzerodays.quantumcli.ui.theme.Panel
+import com.projectzerodays.quantumcli.ui.theme.PanelBright
 import com.projectzerodays.quantumcli.ui.theme.QuantumTypography
 import com.projectzerodays.quantumcli.ui.theme.SoftCyan
 import com.projectzerodays.quantumcli.ui.theme.Softest
@@ -126,7 +151,7 @@ object AiGate {
     fun ready(): Boolean {
         val s = QuantSettings.state.value
         return when (s.aiMode) {
-            AiClient.MODE_ONLINE -> s.apiKey.isNotBlank()
+            AiClient.MODE_ONLINE -> Providers.resolve(s).key.isNotBlank()
             AiClient.MODE_LOCAL -> AiClient.localAvailable()
             else -> false
         }
@@ -135,7 +160,12 @@ object AiGate {
     fun modeLabel(): String {
         val s = QuantSettings.state.value
         return when (s.aiMode) {
-            AiClient.MODE_ONLINE -> if (s.apiKey.isNotBlank()) "online (abliteration.ai)" else "online — KEY MISSING"
+            AiClient.MODE_ONLINE ->
+                if (Providers.resolve(s).key.isNotBlank()) {
+                    "online (${Providers.byId(s.aiProvider).label.lowercase()})"
+                } else {
+                    "online — KEY MISSING"
+                }
             AiClient.MODE_LOCAL -> if (AiClient.localAvailable()) "local (on-device)" else "local — MODEL MISSING"
             else -> "manual (no AI)"
         }
@@ -241,13 +271,23 @@ fun QuantumUi() {
 
     val settings by QuantSettings.state.collectAsState()
     val dlActive by AiModelDownloader.downloading.collectAsState()
-    val aiReady = remember(settings.aiMode, settings.apiKey, dlActive) { AiGate.ready() }
+    val aiReady = remember(
+        settings.aiMode, settings.apiKey, settings.aiApiKey, settings.aiProvider, dlActive,
+    ) { AiGate.ready() }
 
     // First open: step-by-step setup + local AI fallback auto-download.
     LaunchedEffect(Unit) {
         if (!QuantSettings.state.value.wizardDone) showWizard = true
         runCatching { AiModelDownloader.maybeAutoDownload() }
             .onFailure { C2State.audit("ERR", "startup model check failed: ${it.message}") }
+    }
+
+    // Dashboard chat FAB -> open the floating chat overlay (or the wizard
+    // when no AI brain is configured yet).
+    LaunchedEffect(Unit) {
+        UiBus.chatOpenRequest.collect {
+            if (AiGate.ready()) showChat = true else showWizard = true
+        }
     }
 
     val uiActions = UiActions(
@@ -333,6 +373,9 @@ fun QuantumUi() {
                         Page.EXPLOITS -> ExploitsPage()
                         Page.LOOT -> LootPage()
                         Page.CHAT -> ChatPage()
+                        Page.AGENTS -> AgentsPage()
+                        Page.SKILLS -> SkillsPage()
+                        Page.TERMINAL -> TerminalPage()
                         Page.SETTINGS -> SettingsPage()
                     }
 
@@ -437,6 +480,13 @@ private fun DrawerContent(
         links.forEach { (label, icon, url) ->
             LinkRow(label, icon, url, ctx)
         }
+        Spacer(Modifier.height(4.dp))
+        LinkRow(
+            "GitHub",
+            Icons.Outlined.Code,
+            "https://github.com/ProjectZeroDays/Quantum-CLI",
+            ctx,
+        )
         Spacer(Modifier.height(16.dp))
     }
 }
@@ -725,14 +775,19 @@ fun DashboardPage() {
     var showEmojiDlg by remember { mutableStateOf(false) }
     val aiReady = AiGate.ready()
 
-    Column(
-        Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp),
-    ) {
-        Text("Dashboard", style = QuantumTypography.displaySmall, color = Cyan)
-        Spacer(Modifier.height(12.dp))
+    Box(Modifier.fillMaxSize()) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp),
+        ) {
+            Text("Dashboard", style = QuantumTypography.displaySmall, color = Cyan)
+            Spacer(Modifier.height(12.dp))
+
+            // ---- operator status strip (ROOT/VPN/IP/MAC/DNS+proxy) ---------
+            DashboardStatusStrip()
+            Spacer(Modifier.height(8.dp))
 
         // ---- autonomous control -------------------------------------------
         Button(
@@ -763,6 +818,34 @@ fun DashboardPage() {
                 style = QuantumTypography.labelSmall,
                 color = Ok,
                 modifier = Modifier.padding(top = 4.dp),
+            )
+        }
+
+        // ---- channel kill-switch notices (always loud, operator can override) ----
+        val killNotices by FeatureRegistry.killSwitchNotices.collectAsState()
+        killNotices.forEach { notice ->
+            Text(
+                "⚠ $notice",
+                style = QuantumTypography.labelSmall,
+                color = Danger,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
+
+        // ---- live job card: the universal job UX on the flagship flow --------
+        if (overlordRunning) {
+            Spacer(Modifier.height(8.dp))
+            JobCard(
+                state = JobCardState(
+                    phase = JobPhase.RUNNING,
+                    title = "Overlord autonomous cycle",
+                    tail = audit.takeLast(3).map { "${it.tag}: ${it.msg}" },
+                    cancelable = true,
+                    lastLine = audit.lastOrNull()?.msg,
+                    linkedTo = "NETWORK",
+                ),
+                onOpenLogs = { /* log console below is the log surface */ },
+                onStop = { Overlord.stop() },
             )
         }
 
@@ -844,23 +927,41 @@ fun DashboardPage() {
 
         Spacer(Modifier.height(8.dp))
 
-        // ---- live stats ------------------------------------------------------
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Column(Modifier.weight(1f)) {
-                StatusCard("Implants", "${implants.size} active")
-                StatusCard("Decisions", "${decisions.size} total")
-                StatusCard("C2 server", if (serverRunning) "running :${QuantServerManager.boundPort}" else "stopped")
-            }
-            Column(Modifier.weight(1f)) {
-                StatusCard("Kill-switch", if (killswitch) "ARMED" else "safe")
-                StatusCard("Audit events", "${audit.size} logged")
-                StatusCard("AI", AiGate.modeLabel())
+        // ---- live stats — drag/lock/arrange grid (persisted per route) --------
+        WidgetGrid(
+            route = "dashboard",
+            initialOrder = listOf("implants", "decisions", "c2server", "killswitch", "audit", "ai"),
+        ) { id ->
+            when (id) {
+                "implants" -> StatusCard("Implants", "${implants.size} active")
+                "decisions" -> StatusCard("Decisions", "${decisions.size} total")
+                "c2server" -> StatusCard("C2 server", if (serverRunning) "running :${QuantServerManager.boundPort}" else "stopped")
+                "killswitch" -> StatusCard("Kill-switch", if (killswitch) "ARMED" else "safe")
+                "audit" -> StatusCard("Audit events", "${audit.size} logged")
+                else -> StatusCard("AI", AiGate.modeLabel())
             }
         }
+
+        // ---- Project Zero feed card -------------------------------------------
+        ProjectZeroFeedCard()
+        Spacer(Modifier.height(8.dp))
 
         // ---- verbose console -------------------------------------------------
         LogConsole(audit)
         Spacer(Modifier.height(16.dp))
+        }
+
+        // ---- floating chat FAB (opens the chat overlay) ------------------------
+        FloatingActionButton(
+            onClick = { UiBus.chatOpenRequest.value++ },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp),
+            containerColor = PanelBright,
+            contentColor = Cyan,
+        ) {
+            Icon(Icons.Outlined.ChatBubble, contentDescription = "Open chat")
+        }
     }
 
     if (showAutoRunDlg) {
@@ -872,6 +973,141 @@ fun DashboardPage() {
     }
     if (showEmojiDlg) {
         EmojiSmsDialog(onDismiss = { showEmojiDlg = false })
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Dashboard — operator status strip + Project Zero feed card
+// ---------------------------------------------------------------------------
+
+/** Snapshot of the compact dashboard status chips. */
+private data class DashboardStatus(
+    val root: String = "…",
+    val vpn: String = "…",
+    val ip: String = "…",
+    val mac: String = "…",
+    val dnsProxy: String = "…",
+)
+
+/** Compact ROOT/VPN/IP/MAC/DNS+proxy chip row — non-blocking (IO probe). */
+@Composable
+private fun DashboardStatusStrip() {
+    var st by remember { mutableStateOf(DashboardStatus()) }
+    LaunchedEffect(Unit) {
+        st = withContext(Dispatchers.IO) { probeOperatorStatus() }
+    }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .quantumPanel()
+            .padding(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        StatusChip("ROOT", st.root)
+        StatusChip("VPN", st.vpn)
+        StatusChip("IP", st.ip)
+        StatusChip("MAC", st.mac)
+        StatusChip("DNS/PROXY", st.dnsProxy)
+    }
+}
+
+@Composable
+private fun StatusChip(label: String, value: String) {
+    Column(
+        Modifier
+            .quantumPanel()
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+    ) {
+        Text(label, style = QuantumTypography.labelSmall, color = Muted, fontSize = 9.sp)
+        Text(value.take(16), style = QuantumTypography.labelSmall, color = SoftCyan, fontSize = 10.sp)
+    }
+}
+
+/** All chip probes; must run off the main thread. */
+private fun probeOperatorStatus(): DashboardStatus {
+    // ROOT — su -c id probe (no-root devices fail fast).
+    val root = try {
+        val p = Runtime.getRuntime().exec(arrayOf("su", "-c", "id"))
+        val out = p.inputStream.readBytes().toString(Charsets.UTF_8)
+        val code = p.waitFor()
+        if (code == 0 && out.contains("uid=0")) "granted" else "no"
+    } catch (e: Exception) {
+        "no"
+    }
+    // VPN / MAC — NetDiag interface snapshot.
+    val ifaces = NetDiag.interfaces()
+    val vpn = if (ifaces.any { it.vpn && it.up }) "on" else "off"
+    val mac = ifaces.firstOrNull { it.up && !it.loopback && !it.mac.isNullOrBlank() }?.mac ?: "—"
+    // Public egress IP via ipify.
+    val ip = try {
+        val r = Net.httpGet("https://api.ipify.org", timeoutMs = 5000)
+        if (r.error == null && r.ok) r.text().trim().take(16) else "—"
+    } catch (e: Exception) {
+        "—"
+    }
+    // DNS resolution + system proxy.
+    val dns = if (NetDiag.dnsLookup("dns.google").isNotEmpty()) "ok" else "fail"
+    val proxy = NetDiag.proxyInfo() ?: "none"
+    return DashboardStatus(root, vpn, ip, mac, "$dns · pxy ${proxy.take(10)}")
+}
+
+/** Project Zero blog feed card — latest 3 posts, tappable + refreshable. */
+@Composable
+private fun ProjectZeroFeedCard() {
+    val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var entries by remember { mutableStateOf<List<ProjectZeroFeed.Entry>>(emptyList()) }
+    var status by remember { mutableStateOf("loading feed…") }
+    var loading by remember { mutableStateOf(false) }
+
+    fun load() {
+        loading = true
+        scope.launch {
+            val result = withContext(Dispatchers.IO) {
+                runCatching { ProjectZeroFeed.latest(3) }
+            }
+            result.onSuccess {
+                entries = it
+                status = if (it.isEmpty()) "no entries" else "latest ${it.size} post(s)"
+            }.onFailure {
+                entries = emptyList()
+                status = "feed error: ${it.message}"
+            }
+            loading = false
+        }
+    }
+
+    LaunchedEffect(Unit) { load() }
+
+    Column(Modifier.fillMaxWidth().quantumPanel().padding(12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "Project Zero feed",
+                style = QuantumTypography.titleSmall,
+                color = SoftCyan,
+                modifier = Modifier.weight(1f),
+            )
+            IconButton(onClick = { load() }, enabled = !loading) {
+                Icon(Icons.Outlined.Refresh, contentDescription = "Refresh feed", tint = Cyan)
+            }
+        }
+        if (loading) {
+            Text("loading…", style = QuantumTypography.labelSmall, color = Muted)
+        }
+        entries.forEach { e ->
+            Text(
+                e.title,
+                style = QuantumTypography.bodySmall,
+                color = Softest,
+                modifier = Modifier
+                    .padding(vertical = 3.dp)
+                    .clickable { if (e.link.isNotBlank()) openUrl(ctx, e.link) },
+            )
+            if (e.published.isNotBlank()) {
+                Text(e.published.take(10), style = QuantumTypography.labelSmall, color = Muted)
+            }
+        }
+        Text(status, style = QuantumTypography.labelSmall, color = Muted)
     }
 }
 
@@ -1471,6 +1707,7 @@ fun NetworkPage() {
 // Exploits — fingerprint, zero-check, fire + MITRE coverage
 // ---------------------------------------------------------------------------
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExploitsPage() {
     val audit by C2State.audit.collectAsState()
@@ -1479,6 +1716,8 @@ fun ExploitsPage() {
     var cve by rememberSaveable { mutableStateOf("CVE-2017-0144") }
     var lastResult by remember { mutableStateOf("results of the last operation appear here") }
     var busy by remember { mutableStateOf(false) }
+    var weaponQuery by rememberSaveable { mutableStateOf("") }
+    var weaponMenuOpen by rememberSaveable { mutableStateOf(false) }
 
     fun run(label: String, block: () -> JSONObject) {
         busy = true
@@ -1538,6 +1777,51 @@ fun ExploitsPage() {
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
+        Spacer(Modifier.height(8.dp))
+
+        // ---- searchable weapon dropdown (selecting arms the CVE field) ------
+        ExposedDropdownMenuBox(
+            expanded = weaponMenuOpen,
+            onExpandedChange = { weaponMenuOpen = it },
+        ) {
+            OutlinedTextField(
+                value = weaponQuery,
+                onValueChange = {
+                    weaponQuery = it
+                    weaponMenuOpen = true
+                },
+                label = { Text("Search weapon registry (dropdown)") },
+                singleLine = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .menuAnchor(),
+            )
+            ExposedDropdownMenu(
+                expanded = weaponMenuOpen,
+                onDismissRequest = { weaponMenuOpen = false },
+            ) {
+                val q = weaponQuery.trim().lowercase()
+                val matches = if (q.isBlank()) Weapons.REGISTRY else Weapons.REGISTRY.filter {
+                    it.cve.lowercase().contains(q) || it.name.lowercase().contains(q)
+                }
+                matches.take(12).forEach { w ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                "${w.cve} — ${w.name} (${w.tier})",
+                                style = QuantumTypography.bodySmall,
+                                color = Softest,
+                            )
+                        },
+                        onClick = {
+                            cve = w.cve
+                            weaponQuery = w.cve
+                            weaponMenuOpen = false
+                        },
+                    )
+                }
+            }
+        }
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(
@@ -1811,11 +2095,14 @@ fun ChatOverlay(
     onAction: (IntentParser.ChatAction) -> Unit = {},
 ) {
     var text by rememberSaveable { mutableStateOf("") }
+    var attachPath by rememberSaveable { mutableStateOf("") }
+    var showAttachDlg by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
     val msgs by ChatController.messages.collectAsState()
     val busy by ChatController.busy.collectAsState()
     val mode = AiGate.modeLabel()
+    val clipboard = LocalClipboardManager.current
 
     LaunchedEffect(msgs.size) {
         if (msgs.isNotEmpty()) listState.animateScrollToItem(msgs.size - 1)
@@ -1834,11 +2121,45 @@ fun ChatOverlay(
         }
         LazyColumn(state = listState, modifier = Modifier.weight(1f)) {
             items(msgs) { msg ->
-                Text(
-                    (if (msg.role == "user") "> " else "") + msg.content,
-                    style = QuantumTypography.bodySmall,
-                    color = if (msg.role == "user") Cyan else Softest,
-                )
+                Row(verticalAlignment = Alignment.Top) {
+                    Text(
+                        (if (msg.role == "user") "> " else "") + msg.content,
+                        style = QuantumTypography.bodySmall,
+                        color = if (msg.role == "user") Cyan else Softest,
+                        modifier = Modifier.weight(1f),
+                    )
+                    IconButton(
+                        onClick = { clipboard.setText(AnnotatedString(msg.content)) },
+                        modifier = Modifier.size(26.dp),
+                    ) {
+                        Icon(
+                            Icons.Outlined.ContentCopy,
+                            contentDescription = "Copy message",
+                            tint = Muted,
+                            modifier = Modifier.size(14.dp),
+                        )
+                    }
+                    IconButton(
+                        onClick = {
+                            ioOp("AI") {
+                                val dir = File(C2State.filesRoot, "Downloads")
+                                dir.mkdirs()
+                                val safe = msg.ts.replace(":", "")
+                                val f = File(dir, "chat_${msg.role}_$safe.txt")
+                                f.writeText(msg.content)
+                                "saved ${f.name} -> files/Downloads"
+                            }
+                        },
+                        modifier = Modifier.size(26.dp),
+                    ) {
+                        Icon(
+                            Icons.Outlined.Download,
+                            contentDescription = "Download message",
+                            tint = Muted,
+                            modifier = Modifier.size(14.dp),
+                        )
+                    }
+                }
                 Spacer(Modifier.height(4.dp))
             }
             if (busy) {
@@ -1855,10 +2176,21 @@ fun ChatOverlay(
                 placeholder = { Text("message or /ai command", style = QuantumTypography.bodySmall) },
                 singleLine = true,
             )
+            IconButton(onClick = { showAttachDlg = true }) {
+                Icon(
+                    Icons.Outlined.AttachFile,
+                    contentDescription = "Attach file path",
+                    tint = if (attachPath.isNotBlank()) Cyan else Muted,
+                )
+            }
             IconButton(
                 onClick = {
-                    val t = text
+                    val t = buildString {
+                        if (attachPath.isNotBlank()) append("[file: ").append(attachPath).append("] ")
+                        append(text)
+                    }
                     text = ""
+                    attachPath = ""
                     ChatController.send(t, scope, onAction)
                 },
                 enabled = !busy && text.isNotBlank(),
@@ -1866,6 +2198,442 @@ fun ChatOverlay(
                 Icon(Icons.Outlined.Send, contentDescription = "Send", tint = Cyan)
             }
         }
+        if (attachPath.isNotBlank()) {
+            Text(
+                "attach: $attachPath",
+                style = QuantumTypography.labelSmall,
+                color = Cyan,
+            )
+        }
+    }
+
+    if (showAttachDlg) {
+        AlertDialog(
+            onDismissRequest = { showAttachDlg = false },
+            containerColor = Panel,
+            title = { Text("Attach file", color = Cyan) },
+            text = {
+                Column {
+                    Text(
+                        "Record a file path with the next message (plain-text attachment).",
+                        style = QuantumTypography.bodySmall,
+                        color = Muted,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = attachPath,
+                        onValueChange = { attachPath = it },
+                        label = { Text("file path") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            },
+            confirmButton = {
+                Button(onClick = { showAttachDlg = false }) { Text("Attach") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    attachPath = ""
+                    showAttachDlg = false
+                }) { Text("Clear") }
+            },
+        )
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Agents — SLDR + NS-org registry (view / add / edit / delete)
+// ---------------------------------------------------------------------------
+
+@Composable
+fun AgentsPage() {
+    val agents by AgentStore.agents.collectAsState()
+    var selected by rememberSaveable { mutableStateOf<String?>(null) }
+    var edit by remember { mutableStateOf<AgentDef?>(null) }
+
+    LaunchedEffect(Unit) { AgentStore.load() }
+
+    Column(
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp),
+    ) {
+        Text("Agents", style = QuantumTypography.displaySmall, color = Cyan)
+        Spacer(Modifier.height(4.dp))
+        Text(
+            "The operator bench: SLDR (sovereign operator) and the NS-org subagents. " +
+                "Tap an agent to inspect its system prompt and autonomy level.",
+            style = QuantumTypography.bodySmall,
+            color = Muted,
+        )
+        Spacer(Modifier.height(8.dp))
+        Button(onClick = { edit = AgentDef("", "", "", "manual") }, modifier = Modifier.fillMaxWidth()) {
+            Text("NEW AGENT")
+        }
+        Spacer(Modifier.height(8.dp))
+        agents.forEach { a ->
+            Column(Modifier.fillMaxWidth().quantumPanel().padding(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(a.name.ifBlank { a.id }, style = QuantumTypography.titleSmall, color = Cyan)
+                        Text(
+                            "id=${a.id} · autonomy=${a.autonomy}",
+                            style = QuantumTypography.bodySmall,
+                            color = SoftCyan,
+                        )
+                    }
+                }
+                if (selected == a.id) {
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        a.systemPrompt,
+                        style = QuantumTypography.bodySmall,
+                        color = Softest,
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = {
+                        selected = if (selected == a.id) null else a.id
+                    }) { Text(if (selected == a.id) "COLLAPSE" else "VIEW PROMPT") }
+                    OutlinedButton(onClick = { edit = a }) { Text("EDIT") }
+                    OutlinedButton(onClick = {
+                        AgentStore.delete(a.id)
+                        if (selected == a.id) selected = null
+                    }) { Text("DELETE") }
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+        }
+        Spacer(Modifier.height(16.dp))
+    }
+
+    if (edit != null) {
+        AgentEditDialog(
+            agent = edit!!,
+            onDismiss = { edit = null },
+            onSave = { a ->
+                AgentStore.upsert(a)
+                edit = null
+            },
+        )
+    }
+}
+
+@Composable
+private fun AgentEditDialog(
+    agent: AgentDef,
+    onDismiss: () -> Unit,
+    onSave: (AgentDef) -> Unit,
+) {
+    var name by rememberSaveable { mutableStateOf(agent.name) }
+    var prompt by rememberSaveable { mutableStateOf(agent.systemPrompt) }
+    var autonomy by rememberSaveable { mutableStateOf(agent.autonomy) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Panel,
+        title = { Text(if (agent.id.isBlank()) "New agent" else "Edit ${agent.id}", color = Cyan) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(8.dp))
+                Text("Autonomy", color = Softest, style = QuantumTypography.bodySmall)
+                Row(Modifier.fillMaxWidth()) {
+                    listOf("manual", "semi", "auto").forEach { ag ->
+                        Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(selected = autonomy == ag, onClick = { autonomy = ag })
+                            Text(ag, color = SoftCyan, style = QuantumTypography.labelSmall)
+                        }
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = prompt,
+                    onValueChange = { prompt = it },
+                    label = { Text("System prompt") },
+                    modifier = Modifier.fillMaxWidth().height(160.dp),
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                enabled = name.isNotBlank() && prompt.isNotBlank(),
+                onClick = {
+                    val id = agent.id.ifBlank {
+                        name.trim().lowercase().replace(Regex("[^a-z0-9]+"), "-").trim('-')
+                    }
+                    onSave(AgentDef(id, name.trim(), prompt.trim(), autonomy))
+                },
+            ) { Text("Save") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+// ---------------------------------------------------------------------------
+// Skills — prompt packs + sample workflows
+// ---------------------------------------------------------------------------
+
+@Composable
+fun SkillsPage() {
+    val actions = LocalUiActions.current
+    val scope = rememberCoroutineScope()
+    val skills by SkillStore.skills.collectAsState()
+    val workflows by WorkflowStore.workflows.collectAsState()
+    var compose by remember { mutableStateOf<SkillDef?>(null) }
+    var running by remember { mutableStateOf(false) }
+    var wfResult by remember { mutableStateOf("workflow results appear here") }
+
+    LaunchedEffect(Unit) {
+        SkillStore.load()
+        WorkflowStore.load()
+    }
+
+    Column(
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp),
+    ) {
+        Text("Skills", style = QuantumTypography.displaySmall, color = Cyan)
+        Spacer(Modifier.height(4.dp))
+        Text(
+            "Skill packs compose a ready prompt for the chat brain; workflows chain " +
+                "/ai commands (variables like \${first_host} auto-fill from scan output).",
+            style = QuantumTypography.bodySmall,
+            color = Muted,
+        )
+        Spacer(Modifier.height(12.dp))
+
+        skills.forEach { s ->
+            Column(Modifier.fillMaxWidth().quantumPanel().padding(12.dp)) {
+                Text(s.name.ifBlank { s.id }, style = QuantumTypography.titleSmall, color = Cyan)
+                Text(
+                    s.description,
+                    style = QuantumTypography.bodySmall,
+                    color = SoftCyan,
+                )
+                Text(
+                    "id=${s.id}",
+                    style = QuantumTypography.labelSmall,
+                    color = Muted,
+                )
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilledTonalButton(onClick = { compose = s }) { Text("COMPOSE PROMPT") }
+                    OutlinedButton(onClick = { SkillStore.delete(s.id) }) { Text("DELETE") }
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+        }
+
+        HorizontalDivider(color = Cyan.copy(0.18f), modifier = Modifier.padding(vertical = 8.dp))
+        Text("Workflows", style = QuantumTypography.titleSmall, color = SoftCyan)
+        Spacer(Modifier.height(6.dp))
+        workflows.forEach { w ->
+            Column(Modifier.fillMaxWidth().quantumPanel().padding(12.dp)) {
+                Text(w.name.ifBlank { w.id }, style = QuantumTypography.titleSmall, color = Cyan)
+                Text(
+                    w.description,
+                    style = QuantumTypography.bodySmall,
+                    color = SoftCyan,
+                )
+                Text(
+                    "steps: " + w.steps.joinToString(" -> ") { it.cmd },
+                    style = QuantumTypography.labelSmall,
+                    color = Muted,
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = {
+                        running = true
+                        scope.launch {
+                            val results = withContext(Dispatchers.IO) { WorkflowRunner.run(w) }
+                            wfResult = results.joinToString("\n") {
+                                (if (it.ok) "OK " else "ERR ") + it.cmd + ": " + it.output.take(120)
+                            }
+                            running = false
+                        }
+                    },
+                    enabled = !running,
+                ) { Text(if (running) "RUNNING…" else "RUN") }
+            }
+            Spacer(Modifier.height(8.dp))
+        }
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .quantumPanel()
+                .padding(10.dp)
+                .height(120.dp)
+                .verticalScroll(rememberScrollState()),
+        ) {
+            Text(wfResult, style = QuantumTypography.bodySmall, color = Softest, fontSize = 11.sp)
+        }
+        Spacer(Modifier.height(16.dp))
+    }
+
+    if (compose != null) {
+        SkillComposeDialog(
+            skill = compose!!,
+            onDismiss = { compose = null },
+            onSend = { prompt ->
+                ChatController.send(prompt, scope, actions.onChatAction)
+                compose = null
+            },
+        )
+    }
+}
+
+@Composable
+private fun SkillComposeDialog(
+    skill: SkillDef,
+    onDismiss: () -> Unit,
+    onSend: (String) -> Unit,
+) {
+    var prompt by rememberSaveable { mutableStateOf(skill.prompt) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Panel,
+        title = { Text("Compose · ${skill.name}", color = Cyan) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                Text(
+                    "Edit the prompt, then send it to the chat brain.",
+                    style = QuantumTypography.bodySmall,
+                    color = Muted,
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = prompt,
+                    onValueChange = { prompt = it },
+                    label = { Text("prompt") },
+                    modifier = Modifier.fillMaxWidth().height(180.dp),
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                enabled = prompt.isNotBlank(),
+                onClick = { onSend(prompt.trim()) },
+            ) { Text("Send to chat") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+// ---------------------------------------------------------------------------
+// Terminal — local shell console ('/ai ' prefix routes to ChatController)
+// ---------------------------------------------------------------------------
+
+@Composable
+fun TerminalPage() {
+    val actions = LocalUiActions.current
+    val scope = rememberCoroutineScope()
+    var input by rememberSaveable { mutableStateOf("") }
+    var busy by remember { mutableStateOf(false) }
+    val log = remember {
+        mutableStateListOf(
+            "local shell ready — plain commands run via 'sh -c'; " +
+                "prefix '/ai ' to route a command through the chat brain."
+        )
+    }
+    val listState = rememberLazyListState()
+
+    fun append(line: String) {
+        log.add(line)
+    }
+
+    LaunchedEffect(log.size) {
+        if (log.isNotEmpty()) listState.animateScrollToItem(log.size - 1)
+    }
+
+    fun run(raw: String) {
+        val cmdline = raw.trim()
+        if (cmdline.isEmpty() || busy) return
+        append("\$ $cmdline")
+        busy = true
+        scope.launch {
+            if (cmdline.startsWith("/ai ")) {
+                val chatText = cmdline.removePrefix("/ai ").trim()
+                append("[chat] routed to ChatController: $chatText")
+                ChatController.send(chatText, scope, actions.onChatAction)
+            } else {
+                withContext(Dispatchers.IO) {
+                    try {
+                        val proc = ProcessBuilder("sh", "-c", cmdline)
+                            .redirectErrorStream(true)
+                            .start()
+                        proc.inputStream.bufferedReader().useLines { lines ->
+                            lines.forEach { append(it) }
+                        }
+                        val code = proc.waitFor()
+                        append("[exit $code]")
+                    } catch (e: Exception) {
+                        append(
+                            "sh failed: ${e.message} — this command may need a full " +
+                                "shell (try 'ls' or 'id', or prefix '/ai ' for the chat dispatcher)"
+                        )
+                    }
+                }
+            }
+            busy = false
+        }
+    }
+
+    Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+        Text("Terminal", style = QuantumTypography.displaySmall, color = Cyan)
+        Spacer(Modifier.height(8.dp))
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .quantumPanel()
+                .padding(8.dp),
+        ) {
+            items(log) { line ->
+                Text(
+                    line,
+                    style = QuantumTypography.bodySmall,
+                    color = if (line.startsWith("$ ")) Cyan else Softest,
+                    fontSize = 11.sp,
+                    lineHeight = 14.sp,
+                    modifier = Modifier.padding(vertical = 1.dp),
+                )
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(
+                value = input,
+                onValueChange = { input = it },
+                modifier = Modifier.weight(1f),
+                placeholder = { Text("command (or /ai <cmd>)", style = QuantumTypography.bodySmall) },
+                singleLine = true,
+            )
+            IconButton(
+                onClick = {
+                    val t = input
+                    input = ""
+                    run(t)
+                },
+                enabled = !busy && input.isNotBlank(),
+            ) {
+                Icon(Icons.Outlined.Send, contentDescription = "Run", tint = Cyan)
+            }
+        }
+        Spacer(Modifier.height(12.dp))
     }
 }
 
@@ -1882,7 +2650,9 @@ fun SettingsPage() {
     val serverRunning by QuantServerManager.running.collectAsState()
     var c2Port by rememberSaveable { mutableStateOf(settings.c2Port.toString()) }
     var apiUrl by rememberSaveable { mutableStateOf(settings.apiUrl) }
-    var apiKey by rememberSaveable { mutableStateOf(settings.apiKey) }
+    var apiKey by rememberSaveable {
+        mutableStateOf(if (settings.aiApiKey.isNotBlank()) settings.aiApiKey else settings.apiKey)
+    }
     var model by rememberSaveable { mutableStateOf(settings.model) }
     var cyclesText by rememberSaveable { mutableStateOf(settings.overlordCycles.toString()) }
     var scopeText by rememberSaveable { mutableStateOf(settings.overlordScope) }
@@ -1903,7 +2673,7 @@ fun SettingsPage() {
         Text("AI brain", style = QuantumTypography.titleSmall, color = SoftCyan)
         Spacer(Modifier.height(4.dp))
         listOf(
-            AiClient.MODE_ONLINE to "Abliteration.ai (cloud)",
+            AiClient.MODE_ONLINE to "Online AI (cloud)",
             AiClient.MODE_LOCAL to "Local on-device model",
             AiClient.MODE_DETERMINISTIC to "Manual / no AI",
         ).forEach { (mode, label) ->
@@ -1913,6 +2683,34 @@ fun SettingsPage() {
                     onClick = { QuantSettings.update { it.copy(aiMode = mode) } },
                 )
                 Text(label, color = Softest, style = QuantumTypography.bodyMedium)
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        Text("Provider preset", style = QuantumTypography.bodySmall, color = SoftCyan)
+        Providers.PRESETS.forEach { preset ->
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                RadioButton(
+                    selected = settings.aiProvider == preset.id,
+                    onClick = {
+                        QuantSettings.update {
+                            it.copy(
+                                aiProvider = preset.id,
+                                apiUrl = preset.url,
+                                model = preset.model,
+                            )
+                        }
+                        apiUrl = preset.url
+                        model = preset.model
+                    },
+                )
+                Column {
+                    Text(preset.label, color = Softest, style = QuantumTypography.bodyMedium)
+                    Text(
+                        "${preset.url} · ${preset.model}",
+                        style = QuantumTypography.labelSmall,
+                        color = Muted,
+                    )
+                }
             }
         }
         if (settings.aiMode == AiClient.MODE_LOCAL && !AiClient.localAvailable()) {
@@ -1938,7 +2736,12 @@ fun SettingsPage() {
         Spacer(Modifier.height(8.dp))
         Button(onClick = {
             QuantSettings.update {
-                it.copy(apiUrl = apiUrl.trim(), apiKey = apiKey.trim(), model = model.trim())
+                it.copy(
+                    apiUrl = apiUrl.trim(),
+                    apiKey = apiKey.trim(),
+                    aiApiKey = apiKey.trim(),
+                    model = model.trim(),
+                )
             }
             C2State.audit("AI", "settings saved (endpoint ${apiUrl.trim()}, model ${model.trim()})")
         }) { Text("SAVE AI SETTINGS") }

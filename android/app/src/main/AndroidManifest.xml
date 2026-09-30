@@ -28,5 +28,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Safe mode: diagnostics-only surface after a boot crash loop. -->
+        <activity
+            android:name=".core.SafeModeActivity"
+            android:exported="false"
+            android:excludeFromRecents="true" />
     </application>
 </manifest>

@@ -233,6 +233,45 @@ object Weapons {
             .put("detail", "grub.cfg/Secure-Boot marker check on target host")
     }
 
+    // ------------------------------------------------------------ BLE tier
+    // Bluetooth weapons — on-device probes against the local BT stack
+    // (pair-adjacent targets; staging style like the WhatsApp/WebKit checks).
+    private fun btAdapterState(): String = try {
+        if (android.bluetooth.BluetoothAdapter.getDefaultAdapter()?.isEnabled == true) "on" else "off"
+    } catch (e: Exception) {
+        "unknown"
+    }
+
+    private fun checkBlueBorneBnep(ip: String, params: JSONObject): JSONObject {
+        return probe("CVE-2017-0781", "check")
+            .put("bluetooth", btAdapterState())
+            .put("detail", "BNEP RCE — pair-adjacent Android <8; craft BNEP packet post-pairing")
+    }
+
+    private fun checkBlueBorneSdp(ip: String, params: JSONObject): JSONObject {
+        return probe("CVE-2017-0785", "check")
+            .put("bluetooth", btAdapterState())
+            .put("detail", "SDP info-leak — pair-adjacent Android <8; leak then chain to BNEP")
+    }
+
+    private fun checkKnob(ip: String, params: JSONObject): JSONObject {
+        return probe("CVE-2018-5383", "check")
+            .put("bluetooth", btAdapterState())
+            .put("detail", "KNOB — BR/EDR key negotiation downgrade to 1 byte; reduce entropy during pairing")
+    }
+
+    private fun checkBlackbedBle(ip: String, params: JSONObject): JSONObject {
+        return probe("BLE-BLACKBED", "check")
+            .put("bluetooth", btAdapterState())
+            .put("detail", "BLE GATT write/notify abuse — enumerate writable characteristics then stage payload")
+    }
+
+    private fun checkBlueFrag(ip: String, params: JSONObject): JSONObject {
+        return probe("CVE-2020-0022", "check")
+            .put("bluetooth", btAdapterState())
+            .put("detail", "L2CAP reassembly overflow — Android 8-9, pair-adjacent; oversized fragmented packet")
+    }
+
     // -------------------------------------------------------------- registry
     val REGISTRY: List<Entry> = listOf(
         // ---- legacy ----
@@ -268,6 +307,12 @@ object Weapons {
         Entry("CVE-2023-41064", "Apple ImageIO", "V3_CHECK", ::checkAppleImageio),
         Entry("CVE-2021-30858", "WebKit Escape", "V3_CHECK", ::checkWebkitEscape),
         Entry("CVE-2022-21894", "BootHole", "V3_CHECK", ::checkBoothole),
+        // ---- BLE ----
+        Entry("CVE-2017-0781", "BlueBorne BNEP", "V3_HIGH", ::checkBlueBorneBnep),
+        Entry("CVE-2017-0785", "BlueBorne SDP", "V3_MED", ::checkBlueBorneSdp),
+        Entry("CVE-2018-5383", "KNOB", "V3_CHECK", ::checkKnob),
+        Entry("BLE-BLACKBED", "BlackBED-BLE", "V3_CHECK", ::checkBlackbedBle),
+        Entry("CVE-2020-0022", "BlueFrag", "V3_HIGH", ::checkBlueFrag),
     )
 
     fun byCve(cve: String): Entry? = REGISTRY.firstOrNull { it.cve == cve }

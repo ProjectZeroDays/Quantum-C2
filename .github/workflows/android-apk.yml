@@ -20,6 +20,10 @@ jobs:
         uses: android-actions/setup-android@v3
       - name: Grant execute permission to gradlew
         run: chmod +x android/gradlew
+      - name: Unit tests
+        run: |
+          cd android
+          ./gradlew --no-daemon testFullDebugUnitTest
       - name: Build full (root) APK
         run: |
           cd android
