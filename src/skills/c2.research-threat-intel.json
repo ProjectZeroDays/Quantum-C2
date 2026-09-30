@@ -1,0 +1,14 @@
+{
+  "id": "c2.research-threat-intel",
+  "name": "Research Threat Intel",
+  "kind": "PROMPT",
+  "description": "",
+  "content": "# Research & Threat Intelligence\n\n## Description\nReal-time research capabilities with data gathering and threat response. Allows the AI to adapt in real-time to new threats through continuous intelligence gathering and analysis.\n\n## When to Use\n- Gathering latest threat intelligence\n- Researching new vulnerability patterns\n- Monitoring security advisories\n- Analyzing emerging attack vectors\n\n## Implementation Method\n- Python3 with requests and BeautifulSoup for web scraping\n- API integration with GitHub, Stack Overflow, CVE databases\n- Automated threat feed aggregation\n- Real-time alert generation and prioritization\n\n## Usage\n```bash\n# Search threat intelligence\nGET /api/threats/search?q={query}&source=all\n\n# Subscribe to threat feeds\nPOST /api/threats/subscribe\n{\n  \"feed\": \"cve|nist|darkweb\",\n  \"frequency\": \"realtime|hourly|daily\"\n}\n\n# Generate threat report\nPOST /api/threats/report\n{\n  \"scope\": \"global|sector_specific\",\n  \"timeframe\": \"24h|7d|30d\"\n}\n```\n\n## Benefits\n- Provides real-time threat awareness\n- Automates intelligence gathering\n- Enables proactive defense measures\n- Maintains current knowledge of emerging threats",
+  "tags": [
+    "c2",
+    "operator",
+    "research-threat-intel"
+  ],
+  "source": "Quantum C2 skills/research-threat-intel",
+  "updated": "2026-09-30T22:29:19Z"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "c2.payload-customizer",
+  "name": "Payload Customizer",
+  "kind": "PROMPT",
+  "description": "Tailoring raw payloads to specific target networks and devices. Focuses on bypassing environment-specific EDR/AV and ensuring stability on the target architecture.",
+  "content": "# Payload Customizer\n\nThis skill transforms generic exploits into surgical tools.\n\n## Customization Process\n1. **Environment Mapping**: Use `pegasus-intel-hub` to determine the target's security software and OS build.\n2. **Obfuscation Tuning**: Apply specific polymorphic mutations that are known to bypass the detected EDR.\n3. **Configuration**: Set C2 callback URLs, master keys, and persistence paths specific to the target's directory structure.\n4. **Validation**: Run the customized payload against a mirrored environment to ensure it doesn't crash the target.",
+  "tags": [
+    "c2",
+    "operator",
+    "payload-customizer"
+  ],
+  "source": "Quantum C2 skills/payload-customizer",
+  "updated": "2026-09-30T22:29:19Z"
+}

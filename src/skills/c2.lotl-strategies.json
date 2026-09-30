@@ -1,0 +1,14 @@
+{
+  "id": "c2.lotl-strategies",
+  "name": "Lotl Strategies",
+  "kind": "PROMPT",
+  "description": "Advanced \"Living off the Land\" (LotL) and exotic execution strategies. Focuses on using legitimate system binaries (LOLBins) to perform malicious actions undetected.",
+  "content": "# Living off the Land (LotL)\n\nThis skill focuses on minimizing the footprint by avoiding custom binaries.\n\n## LotL Techniques\n- **Binary Proxy Execution**: Using `rundll32.exe`, `msiexec.exe`, or `certutil.exe` to run payloads.\n- **Scripting Engines**: Leveraging `PowerShell`, `WMI`, and `bash` for stealthy lateral movement.\n- **Registry-Based Persistence**: Storing payloads in the registry to avoid disk-based detection.\n- **Exotic Protocols**: Using DNS, ICMP, or custom application protocols for C2 traffic.\n\n## Strategy Selection\n1. **Binary Inventory**: Scan the target system for available LOLBins.\n2. **Chain Construction**: Build a sequence of legitimate commands that result in the desired outcome.\n3. **Evasion Check**: Ensure the chain does not trigger common EDR behavioral alerts.",
+  "tags": [
+    "c2",
+    "operator",
+    "lotl-strategies"
+  ],
+  "source": "Quantum C2 skills/lotl-strategies",
+  "updated": "2026-09-30T22:29:19Z"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "c2.voip-interception",
+  "name": "Voip Interception",
+  "kind": "PROMPT",
+  "description": "Specialized skills for SIP/VOIP traffic interception, audio decryption, and real-time voice injection.",
+  "content": "# VOIP Interception\n\nThis skill focuses on compromising voice-over-IP communications.\n\n## Operational Workflow\n1. **SIP Discovery**: Identify SIP servers and registered extensions on the target network.\n2. **Interception**: Deploy a man-in-the-middle (MITM) or mirror port to capture RTP streams.\n3. **Decryption**: Use recovered keys or exploit weak encryption to decrypt audio.\n4. **Audio Analysis**: Use AI to transcribe and analyze call content for intelligence.\n5. **Active Injection**: Inject pre-recorded or AI-generated audio into an active call.",
+  "tags": [
+    "c2",
+    "operator",
+    "voip-interception"
+  ],
+  "source": "Quantum C2 skills/voip-interception",
+  "updated": "2026-09-30T22:29:19Z"
+}

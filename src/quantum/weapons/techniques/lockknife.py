@@ -144,6 +144,9 @@ def extract_packages(serial=None, third_party_only=True) -> dict:
         proc, err = _run_adb(args, serial=serial)
         if err:
             return {"ok": False, "error": err}
+        if proc.returncode != 0 and not (proc.stdout or "").strip():
+            return {"ok": False,
+                    "error": (proc.stderr or "adb error").strip()[:300]}
         pkgs = sorted(
             l.replace("package:", "").strip()
             for l in (proc.stdout or "").splitlines()
@@ -158,11 +161,20 @@ def extract_settings(serial=None) -> dict:
     """`settings get` for the common forensic namespaces."""
     try:
         out = {}
+        failed = None
         for ns in ("secure", "global", "system"):
             proc, err = _run_adb(
                 ["shell", "settings", "list", ns], serial=serial, timeout=15)
-            out[ns] = {} if err else dict(
-                _parse_kv(proc.stdout or ""))
+            if err:
+                failed = failed or err
+                out[ns] = {}
+            elif proc.returncode != 0 and not (proc.stdout or "").strip():
+                failed = failed or (proc.stderr or "adb error").strip()[:300]
+                out[ns] = {}
+            else:
+                out[ns] = dict(_parse_kv(proc.stdout or ""))
+        if failed and not any(out.values()):
+            return {"ok": False, "error": failed, "settings": out}
         return {"ok": True, "settings": out}
     except Exception as exc:
         return {"ok": False, "error": "%s: %s" % (type(exc).__name__, exc)}
@@ -206,6 +218,8 @@ def extract_app_data(serial=None, package=None) -> dict:
         apps = sorted(l.strip() for l in (proc.stdout or "").splitlines()
                       if l.strip())
         return {"ok": len(apps) > 0 and proc.returncode == 0,
+                "error": None if (apps and proc.returncode == 0)
+                else "no /data/data listing (device not rooted or no device)",
                 "rooted": len(apps) > 0,
                 "packages": apps[:2000],
                 "listing": (proc.stdout or "").strip()[:2000]}
@@ -238,8 +252,10 @@ def full_report(serial=None) -> dict:
     try:
         info = device_info(serial=serial)
         report = {"ok": info.get("ok", False), "device": info,
-                 "packages": extract_packages(serial=serial),
-                 "settings": extract_settings(serial=serial)}
+                  "packages": extract_packages(serial=serial),
+                  "settings": extract_settings(serial=serial)}
+        if not report["ok"]:
+            report["error"] = info.get("error") or "device report incomplete"
         return report
     except Exception as exc:
         return {"ok": False, "error": "%s: %s" % (type(exc).__name__, exc)}

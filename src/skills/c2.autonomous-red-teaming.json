@@ -1,0 +1,14 @@
+{
+  "id": "c2.autonomous-red-teaming",
+  "name": "Autonomous Red Teaming",
+  "kind": "PROMPT",
+  "description": "AI-driven autonomous red teaming. Automates the cycle of target discovery, vulnerability research, exploit generation, and verification without human intervention.",
+  "content": "# Autonomous AI Red Teaming\n\nThis skill transforms the agent into an autonomous offensive operator.\n\n## The Autonomous Loop\n1. **Discovery**: Map the target surface area using the `pegasus-intel-hub`.\n2. **Hypothesis**: Generate a set of potential attack vectors based on the discovered tech stack.\n3. **Execution**: Use `pegasus-payload-factory` to generate and deploy exploits.\n4. **Verification**: Confirm successful compromise via the `pegasus-c2-manager`.\n5. **Pivot**: Use the compromised node to discover new targets internally.\n6. **Reporting**: Document the path of least resistance to the primary objective.\n\n## Constraints & Safety\n- **Surgical Precision**: Prefer minimal-impact exploits to avoid crashing target systems.\n- **Stealth First**: Always prioritize the most evasive delivery method provided by `pegasus-stealth-net`.\n- **Verification**: Never assume a payload worked; always verify via C2 heartbeat.",
+  "tags": [
+    "c2",
+    "operator",
+    "autonomous-red-teaming"
+  ],
+  "source": "Quantum C2 skills/autonomous-red-teaming",
+  "updated": "2026-09-30T22:29:19Z"
+}

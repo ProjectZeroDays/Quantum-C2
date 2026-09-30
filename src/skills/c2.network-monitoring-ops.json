@@ -1,0 +1,14 @@
+{
+  "id": "c2.network-monitoring-ops",
+  "name": "Network Monitoring Ops",
+  "kind": "PROMPT",
+  "description": "Professional network monitoring and traffic analysis. Focuses on detecting C2 heartbeats, data exfiltration, and anomalous network behaviors.",
+  "content": "# Network Monitoring & Ops\n\nThis skill provides the capability to analyze network traffic for adversarial signatures.\n\n## Monitoring Objectives\n- **C2 Detection**: Identifying beacons, heartbeats, and long-polling connections.\n- **Exfiltration Detection**: Spotting data spikes, unusual protocol usage (e.g., ICMP tunneling), and rare destination IPs.\n- **Anomaly Detection**: Baseling \"normal\" traffic and alerting on deviations.\n\n## Analysis Techniques\n- **Traffic Pattern Analysis**: Looking for fixed-interval requests (beacons) or jitter-based communication.\n- **Protocol Inspection**: Analyzing DoH, DNS, and HTTPS headers for anomalies.\n- **Flow Analysis**: Monitoring NetFlow/IPFIX for unusual internal-to-internal movements (lateral movement).\n\n## Tooling Integration\n- Use `tcpdump`/`Wireshark` for packet captures.\n- Integrate with `Zeek` or `Suricata` for automated IDS/NSM alerts.",
+  "tags": [
+    "c2",
+    "operator",
+    "network-monitoring-ops"
+  ],
+  "source": "Quantum C2 skills/network-monitoring-ops",
+  "updated": "2026-09-30T22:29:19Z"
+}

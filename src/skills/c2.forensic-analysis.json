@@ -1,0 +1,14 @@
+{
+  "id": "c2.forensic-analysis",
+  "name": "Forensic Analysis",
+  "kind": "PROMPT",
+  "description": "Professional forensic analysis of logs, memory dumps, and file metadata. Focuses on extracting actionable intelligence from compromised systems.",
+  "content": "# Forensic Analysis\n\nThis skill provides the capability to perform deep-dive analysis on digital artifacts.\n\n## Analysis Domains\n- **Log Forensics**: Parsing Event Logs, Syslog, and custom C2 logs to reconstruct attacker/victim timelines.\n- **Metadata Extraction**: Extracting EXIF, timestamps, and author data from exfiltrated documents.\n- **Memory Analysis**: Analyzing RAM dumps for injected code, hidden processes, and encryption keys.\n\n## Intelligence Extraction\n- **Timeline Reconstruction**: Creating a master sequence of events (T0 $\\rightarrow$ T-final).\n- **Artifact Correlation**: Linking a specific file modification to a known C2 command.\n- **Pattern Recognition**: Identifying the \"digital fingerprint\" of specific tools or operators.",
+  "tags": [
+    "c2",
+    "operator",
+    "forensic-analysis"
+  ],
+  "source": "Quantum C2 skills/forensic-analysis",
+  "updated": "2026-09-30T22:29:19Z"
+}

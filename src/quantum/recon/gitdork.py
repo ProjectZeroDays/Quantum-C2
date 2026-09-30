@@ -114,8 +114,9 @@ def search_dork(dork, repo=None, user=None, limit=10, timeout=30):
         url = API + "?q=" + urllib.parse.quote(q) + \
             "&per_page=%d" % max(1, min(int(limit), 100))
         req = urllib.request.Request(
-            url, headers=dict(headers, Accept="application/vnd.github+json",
-                              "User-Agent": "quantum-cli/4.4"))
+            url, headers={**headers,
+                          "Accept": "application/vnd.github+json",
+                          "User-Agent": "quantum-cli/4.4"})
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             data = json.loads(resp.read().decode("utf-8"))
         results = [
