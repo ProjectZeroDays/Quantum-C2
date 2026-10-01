@@ -53,7 +53,7 @@ DORK_CATEGORIES = {
             "intitle:\"Live View / - Ipsotek\"",
             "intitle:\"Live View / - Agent Vi\"",
             "intitle:\"Live View / - BriefCam\"",
-            "intitle:\"Live View / - Ipsotek\",
+            "intitle:\"Live View / - Ipsotek\"",
         ],
     },
     "directories": {
@@ -112,7 +112,7 @@ DORK_CATEGORIES = {
             "filetype:sql \"MySQL dump\" \"encrypted\"",
             "filetype:sql \"MySQL dump\" \"decrypted\"",
             "filetype:sql \"MySQL dump\" \"plaintext\"",
-            "filetype:sql \"MySQL dump\" \"unencrypted\",
+            "filetype:sql \"MySQL dump\" \"unencrypted\"",
         ],
     },
     "vulnerable_servers": {
@@ -2303,4 +2303,4 @@ DORK_CATEGORIES = {
             "intitle:\"Apache Tomcat\" \"Services\"",
             "intitle:\"Apache Tomcat\" \"Endpoints\"",
             "intitle:\"Apache Tomcat\" \"Resources\"",
-            "int</longcat_think>
+            "int</longcat_think>"
