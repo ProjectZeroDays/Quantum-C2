@@ -370,7 +370,7 @@ class InitialAccess:
                             self.tls_sock.sendall(ADBProtocol.pack_packet(CMD_OKAY, local_id, remote_id))
                         elif cmd == CMD_CLSE:
                             break
-                    except:
+                    except Exception:
                         break
 
             t = threading.Thread(target=reader, daemon=True)
