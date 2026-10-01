@@ -12,6 +12,7 @@ import androidx.compose.material.icons.outlined.Devices
 import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.SettingsRemote
 import androidx.compose.material.icons.outlined.Sensors
 import androidx.compose.material.icons.outlined.SmartToy
 import androidx.compose.material.icons.outlined.Videocam
@@ -33,6 +34,7 @@ enum class Page(val title: String, val icon: ImageVector) {
     ML("Machine Learning", Icons.Outlined.AutoAwesome),
     DEVICES("Devices", Icons.Outlined.Adb),
     HONEYPOT("Honeypot", Icons.Outlined.Sensors),
+    RAT("Remote Access", Icons.Outlined.SettingsRemote),
     TERMINAL("Terminal", Icons.Outlined.Code),
     SETTINGS("Settings", Icons.Outlined.Settings),
 }

@@ -80,6 +80,9 @@ from quantum.brute.crunch import (detect_crunch as crunch_detect,
                                    expand_charset as crunch_charset,
                                    generate as crunch_generate,
                                    write_wordlist as crunch_write)
+from quantum.rat import (dispatch as rat_dispatch,
+                         generate_rat_agent as rat_generate_agent,
+                         snapshot as rat_fleet_snapshot)
 
 from quantum.overlord.autonomous import AutonomousOverlord
 from quantum.overlord.engines import (GODSUPREME, EpiScribe, MFP, Somberknight,
@@ -120,4 +123,5 @@ __all__ = [
     "anon_status", "anon_fetch", "write_proxychains", "write_dnscrypt_config",
     "CRUNCH_NOTE", "SYMBOLS", "crunch_detect", "crunch_estimate",
     "crunch_estimate_size", "crunch_charset", "crunch_generate", "crunch_write",
+    "rat_dispatch", "rat_generate_agent", "rat_fleet_snapshot",
 ]

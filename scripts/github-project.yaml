@@ -1,0 +1,141 @@
+# scripts/github-project.yaml — Quantum CLI master backlog
+# Source of truth: docs/SLDR_AGENT_PROMPT.md (Sprint 0.5 Foundation Package, Artifact A).
+# Import with scripts/sync-issues.sh (idempotent: issues labeled qc-sync are updated, not duplicated).
+project: "Quantum CLI Master"
+repo: "ProjectZeroDays/Quantum-CLI"
+labels:
+  - {name: phase-0,       color: "d73a4a", desc: "Stabilization"}
+  - {name: phase-0.5,     color: "b60205", desc: "Foundation (DB/settings/widget-engine/heal)"}
+  - {name: phase-1,       color: "0e8a16", desc: "Shell & UX"}
+  - {name: phase-2,       color: "1d76db", desc: "AI core"}
+  - {name: phase-3,       color: "5319e7", desc: "Recon/OSINT"}
+  - {name: phase-4,       color: "f9d0c4", desc: "Exploitation"}
+  - {name: phase-5,       color: "fbca04", desc: "RAT/C2/Control"}
+  - {name: phase-6,       color: "c5def5", desc: "Social engineering"}
+  - {name: phase-7,       color: "bfd4f2", desc: "Network offense"}
+  - {name: phase-8,       color: "d4c5f9", desc: "Breadth dashboards"}
+  - {name: phase-9,       color: "ededed", desc: "Polish"}
+  - {name: hardware,      color: "006b75", desc: "Requires OTG/SDR/reader hardware"}
+  - {name: root-required, color: "b60205", desc: "Requires root"}
+  - {name: ci-gate,       color: "0e8a16", desc: "Adds CI enforcement"}
+  - {name: content,       color: "ffffff", desc: "Tooltip/walkthrough/doc content"}
+
+epics:
+
+  - title: "E-A: App Shell, Widget Engine & Core UX"
+    milestone: "Sprint 0.5–1"
+    issues:
+      - { title: "DashboardScaffold: drag-drop grid + per-page lock + telemetry slot", labels: [phase-0.5, ci-gate], body: "WidgetLayouts table, DataStore persistence, per-widget exception boundary feeding HealingDaemon. Acceptance: adding a widget requires zero wiring for drag/lock/telemetry. Include comma-test for exception boundary." }
+      - { title: "ControlledVibrationSidebar: hidden-scrollbar swipe + collapse groups + GitHub link", labels: [phase-1] }
+      - { title: "Terminal: VT shell + SSH/SFTP/Telnet/DNS/adb:// profiles", labels: [phase-1], body: "SSHJ, dnsjava, libtelnet-kt. adb:// profile dangles until E-H." }
+      - { title: "Chat icons: copy / SAF download (any ext, media MIME) / paperclip / photo (vision-gated)", labels: [phase-1] }
+      - { title: "Floating chat bubble (shared ChatViewModel) + Ask-AI context priming", labels: [phase-1, phase-2] }
+      - { title: "Home status widgets batch 1: root, VPN+IP, MAC, proxy", labels: [phase-1] }
+      - { title: "Home status widgets batch 2: DNSCrypt, DoH-RDNS, net-speed sparkline, CPU, model status, provider grid", labels: [phase-1] }
+      - { title: "JobCard framework — universal background-job UX", labels: [phase-1, ci-gate], body: "Lint rule: no long task launches outside JobCard." }
+
+  - title: "E-B: Phase-0 Bug Fixes"
+    milestone: "Sprint 0"
+    issues:
+      - { title: "Diagnose + rebuild settings Save/Apply/Restart onto SettingDefinition schema", labels: [phase-0, phase-0.5], body: "runtimeMutable defines Apply vs Restart. Root-fix not patch; closes dead-button bug class." }
+      - { title: "Scan Net: real ARP/nmap sweep → Services/OpenPorts + ADB-5555 profile feed", labels: [phase-0, root-required] }
+      - { title: "Cam Sweep: ONVIF/RTSP discovery → Targets", labels: [phase-0] }
+      - { title: "ModelDownloadManager replacing broken local-model download", labels: [phase-0], body: "OkHttp resumable, sha256, per-error diagnostics. Suspects: storage perms / x86 URL / redirects." }
+      - { title: "Publish docs/requirements-matrix.md (85 consolidated requirements → file map)", labels: [phase-0, content] }
+
+  - title: "E-C: Database, Encryption & Secrets Core"
+    milestone: "Sprint 0.5"
+    issues:
+      - { title: "Three-DB split: quantum_app / quantum_intel / quantum_secrets with SQLCipher", labels: [phase-0.5, ci-gate], body: "Prism logic: rows/tables defined in Part 14 checklist. Migrations + golden-fixture CI test. Key hierarchy (HKDF/envelope/HMAC) already landed in core/db/DbKeyHierarchy.kt — this issue is the Room+SQLCipher wiring PR." }
+      - { title: "Keystore MasterKey + HKDF per-DB derivation + StrongBox path", labels: [phase-0.5], body: "Landed: DbKeyHierarchy + AndroidKeyStoreMasterKeyProvider (StrongBox with TEE fallback), RFC5869 vectors tested." }
+      - { title: "BLOB envelope encryption (files/, AES-256-GCM) + per-row HMAC on critical plaintexts", labels: [phase-0.5], body: "Landed: DbKeyHierarchy.seal/openSealed/hmacVerify (tamper tests)." }
+      - { title: "Zeroize paths, encrypted export (age/AES), backup exclusions, weekly snapshots", labels: [phase-0.5] }
+      - { title: "Full intel + secrets table inventory migration (Targets provenance, Loot enum, SDR/PCAP/WiFi/BT/NFC/HwPayload tables)", labels: [phase-0.5] }
+      - { title: "Credentials & Vault dashboard: tables/widgets per Part 11", labels: [phase-5], body: "Ship browser creds + device info + summary first; wallet/vault/keylogger next." }
+      - { title: "Harvest adapters: Chrome/Firefox/Samsung browser decrypt via unlock-gated queue", labels: [phase-5, root-required] }
+      - { title: "Export formats: CSV/JSON/KeePass/cookies.txt/PDF + encrypted exfil destinations", labels: [phase-5] }
+
+  - title: "E-D: AI Providers & Agents"
+    milestone: "Sprints 2"
+    issues:
+      - { title: "ChatProvider interface + capability gating + failover chain", labels: [phase-2, ci-gate], body: "Contract test suite per provider is the gate." }
+      - { title: "Adapters: Abliteratus / OpenRouter / Venice / Agnes / OpenCode / local GGUF", labels: [phase-2] }
+      - { title: "Agents dashboard: CRUD + SDLC preset suite + red-team presets", labels: [phase-2] }
+      - { title: "Tasks dashboard: DAG workflow editor + run engine + chained-lifecycle template (J2 pilot)", labels: [phase-2, ci-gate], body: "Pilot route: recon→exploit-gen→RAT deploy→cred harvest→Proton exfil→cleanup." }
+      - { title: "Skills dashboard + shipped red-team/dev packs", labels: [phase-2, content] }
+      - { title: "OpenCode dashboard widget + GitHub OAuth/PAT integration + push", labels: [phase-2] }
+      - { title: "App auto-update: GitHub Releases poll + PackageInstaller + smoke-rollback", labels: [phase-2] }
+
+  - title: "E-E: Recon & OSINT"
+    milestone: "Sprint 3"
+    issues:
+      - { title: "OSINT dashboard: GitHub-search presets, IP download history, IMEI, phone→location, breach, username-enum", labels: [phase-3] }
+      - { title: "Recon dashboard: passive (whois/DNS/crt.sh) + active presets", labels: [phase-3, root-required] }
+      - { title: "Shodan integration + preset query library + facets", labels: [phase-3] }
+      - { title: "Google Dorks dashboard + queries capture", labels: [phase-3] }
+      - { title: "EXIF/stego analysis dashboard + GPS→map", labels: [phase-3] }
+      - { title: "Tracking-link module → Loot coordinates → map pin", labels: [phase-3] }
+
+  - title: "E-F: Exploitation Framework"
+    milestone: "Sprint 4"
+    issues:
+      - { title: "exploit-db + PAT catalog sync engine (pinned tags, mirrors, quarantine, stale badges)", labels: [phase-4, ci-gate] }
+      - { title: "Exploit dashboard dropdown (the original ask) — catalog-fed, filter/search, CVE preview", labels: [phase-4] }
+      - { title: "Target-profile exploit matching: nmap→NVD cpe2cve→searchsploit", labels: [phase-4] }
+      - { title: "AI PoC generation + OpenCode compile handoff + test-before-release gate", labels: [phase-4] }
+      - { title: "Project Zero RSS zero-day loop", labels: [phase-4] }
+      - { title: "Named modules: BlueBorne set, BlackBED, router suite, OTP bypass suite", labels: [phase-4] }
+      - { title: "Advanced techniques: heap-spray/ROP/format-string templates, LoTL scripts", labels: [phase-4] }
+      - { title: "Injection & stego: PDF/image/AV + messenger auto-parse chain", labels: [phase-4] }
+      - { title: "Zenmap-level controls front-end", labels: [phase-4] }
+
+  - title: "E-G: Tooltips & Walkthroughs"
+    milestone: "continuous (starts Sprint 0.5)"
+    issues:
+      - { title: "TooltipRegistry + TooltipAware wrapper in widget engine", labels: [phase-0.5, ci-gate], body: "Content from versioned JSON; sheet + long-press chip. Landed: TooltipRegistry/TooltipChip/TooltipLinter + CI gate in TooltipPipelineTest." }
+      - { title: "Walkthrough engine: spotlights, hands-on step detection, replay, What's-New tours", labels: [phase-1, content] }
+      - { title: "Content pilot: Home + Exploit + Credentials dashboards (Artifact C files)", labels: [phase-0.5, content], body: "Landed: assets/content/{tooltips,walkthroughs}/{home,exploit,credentials,settings}." }
+
+  - title: "E-H: RAT / C2 / ADB / QR / Hardware Payloads"
+    milestone: "Sprint 5"
+    issues:
+      - { title: "World map widget + target drawer full identifier/vuln/elapsed view", labels: [phase-5] }
+      - { title: "RAT control suite (mspy-class matrix incl. messaging list + no-indicator cam/mic)", labels: [phase-5] }
+      - { title: "Listener manager: Sliver + MSF multi-handler + Merlin", labels: [phase-5] }
+      - { title: "ADB Hunter: discovery + dadb connect + pairing-QR + 6-digit brute + PhantomDroid front-end", labels: [phase-5], body: "Landed (Devices page): wireless scan/connect, shell, input injection, screenshots, app mgmt." }
+      - { title: "QR Control Gateway Modes W/P/V + campaign wizard + analytics", labels: [phase-5] }
+      - { title: "Exfil engine + loot tables/charts + priv-esc catalog + anti-forensics", labels: [phase-5] }
+      - { title: "Memory analysis dashboard (root dump → secrets extraction)", labels: [phase-5, root-required] }
+      - { title: "OMG/Hak5 payload catalog sync + HwDeviceRegistry", labels: [phase-5, hardware] }
+      - { title: "Payload generator: DuckyScript/OMG/Bunny builder + stager gallery + SecretStore keystroke injection", labels: [phase-5, hardware] }
+      - { title: "USB mass-storage deploy path + post-deploy effect check", labels: [phase-5, hardware] }
+      - { title: "Key Croc→KeylogEntry pipeline; Pineapple REST; OMG Elite re-trigger", labels: [phase-5, hardware] }
+
+  - title: "E-I: Self-Healing & Updates"
+    milestone: "Sprint 0.5 skeleton, fills per phase"
+    issues:
+      - { title: "HealingDaemon interface + failure-class registry + widget crash boundary", labels: [phase-0.5, ci-gate], body: "Landed: FailureClass registry, Healer interface, healOnce/events, FeatureRegistry, CrashLoopGuard (3-strike → Safe Mode), RecoveryBoundary. Poll loop opt-in." }
+      - { title: "Healers: provider failover, model corruption, Room recover, mirror-switch, DoH fallback", labels: [phase-2] }
+      - { title: "ToolBridge pre-flight + one-tap Termux pkg install prompts", labels: [phase-2], body: "Landed: preFlight + FixAction mapping + tests; Termux executor binding is phase 2." }
+      - { title: "Crash-loop Safe Mode boot path + module-disable UI", labels: [phase-2, ci-gate], body: "Synthetic crash-loop test in CI. CrashLoopGuard logic landed — boot-path wiring pending." }
+      - { title: "Content hot-fix channel (signed tooltips/kill-switches) + Update channels", labels: [phase-2] }
+      - { title: "Diagnostics dashboard + auto-doc pipeline", labels: [phase-8, content] }
+
+  - title: "E-J: Settings Schema"
+    milestone: "Sprint 0.5"
+    issues:
+      - { title: "SettingDefinition schema + registry + generated settings UI", labels: [phase-0.5, ci-gate], body: "Gate: every definition needs default+tooltip+scope. Landed: SettingDefinition + SettingsRegistry (real fields, defaults cross-checked vs SettingsData) + linter gate; generated UI is Sprint 1." }
+      - { title: "Per-dashboard settings pages (.overflow) + import/export + app lock", labels: [phase-1] }
+
+  - title: "E-K: Social Engineering & Messaging"
+    milestone: "Sprint 6"
+    issues: [ phishing dashboard/email templates, voice-clone XTS/RVC, face-clone, messaging integrations set, storage-fill attack, QR-type campaign ]
+
+  - title: "E-L: Network Offense Dashboards"
+    milestone: "Sprint 7"
+    issues: [ WiFite GUI, PCAP tools+VoIP, SDR/IMSI, Bluetooth, Contactless Lab, Brute-force, APN/Evil-Twin, Dark web, DDoS/Botnet/Ransomware, Integrations ]
+    # (expand same pattern as above when importing)
+
+  - title: "E-O: CI & Docs"
+    milestone: "continuous"
+    issues: [ screenshot truth-state matrix, migration fixtures, lint gates list, gap-analysis publication, release auto-doc job ]
