@@ -2470,7 +2470,6 @@ class DataHarvester:
 # 11b. DISCOVERY HELPERS — WS-Discovery ONVIF Probe + ONVIF device info
 # ============================================================================
 def wsdiscovery_cameras(timeout=5.0):
-    import uuid
     probe = (
         '<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" '
         'xmlns:a="http://schemas.xmlsoap.org/ws/2004/08/addressing" '

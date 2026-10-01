@@ -14,10 +14,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - name: Ruff gate (error-class: syntax, undefined names)
+      - name: "Ruff gate (error-class: syntax, undefined names)"
         run: |
           pip install ruff
-          ruff check --select E9,F63,F7,F82,F401,F811 src tests quantum_cli.py exploit_payloads
+          ruff check --select E9,F63,F7,F82,F401,F811 src tests quantum_cli.py exploit_payloads dist
 
   test:
     runs-on: ${{ matrix.os }}
