@@ -73,6 +73,13 @@ from quantum.c2.agents.ghostdns import (PersistentDoHChannel, backoff_seconds,
                                          generate_dns_agent)
 from quantum.anon import (KODACHI_NOTE, anon_fetch, anon_status,
                            write_dnscrypt_config, write_proxychains)
+from quantum.brute import (CRUNCH_NOTE, SYMBOLS)
+from quantum.brute.crunch import (detect_crunch as crunch_detect,
+                                   estimate_count as crunch_estimate,
+                                   estimate_size as crunch_estimate_size,
+                                   expand_charset as crunch_charset,
+                                   generate as crunch_generate,
+                                   write_wordlist as crunch_write)
 
 from quantum.overlord.autonomous import AutonomousOverlord
 from quantum.overlord.engines import (GODSUPREME, EpiScribe, MFP, Somberknight,
@@ -111,4 +118,6 @@ __all__ = [
     "EpiScribe", "MFP", "Somberknight", "Trinity", "UnitedDrake", "Wildfire",
     "DASH_HTML", "PersistentDoHChannel", "backoff_seconds", "KODACHI_NOTE",
     "anon_status", "anon_fetch", "write_proxychains", "write_dnscrypt_config",
+    "CRUNCH_NOTE", "SYMBOLS", "crunch_detect", "crunch_estimate",
+    "crunch_estimate_size", "crunch_charset", "crunch_generate", "crunch_write",
 ]

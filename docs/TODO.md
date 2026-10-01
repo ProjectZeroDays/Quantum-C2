@@ -21,6 +21,17 @@ Status: done / doing / parked / todo. Update after every task. (Requested by use
 
 ## Done
 
+- [x] **Crunch wordlist integration** *(user request)* — new `quantum.brute.crunch`
+      package: crunch-compatible custom password list creation (`min/max`,
+      literal charsets, `-t` patterns with `@` lower / `,` upper / `%` digit /
+      `^` symbol placeholders + backslash escapes, odometer ordering identical
+      to crunch). System `crunch` binary used as passthrough when installed
+      (`detect_crunch`), pure-Python generator otherwise — never bundled, never
+      faked (`CRUNCH_NOTE`, no fake flags). Exact `estimate_count`/`estimate_size`
+      up front, `write_wordlist` refuses jobs over the entry cap unless
+      `allow_huge=True`, resume (`-s`) + limit (`-c`) compose, minimal
+      `charset.lst` support, root exports as `crunch_*`. 18 new tests.
+
 - [x] **Honeypot dashboard** *(user request)* — `ops/Honeypot.kt` + `Page.HONEYPOT` +
       HoneypotPage.kt: 7 unprivileged presets (HTTP admin :8080, SSH :2222, FTP :2121,
       Telnet :2323, MQTT :1883, Redis :6379, MySQL :3306) with real banners + scripted
