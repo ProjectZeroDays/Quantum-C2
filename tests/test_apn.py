@@ -1,4 +1,10 @@
 """Tests for quantum.exploits.apn — APN attack methods & hardware."""
+import os
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__))), "src"))
+
 from quantum.exploits.apn import (
     apn_dashboard_state,
     list_apn_hardware,

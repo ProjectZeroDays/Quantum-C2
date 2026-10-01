@@ -1,4 +1,10 @@
 """Tests for quantum.control.botnet — botnet dashboard."""
+import os
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__))), "src"))
+
 from quantum.control.botnet import (
     botnet_dashboard_state,
     list_botnet_types,

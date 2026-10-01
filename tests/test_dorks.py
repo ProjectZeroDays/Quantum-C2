@@ -1,4 +1,10 @@
 """Tests for quantum.recon.dorks — Google dork categories."""
+import os
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__))), "src"))
+
 from quantum.recon.dorks import (
     dorks_dashboard_state,
     list_dork_categories,

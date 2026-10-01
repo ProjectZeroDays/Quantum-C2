@@ -40,10 +40,12 @@ object DbKeyHierarchy {
 
     // ------------------------------------------------------------ HKDF
 
-    /** RFC 5869 HKDF-Extract(salt, ikm) → PRK (SHA-256). */
-    fun hkdfExtract(salt: ByteArray, ikm: ByteArray): ByteArray =
-        Mac.getInstance("HmacSHA256")
-            .run { init(SecretKeySpec(salt, "HmacSHA256")); doFinal(ikm) }
+    /** RFC 5869 HKDF-Extract(salt, ikm) → PRK (SHA-256). Empty salt = 32 zero bytes (§2.2). */
+    fun hkdfExtract(salt: ByteArray, ikm: ByteArray): ByteArray {
+        val effective = if (salt.isEmpty()) ByteArray(32) else salt
+        return Mac.getInstance("HmacSHA256")
+            .run { init(SecretKeySpec(effective, "HmacSHA256")); doFinal(ikm) }
+    }
 
     /** RFC 5869 HKDF-Expand(PRK, info, length). */
     fun hkdfExpand(prk: ByteArray, info: ByteArray, length: Int): ByteArray {

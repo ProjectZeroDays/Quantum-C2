@@ -44,7 +44,7 @@ class RatControlTest {
     }
 
     @Test
-    fun shell quoting neutralizes injection() {
+    fun `shell quoting neutralizes injection`() {
         val q = RatControl.shQuote("/sd card; rm -rf /")
         assertEquals("'/sd card; rm -rf /'", q)
         assertTrue(RatControl.cmdFileList("/sd card").startsWith("ls -la '/sd card'"))
