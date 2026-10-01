@@ -42,6 +42,7 @@ import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Send
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.Stop
+import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.Videocam
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -396,6 +397,7 @@ fun QuantumUi() {
                         Page.AGENTS -> AgentsPage()
                         Page.SKILLS -> SkillsPage()
                         Page.TASKS -> TasksPage()
+                        Page.ML -> MachineLearningPage()
                         Page.TERMINAL -> TerminalPage()
                         Page.SETTINGS -> SettingsPage()
                     }
@@ -1352,7 +1354,26 @@ private fun AutoRunDialog(
 
 @Composable
 fun LogConsole(audit: List<AuditEvent>) {
+    val ctx = LocalContext.current
     var autoScroll by rememberSaveable { mutableStateOf(true) }
+    var showLog by remember { mutableStateOf(false) }
+    var pendingLog by remember { mutableStateOf<String?>(null) }
+    val saveLogPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("text/plain")
+    ) { uri ->
+        val content = pendingLog
+        pendingLog = null
+        if (uri != null && content != null) {
+            try {
+                ctx.contentResolver.openOutputStream(uri)?.use { out ->
+                    out.write(content.toByteArray())
+                }
+                C2State.audit("SYS", "console log saved via SAF")
+            } catch (e: Exception) {
+                C2State.audit("ERR", "console log save failed: ${e.message}")
+            }
+        }
+    }
     val listState = rememberLazyListState()
     val visible = audit.takeLast(150)
     LaunchedEffect(visible.size, autoScroll) {
@@ -1364,6 +1385,17 @@ fun LogConsole(audit: List<AuditEvent>) {
             Spacer(Modifier.weight(1f))
             Text("auto-scroll", style = QuantumTypography.labelSmall, color = Muted)
             Switch(checked = autoScroll, onCheckedChange = { autoScroll = it })
+            IconButton(onClick = { showLog = true }) {
+                Icon(Icons.Outlined.Visibility, contentDescription = "View console log", tint = SoftCyan)
+            }
+            IconButton(onClick = {
+                pendingLog = audit.joinToString("\n") { ev ->
+                    "[${ev.ts}] ${ev.tag}: ${ev.msg}"
+                }
+                saveLogPicker.launch("quantum-console-log.txt")
+            }) {
+                Icon(Icons.Outlined.Download, contentDescription = "Download console log", tint = SoftCyan)
+            }
             IconButton(onClick = { C2State.clearAuditUi() }) {
                 Icon(Icons.Outlined.Delete, contentDescription = "Clear console", tint = Muted)
             }
@@ -1385,6 +1417,35 @@ fun LogConsole(audit: List<AuditEvent>) {
                 )
             }
         }
+    }
+
+    if (showLog) {
+        AlertDialog(
+            onDismissRequest = { showLog = false },
+            title = { Text("Console log — full", style = QuantumTypography.titleSmall, color = Cyan) },
+            text = {
+                LazyColumn(Modifier.fillMaxWidth().height(420.dp)) {
+                    items(audit) { ev ->
+                        val color = when {
+                            ev.tag == "ERR" -> Danger
+                            ev.tag == "ATK" || ev.tag == "CAM" -> Cyan
+                            ev.tag == "OPSEC" -> Ok
+                            else -> SoftCyan
+                        }
+                        Text(
+                            "[${ev.ts}] ${ev.tag}: ${ev.msg}",
+                            style = QuantumTypography.bodySmall,
+                            color = color,
+                            fontSize = 10.sp,
+                            lineHeight = 13.sp,
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showLog = false }) { Text("Close") }
+            },
+        )
     }
 }
 
@@ -3318,8 +3379,47 @@ fun TerminalPage() {
         }
     }
 
+    // ---- console log controls: view / download / clear --------------------
+    val ctx = LocalContext.current
+    var showLog by remember { mutableStateOf(false) }
+    var pendingLog by remember { mutableStateOf<String?>(null) }
+    val saveLogPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("text/plain")
+    ) { uri ->
+        val content = pendingLog
+        pendingLog = null
+        if (uri != null && content != null) {
+            try {
+                ctx.contentResolver.openOutputStream(uri)?.use { out ->
+                    out.write(content.toByteArray())
+                }
+                append("[log saved via SAF]")
+            } catch (e: Exception) {
+                append("[log save failed: ${e.message}]")
+            }
+        }
+    }
+
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
-        Text("Terminal", style = QuantumTypography.displaySmall, color = Cyan)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Terminal", style = QuantumTypography.displaySmall, color = Cyan)
+            Spacer(Modifier.weight(1f))
+            IconButton(onClick = { showLog = true }) {
+                Icon(Icons.Outlined.Visibility, contentDescription = "View log", tint = SoftCyan)
+            }
+            IconButton(onClick = {
+                pendingLog = log.joinToString("\n")
+                saveLogPicker.launch("quantum-terminal-log.txt")
+            }) {
+                Icon(Icons.Outlined.Download, contentDescription = "Download log", tint = SoftCyan)
+            }
+            IconButton(onClick = {
+                log.clear()
+                append("[console cleared]")
+            }) {
+                Icon(Icons.Outlined.Delete, contentDescription = "Clear log", tint = Muted)
+            }
+        }
         Spacer(Modifier.height(8.dp))
         LazyColumn(
             state = listState,
@@ -3361,6 +3461,29 @@ fun TerminalPage() {
             }
         }
         Spacer(Modifier.height(12.dp))
+    }
+
+    if (showLog) {
+        AlertDialog(
+            onDismissRequest = { showLog = false },
+            title = { Text("Terminal log", style = QuantumTypography.titleSmall, color = Cyan) },
+            text = {
+                LazyColumn(Modifier.fillMaxWidth().height(420.dp)) {
+                    items(log) { line ->
+                        Text(
+                            line,
+                            style = QuantumTypography.bodySmall,
+                            color = if (line.startsWith("$ ")) Cyan else Softest,
+                            fontSize = 10.sp,
+                            lineHeight = 13.sp,
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showLog = false }) { Text("Close") }
+            },
+        )
     }
 }
 
