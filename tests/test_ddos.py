@@ -1,4 +1,10 @@
 """Tests for quantum.control.ddos — DDoS dashboard."""
+import os
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__))), "src"))
+
 from quantum.control.ddos import (
     ddos_dashboard_state,
     list_ddos_tools,

@@ -1,4 +1,10 @@
 """Tests for quantum.control.map2d — 2D map widget."""
+import os
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__))), "src"))
+
 import pytest
 from quantum.control.map2d import (
     map2d_dashboard_state,

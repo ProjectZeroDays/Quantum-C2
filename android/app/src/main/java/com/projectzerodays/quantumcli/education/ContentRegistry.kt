@@ -67,12 +67,16 @@ object ContentRegistry {
 
     private fun loadFromAssets(ctx: Context) {
         for (name in ctx.assets.list("content/tooltips").orEmpty()) {
-            val json = ctx.assets.open("content/tooltips/$name").bufferedReader().readText()
-            parseTooltipFile(json)
+            runCatching {
+                val json = ctx.assets.open("content/tooltips/$name").bufferedReader().readText()
+                parseTooltipFile(json)
+            }.onFailure { Log.w("ContentRegistry", "skipping asset tooltips/$name", it) }
         }
         for (name in ctx.assets.list("content/walkthroughs").orEmpty()) {
-            val json = ctx.assets.open("content/walkthroughs/$name").bufferedReader().readText()
-            parseWalkthroughFile(json)
+            runCatching {
+                val json = ctx.assets.open("content/walkthroughs/$name").bufferedReader().readText()
+                parseWalkthroughFile(json)
+            }.onFailure { Log.w("ContentRegistry", "skipping asset walkthroughs/$name", it) }
         }
     }
 
@@ -94,26 +98,74 @@ object ContentRegistry {
 
     private fun parseTooltipFile(json: String) {
         val o = JSONObject(json)
-        val arr = o.getJSONArray("tooltips")
-        for (i in 0 until arr.length()) {
-            val t = arr.getJSONObject(i)
-            tooltips[t.getString("id")] = ContentTip(
-                id = t.getString("id"),
-                title = t.getString("title"),
-                body = t.getString("body"),
-                anchor = t.optString("anchor").takeIf { it.isNotEmpty() },
+        // Legacy array format: {"tooltips": [{"id","title","body","anchor?"}]}.
+        val arr = o.optJSONArray("tooltips")
+        if (arr != null) {
+            for (i in 0 until arr.length()) {
+                val t = arr.getJSONObject(i)
+                tooltips[t.getString("id")] = ContentTip(
+                    id = t.getString("id"),
+                    title = t.getString("title"),
+                    body = t.getString("body"),
+                    anchor = t.optString("anchor").takeIf { it.isNotEmpty() },
+                )
+            }
+            return
+        }
+        // Content-pipeline map format: {"tooltips": {"id": {"title","howTo",...}}}.
+        // howTo carries the guidance; troubleshooting rows are folded in.
+        val map = o.optJSONObject("tooltips") ?: return
+        for (key in map.keys()) {
+            val t = map.getJSONObject(key)
+            val howTo = t.optString("howTo")
+            val fixes = buildString {
+                val tr = t.optJSONArray("troubleshooting")
+                if (tr != null) {
+                    for (i in 0 until tr.length()) {
+                        val s = tr.getJSONObject(i)
+                        append("\n- ")
+                        append(s.optString("symptom"))
+                        append(" / fix: ")
+                        append(s.optString("fix"))
+                    }
+                }
+            }
+            tooltips[key] = ContentTip(
+                id = key,
+                title = t.optString("title", key),
+                body = (howTo + fixes).trim(),
             )
         }
     }
 
     private fun parseWalkthroughFile(json: String) {
         val o = JSONObject(json)
-        val arr = o.getJSONArray("walkthroughs")
-        for (i in 0 until arr.length()) {
-            val w = arr.getJSONObject(i)
-            val route = w.getString("route")
-            walks[route] = Walkthrough.fromJson(route, w)
+        // Legacy array format: {"walkthroughs": [{"route","steps":[WalkStep]}]}.
+        val arr = o.optJSONArray("walkthroughs")
+        if (arr != null) {
+            for (i in 0 until arr.length()) {
+                val w = arr.getJSONObject(i)
+                val route = w.getString("route")
+                walks[route] = Walkthrough.fromJson(route, w)
+            }
+            return
         }
+        // Content-pipeline single-tour format: {"route","steps":[{"targetTooltipId",
+        // "title","description","gesture","advanceOn"}]} — mapped onto WalkStep.
+        val steps = o.optJSONArray("steps") ?: return
+        val route = o.optString("route", "unknown")
+        val mapped = org.json.JSONArray()
+        for (i in 0 until steps.length()) {
+            val s = steps.getJSONObject(i)
+            mapped.put(
+                org.json.JSONObject()
+                    .put("id", s.optString("targetTooltipId"))
+                    .put("title", s.optString("title"))
+                    .put("body", s.optString("description"))
+                    .put("advanceOn", s.optString("advanceOn")),
+            )
+        }
+        walks[route] = Walkthrough.fromJson(route, org.json.JSONObject().put("steps", mapped))
     }
 
     /**

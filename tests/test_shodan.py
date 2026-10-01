@@ -1,4 +1,10 @@
 """Tests for quantum.recon.shodan — Shodan presets & search."""
+import os
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__))), "src"))
+
 from quantum.recon.shodan import (
     shodan_dashboard_state,
     list_shodan_presets,

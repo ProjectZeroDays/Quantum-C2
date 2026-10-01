@@ -21,6 +21,21 @@ Status: done / doing / parked / todo. Update after every task. (Requested by use
 
 ## Done
 
+- [x] **RAT dashboard ("Remote Access", never product-labeled)** *(user request)* —
+      Python `quantum.rat` (13 capabilities with honest `requires` tags, TASKQ
+      dispatch, output exfil over the existing /r data channel, fleet snapshot,
+      RAT agent-profile generator) + Flask round-trip test; Android
+      `ops/RatControl.kt` (byte-identical protocol, 263-char parity-locked
+      exfil wrapper) + RatPage (C2 start/stop, fleet with stale/pending badges,
+      capability dispatch, loot viewer with PNG/text rendering). 9 + 8 tests.
+- [x] **Google Dorking module** *(user request)* — Python `recon/googledork.py`
+      (24 presets / 7 categories, 12 operators, 4 engines, 6 analyst-methods,
+      URL builders only — never scraped) + Android `ops/GoogleDork.kt`
+      (mirrored catalog) + DorkPage (packs, operator reference, methods,
+      in-app WebView browser with nav controls). Analyst methods are generic
+      public OSINT tradecraft — no agency attribution anywhere (tests enforce).
+      7 + 4 tests.
+
 - [x] **Crunch wordlist integration** *(user request)* — new `quantum.brute.crunch`
       package: crunch-compatible custom password list creation (`min/max`,
       literal charsets, `-t` patterns with `@` lower / `,` upper / `%` digit /

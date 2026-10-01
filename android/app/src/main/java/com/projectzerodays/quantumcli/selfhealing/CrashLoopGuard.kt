@@ -40,7 +40,19 @@ class CrashLoopGuard(private val store: StrikeStore) {
                 file.parentFile?.mkdirs()
                 val tmp = File(file.parentFile, file.name + ".tmp")
                 tmp.writeText(count.toString())
-                tmp.renameTo(file)
+                // Windows renameTo fails when the destination exists — remove first.
+                try {
+                    file.delete()
+                } catch (_: Exception) {
+                }
+                if (!tmp.renameTo(file)) {
+                    // Fall back to a direct write; never fail closed.
+                    file.writeText(count.toString())
+                    try {
+                        tmp.delete()
+                    } catch (_: Exception) {
+                    }
+                }
             } catch (_: Exception) {
                 // best-effort — a lost strike count fails open (no safe mode),
                 // never fails closed into a lockout

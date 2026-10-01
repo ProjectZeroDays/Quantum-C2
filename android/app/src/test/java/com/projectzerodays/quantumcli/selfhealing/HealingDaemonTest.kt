@@ -39,7 +39,7 @@ class HealingDaemonTest {
 
     @After
     fun cleanup() {
-        FeatureRegistry.clear()
+        HealerHealth.clear()
     }
 
     @Test
@@ -60,12 +60,12 @@ class HealingDaemonTest {
         assertTrue(events[0].result.succeeded)
         assertEquals(1, h.healCalls)
         // success restores any dim
-        FeatureRegistry.register(FailureClass.PROVIDER_OUTAGE.name)
-        FeatureRegistry.dim(FailureClass.PROVIDER_OUTAGE.name, "flapping")
+        HealerHealth.register(FailureClass.PROVIDER_OUTAGE.name)
+        HealerHealth.dim(FailureClass.PROVIDER_OUTAGE.name, "flapping")
         HealingDaemon(listOf(h)).healOnce()
         assertEquals(
-            FeatureRegistry.Health.OK,
-            FeatureRegistry.stateOf(FailureClass.PROVIDER_OUTAGE.name)!!.health,
+            HealerHealth.Health.OK,
+            HealerHealth.stateOf(FailureClass.PROVIDER_OUTAGE.name)!!.health,
         )
     }
 
@@ -77,9 +77,9 @@ class HealingDaemonTest {
             result = HealResult(false, "still corrupt", changedState = "model quarantined"),
         )
         HealingDaemon(listOf(h)).healOnce()
-        val state = FeatureRegistry.stateOf(FailureClass.MODEL_CORRUPTION.name)
+        val state = HealerHealth.stateOf(FailureClass.MODEL_CORRUPTION.name)
         assertNotNull(state)
-        assertEquals(FeatureRegistry.Health.DIM, state!!.health)
+        assertEquals(HealerHealth.Health.DIM, state!!.health)
         assertEquals("model quarantined", state.reason)
     }
 

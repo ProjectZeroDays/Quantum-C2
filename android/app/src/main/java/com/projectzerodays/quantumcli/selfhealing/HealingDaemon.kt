@@ -47,11 +47,12 @@ interface Healer {
 }
 
 /**
- * Feature health mesh — modules register once; a failed heal with a
- * `changedState` note dims the feature until it recovers. UI reads [stateOf]
- * for status lights.
+ * Failure-class health map for the daemon's own dim/restore loop.
+ * (Distinct from the app-wide selfhealing.FeatureRegistry health mesh,
+ * which tracks registered modules with scores and kill-switch policy —
+ * the daemon reports failure-class outcomes here.)
  */
-object FeatureRegistry {
+object HealerHealth {
 
     enum class Health { OK, DIM }
 
@@ -138,9 +139,9 @@ class HealingDaemon(
                 } else {
                     val result = healer.heal()
                     if (result.changedState != null && !result.succeeded) {
-                        FeatureRegistry.dim(healer.failureClass.name, result.changedState)
+                        HealerHealth.dim(healer.failureClass.name, result.changedState)
                     } else if (result.succeeded) {
-                        FeatureRegistry.restore(healer.failureClass.name)
+                        HealerHealth.restore(healer.failureClass.name)
                     }
                     HealEvent(healer.failureClass, result, System.currentTimeMillis())
                 }
