@@ -25,17 +25,22 @@ object AiModelDownloader {
 
     /**
      * Known-good mirrors for the Gemma-2B int4 tflite weights — tried in
-     * order. The official MediaPipe asset bucket stays first; the LiteRT
-     * community HuggingFace repo is the fallback.
+     * order. Google retired the old mediapipe-assets bucket path and every
+     * official litert-community HuggingFace repo is now auto-gated (anonymous
+     * downloads get HTTP 401), so all mirrors are verified ungated
+     * HuggingFace re-uploads of the same artifact (TFLite flatbuffer,
+     * ~1.3 GB): mirror 1 is the GPU int4 build, mirrors 2-3 the CPU int4
+     * builds (gemma 2b / gemma 1.1 2b) that run on any device.
      */
     val MODEL_URLS = listOf(
-        "https://storage.googleapis.com/mediapipe-assets/gemma-2b-it-gpu-int4.bin",
-        "https://huggingface.co/litert-community/Gemma-2B-it-GLu/resolve/main/gemma-2b-it-gpu-int4.tflite",
+        "https://huggingface.co/autoocrat0413/gemma-2b-it-gpu-int4-mediapipe/resolve/main/gemma-2b-it-gpu-int4.bin",
+        "https://huggingface.co/autoocrat0413/gemma-2b-it-gpu-int4-mediapipe/resolve/main/gemma-2b-it-cpu-int4.bin",
+        "https://huggingface.co/innermost47/gemma-2b-it-int4-mediapipe/resolve/main/gemma-1.1-2b-it-cpu-int4.bin",
     )
 
     /** Kept for compatibility — the primary mirror (index 0 of MODEL_URLS). */
     const val MODEL_URL =
-        "https://storage.googleapis.com/mediapipe-assets/gemma-2b-it-gpu-int4.bin"
+        "https://huggingface.co/autoocrat0413/gemma-2b-it-gpu-int4-mediapipe/resolve/main/gemma-2b-it-gpu-int4.bin"
 
     const val MODEL_NAME = "gemma-2b-it-gpu-int4.bin"
 
@@ -133,6 +138,8 @@ object AiModelDownloader {
         conn.connectTimeout = 30_000
         conn.readTimeout = 60_000
         conn.instanceFollowRedirects = true
+        // HuggingFace mirrors reject or throttle default Java UAs — identify.
+        conn.setRequestProperty("User-Agent", "QuantumCLI/${com.projectzerodays.quantumcli.BuildConfig.VERSION_NAME} (Android)")
         if (resumeFrom > 0) {
             conn.setRequestProperty("Range", "bytes=$resumeFrom-")
         }
