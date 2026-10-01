@@ -399,6 +399,7 @@ fun QuantumUi() {
                         Page.TASKS -> TasksPage()
                         Page.ML -> MachineLearningPage()
                         Page.DEVICES -> DevicesPage()
+                        Page.HONEYPOT -> HoneypotPage()
                         Page.TERMINAL -> TerminalPage()
                         Page.SETTINGS -> SettingsPage()
                     }

@@ -4,17 +4,10 @@ Status: done / doing / parked / todo. Update after every task. (Requested by use
 
 ## Doing
 
-- [ ] **ADB / PhantomDroid device-control dashboard** — wireless ADB (TCP 5555) via dadb:
-      scan/connect, shell, screencap live view, input injection (tap/swipe/text/keyevent),
-      app list/install/uninstall, push/pull, device info. USB (OTG host) mode behind
-      hardware detection; honest "not supported on this device" state otherwise.
-      Files: `ops/AdbControl.kt`, new `Page.DEVICES` + DevicesPage UI, unit tests, manual entry.
-- [ ] **Honeypot dashboard** *(user request)* — embedded fake-service honeypot manager:
-      service presets (HTTP admin panel, SSH banner, FTP, Telnet, MQTT, ADB-5555 decoy),
-      per-service start/stop + port config, live inbound-connection log with
-      source IP / payload capture, alert badge on new hit, JSON export of captured
-      sessions. Honest scope: listeners run in-app on this device (no root needed
-      for unprivileged ports); root-only ports marked.
+- [ ] **Sprint 0.5 foundation package** (Artifacts A/B/C): the GitHub Project import
+      yaml + sync script, three-DB SQLCipher module, SettingDefinition registry,
+      DashboardScaffold/WidgetShell/RecoveryBoundary, HealingDaemon, ToolBridge,
+      and tooltip/walkthrough pilot + TooltipLinter still need real implementations.
 
 ## Todo
 
@@ -27,6 +20,21 @@ Status: done / doing / parked / todo. Update after every task. (Requested by use
 - [ ] Extended Zenmap NSE-style scan profiles (beyond T0–T5 + port ranges already shipped).
 
 ## Done
+
+- [x] **Honeypot dashboard** *(user request)* — `ops/Honeypot.kt` + `Page.HONEYPOT` +
+      HoneypotPage.kt: 7 unprivileged presets (HTTP admin :8080, SSH :2222, FTP :2121,
+      Telnet :2323, MQTT :1883, Redis :6379, MySQL :3306) with real banners + scripted
+      replies (331/530, Password:), start/stop per service, live connection log
+      (ip:port + captured first lines, newest first), clear + SAF JSON export,
+      audit lines. 9 loopback unit tests (banner/capture/silent-scan/dup-start/
+      privileged-port refusal/busy-port/json-escape). No-root ports only; root ports
+      honestly refused instead of offered.
+- [x] **ADB / PhantomDroid device-control dashboard** — `ops/AdbControl.kt` (dadb 1.2.9
+      direct ADB protocol, released-API verified against the sources jar) + `Page.DEVICES`
+      + DevicesPage.kt: LAN scan for :5555 (Net.cidrHosts + ZenScan), connect w/ app-local
+      RSA key + shell probe, device info, tap/text/key injection, snapshot + 2 s live
+      stills dialog, shell console, package list/uninstall, SAF APK install. USB (OTG)
+      honestly marked unsupported on Android (USB_NOTE in UI). 7 pure-helper tests.
 
 - [x] **ML dashboard** — `Page.ML` + MachineLearningPage.kt: KPI tiles, latency/throughput
       Canvas sparklines, model widget (download progress/unload/delete), inference controls
