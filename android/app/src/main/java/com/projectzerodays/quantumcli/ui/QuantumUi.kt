@@ -1,5 +1,8 @@
 package com.projectzerodays.quantumcli.ui
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -30,6 +33,7 @@ import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material.icons.outlined.MenuBook
@@ -44,6 +48,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -101,6 +106,7 @@ import com.projectzerodays.quantumcli.ai.SkillDef
 import com.projectzerodays.quantumcli.ai.SkillStore
 import com.projectzerodays.quantumcli.ai.WorkflowDef
 import com.projectzerodays.quantumcli.ai.WorkflowRunner
+import com.projectzerodays.quantumcli.ai.WorkflowStep
 import com.projectzerodays.quantumcli.ai.WorkflowStore
 import com.projectzerodays.quantumcli.c2.AuditEvent
 import com.projectzerodays.quantumcli.c2.CameraHit
@@ -117,6 +123,7 @@ import com.projectzerodays.quantumcli.ops.Net
 import com.projectzerodays.quantumcli.ops.NetDiag
 import com.projectzerodays.quantumcli.ops.Overlord
 import com.projectzerodays.quantumcli.ops.ProjectZeroFeed
+import com.projectzerodays.quantumcli.ops.ZenScan
 import com.projectzerodays.quantumcli.ops.Weapons
 import com.projectzerodays.quantumcli.selfhealing.FeatureRegistry
 import com.projectzerodays.quantumcli.widgetengine.WidgetGrid
@@ -388,6 +395,7 @@ fun QuantumUi() {
                         Page.CHAT -> ChatPage()
                         Page.AGENTS -> AgentsPage()
                         Page.SKILLS -> SkillsPage()
+                        Page.TASKS -> TasksPage()
                         Page.TERMINAL -> TerminalPage()
                         Page.SETTINGS -> SettingsPage()
                     }
@@ -401,6 +409,23 @@ fun QuantumUi() {
                             onClose = { showChat = false },
                             onAction = uiActions.onChatAction,
                         )
+                    }
+
+                    // ---- floating chat bubble — popup AI from any page ----
+                    if (aiReady && !showChat && selectedPage != Page.CHAT) {
+                        FloatingActionButton(
+                            onClick = { showChat = true },
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(16.dp),
+                            containerColor = Cyan.copy(alpha = 0.25f),
+                            contentColor = Cyan,
+                        ) {
+                            Icon(
+                                Icons.Outlined.ChatBubble,
+                                contentDescription = "Open floating AI chat",
+                            )
+                        }
                     }
                 }
             }
@@ -1847,6 +1872,16 @@ fun NetworkPage() {
     var dnsResults by remember { mutableStateOf<List<Pair<String, NetDiag.GeoInfo?>>>(emptyList()) }
     var dnsBusy by remember { mutableStateOf(false) }
 
+    // zenmap-style scan state
+    var scanTarget by rememberSaveable { mutableStateOf(Net.localScope()) }
+    var scanPorts by rememberSaveable {
+        mutableStateOf("22,80,443,554,1900,3306,3389,5555,8000,8080,8899")
+    }
+    var scanTiming by rememberSaveable { mutableStateOf(3) }
+    var timingMenu by remember { mutableStateOf(false) }
+    var scanBusy by remember { mutableStateOf(false) }
+    var scanResults by remember { mutableStateOf<List<ZenScan.HostResult>>(emptyList()) }
+
     fun load() {
         loading = true
         scope.launch {
@@ -1865,6 +1900,88 @@ fun NetworkPage() {
     ) {
         Text("Network", style = QuantumTypography.displaySmall, color = Cyan)
         Spacer(Modifier.height(12.dp))
+
+        // ---- Zenmap-style manual scan controls ------------------------------
+        Column(Modifier.fillMaxWidth().quantumPanel().padding(12.dp)) {
+            Text("Host scan (zenmap controls)", style = QuantumTypography.titleSmall, color = SoftCyan)
+            Spacer(Modifier.height(8.dp))
+            OutlinedTextField(
+                value = scanTarget,
+                onValueChange = { scanTarget = it },
+                label = { Text("target CIDR or host") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(6.dp))
+            OutlinedTextField(
+                value = scanPorts,
+                onValueChange = { scanPorts = it },
+                label = { Text("ports (22,80,443,1000-2000)") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(6.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                OutlinedButton(onClick = { timingMenu = true }) {
+                    Text(ZenScan.timingLabel(scanTiming))
+                }
+                DropdownMenu(
+                    expanded = timingMenu,
+                    onDismissRequest = { timingMenu = false },
+                ) {
+                    (0..5).forEach { t ->
+                        DropdownMenuItem(
+                            text = { Text(ZenScan.timingLabel(t)) },
+                            onClick = {
+                                scanTiming = t
+                                timingMenu = false
+                            },
+                        )
+                    }
+                }
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    "${Net.cidrHosts(scanTarget).size} host(s) · " +
+                        "${ZenScan.parsePorts(scanPorts).size} port(s)",
+                    style = QuantumTypography.labelSmall,
+                    color = Muted,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+            Button(
+                onClick = {
+                    scanBusy = true
+                    scope.launch {
+                        val results = withContext(Dispatchers.IO) {
+                            ZenScan.scan(
+                                Net.cidrHosts(scanTarget),
+                                ZenScan.parsePorts(scanPorts),
+                                scanTiming,
+                            )
+                        }
+                        scanResults = results
+                        scanBusy = false
+                        C2State.audit(
+                            "NET",
+                            "zenmap scan $scanTarget (${ZenScan.timingLabel(scanTiming)}): " +
+                                "${results.size} host(s) up"
+                        )
+                    }
+                },
+                enabled = !scanBusy && scanTarget.isNotBlank(),
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text(if (scanBusy) "SCANNING…" else "SCAN") }
+            scanResults.forEach { r ->
+                Text(
+                    "${r.ip}  " + r.openPorts.joinToString(","),
+                    style = QuantumTypography.bodySmall,
+                    color = if (r.openPorts.contains(554) || r.openPorts.contains(8899)) Ok else SoftCyan,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
+        }
+        Spacer(Modifier.height(8.dp))
 
         Button(onClick = { load() }, enabled = !loading, modifier = Modifier.fillMaxWidth()) {
             Icon(Icons.Outlined.Refresh, contentDescription = null)
@@ -2404,6 +2521,60 @@ fun ChatOverlay(
     val busy by ChatController.busy.collectAsState()
     val mode = AiGate.modeLabel()
     val clipboard = LocalClipboardManager.current
+    val ctx = LocalContext.current
+
+    // SAF pickers: any file (OpenDocument) / photos+videos (PickVisualMedia).
+    // Picked content is copied into files/attachments so the path stays valid
+    // after the picker Uri is released; text files are inlined on send.
+    fun copyToLocal(uri: android.net.Uri): String? = try {
+        val dir = File(C2State.filesRoot, "attachments")
+        dir.mkdirs()
+        val name = uri.lastPathSegment?.substringAfterLast('/')
+            ?.replace(Regex("[^A-Za-z0-9._-]"), "_")
+            ?.takeLast(60)
+        val f = File(dir, "${System.currentTimeMillis()}_${name ?: "attach"}")
+        ctx.contentResolver.openInputStream(uri)?.use { input ->
+            f.outputStream().use { output -> input.copyTo(output) }
+        }
+        f.absolutePath
+    } catch (e: Exception) {
+        C2State.audit("AI", "attachment copy failed: ${e.message}")
+        null
+    }
+
+    val filePicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri -> uri?.let { copyToLocal(it)?.let { p -> attachPath = p } } }
+
+    val photoPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri -> uri?.let { copyToLocal(it)?.let { p -> attachPath = p } } }
+
+    // SAF "save as…" — user picks the location, name and any extension.
+    var pendingSave by remember { mutableStateOf<String?>(null) }
+    val saveDocPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("text/plain")
+    ) { uri ->
+        val content = pendingSave
+        pendingSave = null
+        if (uri != null && content != null) {
+            try {
+                ctx.contentResolver.openOutputStream(uri)?.use { it.write(content.toByteArray()) }
+                C2State.audit("AI", "chat message saved via SAF")
+            } catch (e: Exception) {
+                C2State.audit("AI", "SAF save failed: ${e.message}")
+            }
+        }
+    }
+
+    /** Small text attachments ride inline so every AI mode can actually read them. */
+    fun inlineAttachment(path: String): String {
+        val f = File(path)
+        if (!f.isFile || f.length() > 16 * 1024) return "[file: $path]"
+        val head = f.inputStream().use { it.readBytes() }
+        val printable = head.count { it == '\n'.code.toByte() || it in 32..126 } > head.size * 0.85
+        return if (printable) "[file: $path]\n${String(head)}" else "[file: $path]"
+    }
 
     LaunchedEffect(msgs.size) {
         if (msgs.isNotEmpty()) listState.animateScrollToItem(msgs.size - 1)
@@ -2442,14 +2613,9 @@ fun ChatOverlay(
                     }
                     IconButton(
                         onClick = {
-                            ioOp("AI") {
-                                val dir = File(C2State.filesRoot, "Downloads")
-                                dir.mkdirs()
-                                val safe = msg.ts.replace(":", "")
-                                val f = File(dir, "chat_${msg.role}_$safe.txt")
-                                f.writeText(msg.content)
-                                "saved ${f.name} -> files/Downloads"
-                            }
+                            pendingSave = msg.content
+                            val safe = msg.ts.replace(":", "")
+                            saveDocPicker.launch("chat_${msg.role}_$safe.txt")
                         },
                         modifier = Modifier.size(26.dp),
                     ) {
@@ -2480,14 +2646,21 @@ fun ChatOverlay(
             IconButton(onClick = { showAttachDlg = true }) {
                 Icon(
                     Icons.Outlined.AttachFile,
-                    contentDescription = "Attach file path",
+                    contentDescription = "Attach file",
+                    tint = if (attachPath.isNotBlank()) Cyan else Muted,
+                )
+            }
+            IconButton(onClick = { photoPicker.launch(PickVisualMediaRequest()) }) {
+                Icon(
+                    Icons.Outlined.Image,
+                    contentDescription = "Attach photo or video",
                     tint = if (attachPath.isNotBlank()) Cyan else Muted,
                 )
             }
             IconButton(
                 onClick = {
                     val t = buildString {
-                        if (attachPath.isNotBlank()) append("[file: ").append(attachPath).append("] ")
+                        if (attachPath.isNotBlank()) append(inlineAttachment(attachPath)).append(" ")
                         append(text)
                     }
                     text = ""
@@ -2512,15 +2685,31 @@ fun ChatOverlay(
         AlertDialog(
             onDismissRequest = { showAttachDlg = false },
             containerColor = Panel,
-            title = { Text("Attach file", color = Cyan) },
+            title = { Text("Attach", color = Cyan) },
             text = {
                 Column {
+                    OutlinedButton(
+                        onClick = {
+                            showAttachDlg = false
+                            filePicker.launch(arrayOf("*/*"))
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text("Pick any file (SAF)") }
+                    Spacer(Modifier.height(6.dp))
+                    OutlinedButton(
+                        onClick = {
+                            showAttachDlg = false
+                            photoPicker.launch(PickVisualMediaRequest())
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text("Pick photo / video") }
+                    Spacer(Modifier.height(10.dp))
                     Text(
-                        "Record a file path with the next message (plain-text attachment).",
+                        "Or enter a device file path manually:",
                         style = QuantumTypography.bodySmall,
                         color = Muted,
                     )
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(6.dp))
                     OutlinedTextField(
                         value = attachPath,
                         onValueChange = { attachPath = it },
@@ -2531,7 +2720,7 @@ fun ChatOverlay(
                 }
             },
             confirmButton = {
-                Button(onClick = { showAttachDlg = false }) { Text("Attach") }
+                Button(onClick = { showAttachDlg = false }) { Text("Done") }
             },
             dismissButton = {
                 TextButton(onClick = {
@@ -2828,6 +3017,243 @@ private fun SkillComposeDialog(
                 enabled = prompt.isNotBlank(),
                 onClick = { onSend(prompt.trim()) },
             ) { Text("Send to chat") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+// ---------------------------------------------------------------------------
+// Tasks — workflow creation, modification, removal + runs
+// ---------------------------------------------------------------------------
+
+@Composable
+fun TasksPage() {
+    val workflows by WorkflowStore.workflows.collectAsState()
+    val scope = rememberCoroutineScope()
+    var showEditor by remember { mutableStateOf(false) }
+    var editing by remember { mutableStateOf<WorkflowDef?>(null) }
+    var running by remember { mutableStateOf<String?>(null) }
+    var runResults by remember { mutableStateOf<Pair<String, List<WorkflowRunner.StepResult>>?>(null) }
+
+    LaunchedEffect(Unit) { WorkflowStore.load() }
+
+    Column(
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp),
+    ) {
+        Text("Tasks", style = QuantumTypography.displaySmall, color = Cyan)
+        Spacer(Modifier.height(4.dp))
+        Text(
+            "Named chains of /ai commands with \${var} templating — create, edit, delete, run.",
+            style = QuantumTypography.bodySmall,
+            color = Muted,
+        )
+        Spacer(Modifier.height(12.dp))
+
+        Button(
+            onClick = {
+                editing = WorkflowDef(
+                    id = "wf_" + System.currentTimeMillis(),
+                    name = "",
+                    description = "",
+                    steps = listOf(WorkflowStep("scan")),
+                )
+                showEditor = true
+            },
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text("+ NEW WORKFLOW") }
+        Spacer(Modifier.height(10.dp))
+
+        if (workflows.isEmpty()) {
+            Text("No workflows yet — create one or rely on the seeded chains.", color = Muted)
+        }
+        workflows.forEach { wf ->
+            Column(Modifier.fillMaxWidth().quantumPanel().padding(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        wf.name.ifBlank { wf.id },
+                        style = QuantumTypography.titleSmall,
+                        color = Cyan,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        "${wf.steps.size} step(s)",
+                        style = QuantumTypography.labelSmall,
+                        color = Muted,
+                    )
+                }
+                if (wf.description.isNotBlank()) {
+                    Text(wf.description, style = QuantumTypography.bodySmall, color = SoftCyan)
+                }
+                wf.steps.forEachIndexed { i, st ->
+                    Text(
+                        "${i + 1}. /ai ${st.cmd}" +
+                            (st.params.entries.joinToString("") { " ${it.key}=${it.value}" }),
+                        style = QuantumTypography.bodySmall,
+                        color = Softest,
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilledTonalButton(
+                        onClick = {
+                            running = wf.id
+                            scope.launch {
+                                val results = withContext(Dispatchers.IO) {
+                                    WorkflowRunner.run(wf)
+                                }
+                                running = null
+                                runResults = wf.id to results
+                            }
+                        },
+                        enabled = running == null,
+                    ) { Text(if (running == wf.id) "RUNNING…" else "RUN") }
+                    OutlinedButton(onClick = {
+                        editing = wf
+                        showEditor = true
+                    }) { Text("EDIT") }
+                    OutlinedButton(onClick = {
+                        WorkflowStore.delete(wf.id)
+                        "deleted workflow ${wf.id}"
+                    }) { Text("DELETE") }
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+        }
+        Spacer(Modifier.height(16.dp))
+    }
+
+    if (showEditor && editing != null) {
+        WorkflowEditorDialog(
+            initial = editing!!,
+            onSave = { WorkflowStore.upsert(it) },
+            onDismiss = { showEditor = false },
+        )
+    }
+    if (runResults != null) {
+        val (id, results) = runResults!!
+        AlertDialog(
+            onDismissRequest = { runResults = null },
+            containerColor = Panel,
+            title = { Text("Run complete · $id", color = Cyan) },
+            text = {
+                Column {
+                    results.forEach { r ->
+                        Text(
+                            (if (r.ok) "OK  " else "FAIL") + " /ai " + r.cmd,
+                            style = QuantumTypography.bodySmall,
+                            color = if (r.ok) Ok else Danger,
+                        )
+                        Text(
+                            r.output,
+                            style = QuantumTypography.bodySmall,
+                            color = Muted,
+                            maxLines = 3,
+                        )
+                        Spacer(Modifier.height(6.dp))
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { runResults = null }) { Text("Close") }
+            },
+        )
+    }
+}
+
+/** Create/edit dialog: name, description, ordered steps (cmd + k=v params). */
+@Composable
+private fun WorkflowEditorDialog(
+    initial: WorkflowDef,
+    onSave: (WorkflowDef) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var name by remember { mutableStateOf(initial.name) }
+    var desc by remember { mutableStateOf(initial.description) }
+    val steps = remember { mutableStateListOf<WorkflowStep>().also { it.addAll(initial.steps) } }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Panel,
+        title = { Text(if (initial.name.isBlank()) "New workflow" else "Edit workflow", color = Cyan) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(6.dp))
+                OutlinedTextField(
+                    value = desc,
+                    onValueChange = { desc = it },
+                    label = { Text("description") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(10.dp))
+                Text("Steps", style = QuantumTypography.titleSmall, color = SoftCyan)
+                steps.forEachIndexed { i, st ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("${i + 1}.", color = Muted, style = QuantumTypography.bodySmall)
+                        Spacer(Modifier.width(6.dp))
+                        Column(Modifier.weight(1f)) {
+                            OutlinedTextField(
+                                value = st.cmd,
+                                onValueChange = { newCmd ->
+                                    steps[i] = st.copy(cmd = newCmd)
+                                },
+                                label = { Text("command") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            OutlinedTextField(
+                                value = st.params.entries.joinToString(",") { "${it.key}=${it.value}" },
+                                onValueChange = { raw ->
+                                    val m = LinkedHashMap<String, String>()
+                                    raw.split(",").forEach { pair ->
+                                        val idx = pair.indexOf('=')
+                                        if (idx > 0) {
+                                            m[pair.substring(0, idx).trim()] = pair.substring(idx + 1)
+                                        }
+                                    }
+                                    steps[i] = st.copy(params = m)
+                                },
+                                label = { Text("params (key=value, …)") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                        IconButton(onClick = { steps.removeAt(i) }) {
+                            Icon(Icons.Outlined.Delete, contentDescription = "Remove step", tint = Danger)
+                        }
+                    }
+                    Spacer(Modifier.height(6.dp))
+                }
+                OutlinedButton(onClick = {
+                    steps.add(WorkflowStep(""))
+                }) { Text("+ ADD STEP") }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (name.isBlank() || steps.none { it.cmd.isNotBlank() }) return@Button
+                    onSave(
+                        WorkflowDef(
+                            id = initial.id,
+                            name = name.trim(),
+                            description = desc.trim(),
+                            steps = steps.filter { it.cmd.isNotBlank() },
+                        )
+                    )
+                    onDismiss()
+                },
+            ) { Text("Save") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
@@ -3267,6 +3693,11 @@ fun ManualDialog(onDismiss: () -> Unit) {
                     M("10. Federation / FoxAcid — Dashboard chips. FEDERATION queries the peer-mesh status; FOXACID START / STOP toggles the FoxAcid landing server (status prints under the buttons and in the console).")
                     M("11. GhostDNS / DoH C2 — /ai API + chat surfaces: 'ghostdns' with {host, domain} points a host at the operator domain configured in Settings → C2 operator domain; 'dohc2' with {action: start|stop, port?} runs beaconing through DNS-over-HTTPS.")
                     M("12. PTZ — the nudge row speaks camera pan/tilt directly (left / up / down / right / stop); results land in the console under the CAM tag. Nudges without known credentials report an honest failure.")
+                    M("13. Camera thumbnails — every camera card shows a real JPEG still as a 2×2-inch tile with a centered play button (cyan = CONTROLLED, dim = default-cred path). Tap to open the full-screen feed preview: live stills auto-refreshing every 3s, LIVE toggle, manual refresh, frame timestamps, and an honest NO SIGNAL state. Thumbnails re-fetch after PTZ nudges.")
+                    M("14. Tasks — the Tasks page manages workflows: named chains of /ai commands with ${'$'}{var} templating (a 'scan' step auto-fills first_host / first_cam for the next steps). Create, edit, delete, and run chains; a run stops at the first failed step and shows per-step results.")
+                    M("15. Floating chat — the cyan bubble in the bottom-right corner opens the popup AI chat from any page; it hides on the Chat page itself.")
+                    M("16. Zenmap controls — Network → Host scan: target CIDR or single host, port spec with ranges ('22,80,443,1000-2000'), and nmap timing templates T0 paranoid through T5 insane (they map to sweep concurrency and probe timeout). Camera/ONVIF ports light up green in the results.")
+                    M("17. Chat attachments — the paperclip opens the system file picker (any file) or photo/video picker; the image icon goes straight to photos. Picked files are copied into files/attachments; small text files are inlined into the message so every AI mode can read them. The download icon on each message now opens a save-as dialog — pick any location, name, and extension.")
                 }
                 Spacer(Modifier.height(8.dp))
                 ManualSection("TROUBLESHOOTING") {

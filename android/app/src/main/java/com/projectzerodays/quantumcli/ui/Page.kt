@@ -2,6 +2,7 @@ package com.projectzerodays.quantumcli.ui
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.BugReport
+import androidx.compose.material.icons.outlined.Checklist
 import androidx.compose.material.icons.outlined.Chat
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Dashboard
@@ -25,6 +26,7 @@ enum class Page(val title: String, val icon: ImageVector) {
     CHAT("Chat", Icons.Outlined.Chat),
     AGENTS("Agents", Icons.Outlined.SmartToy),
     SKILLS("Skills", Icons.Outlined.Extension),
+    TASKS("Tasks", Icons.Outlined.Checklist),
     TERMINAL("Terminal", Icons.Outlined.Code),
     SETTINGS("Settings", Icons.Outlined.Settings),
 }
