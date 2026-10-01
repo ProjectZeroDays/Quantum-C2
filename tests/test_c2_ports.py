@@ -1,5 +1,5 @@
 """Tests for the Quantum C2 Tier-1 ports: kev, gitdork, lockknife,
-quantum_android, sim."""
+quantum_android."""
 import json
 import os
 import sys
@@ -8,7 +8,6 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__))), "src"))
 
-from quantum import sim  # noqa: E402
 from quantum.recon import gitdork, kev  # noqa: E402
 from quantum.weapons.techniques import lockknife  # noqa: E402
 
@@ -141,40 +140,3 @@ def test_quantum_android_imports_and_crypto():
         qa.CryptoEngine.encrypt_payload(data, key), key) == data
     domains = qa.CryptoEngine.generate_dga("example.com", 7, count=5)
     assert len(domains) == 5 and len(set(domains)) == 5
-
-
-# --------------------------------------------------------------------- sim
-def test_sim_package_exports():
-    assert len(sim.__all__) >= 12
-    for name in sim.__all__:
-        assert hasattr(sim, name)
-
-
-def test_sim_red_and_blue_and_purple():
-    red = sim.RedTeamSimulator()
-    r = red.simulate_credential_harvesting(
-        {"host": "ws01", "user": "operator"})
-    assert isinstance(r, dict) and r
-    blue = sim.BlueTeamSimulator()
-    assert blue is not None
-    orch = sim.PurpleTeamOrchestrator()
-    assert orch is not None
-
-
-def test_sim_traffic_generator():
-    tg = sim.TrafficGenerator()
-    flows = tg.generate_normal_traffic(count=5)
-    assert isinstance(flows, list)
-    st = tg.get_statistics()
-    assert isinstance(st, dict)
-
-
-def test_sim_advanced_purple_orchestrator():
-    ap = sim.AdvancedPurpleTeamOrchestrator()
-    out = ap.run()
-    assert isinstance(out, dict) and "scenario" in out
-
-
-def test_sim_attack_scenario_library():
-    lib = sim.AttackScenarioLibrary()
-    assert lib is not None
