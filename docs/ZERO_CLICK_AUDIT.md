@@ -13,7 +13,7 @@ folders.
 100+ entry Android weapons registry; full Exploit-DB catalog
 (47,160 exploits); PayloadsAllTheThings + BadUSB catalogs; CISA KEV
 feed; Quantum C2 Tier-1 ports (ADB framework, LockKnife, GitDork,
-simulations, real evasion/exfil/persistence). See §5b.
+real evasion/exfil/persistence). See §5b.
 
 ## 1. Findings and remediation summary
 
@@ -196,7 +196,6 @@ confirmation is the generated PoC request set.
 - `weapons/techniques/lockknife.py` — LockKnife port: adb device
   management + forensic extractions (packages/settings/app data/
   screenshot).
-- `sim/` — 12 red/blue/purple team + network simulation classes.
 - `ops/` — real evasion (timestomp/masquerade/purge), exfil (DNS TXT
   tunnel with raw-socket DNS, HTTPS POST, packaging), persistence
   (run key/scheduled task/startup/cron/rc), external tool catalog.
