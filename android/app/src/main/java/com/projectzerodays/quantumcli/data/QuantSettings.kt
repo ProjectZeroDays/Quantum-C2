@@ -29,6 +29,11 @@ data class SettingsData(
     val hotFixChannel: String = "",              // signed content hot-fix base URL; blank = disabled
     val aiProvider: String = "abliteration",     // Providers preset id (ai/Providers.kt)
     val aiApiKey: String = "",                   // per-provider key; blank = legacy apiKey (migration)
+    // ---- ML dashboard (local MediaPipe inference controls) ----
+    val mlTemperature: Float = 0.8f,             // sampling temperature 0.0..2.0
+    val mlTopK: Int = 40,                        // top-K sampling (1..100)
+    val mlMaxTokens: Int = 1024,                 // max output tokens (64..4096)
+    val mlTelemetry: Boolean = true,             // record inference telemetry samples
 )
 
 /**
@@ -84,6 +89,10 @@ object QuantSettings {
         hotFixChannel = prefs.getString("hotfix_channel", "") ?: "",
         aiProvider = prefs.getString("ai_provider", "abliteration") ?: "abliteration",
         aiApiKey = prefs.getString("ai_api_key", "") ?: "",
+        mlTemperature = prefs.getFloat("ml_temperature", 0.8f),
+        mlTopK = prefs.getInt("ml_top_k", 40),
+        mlMaxTokens = prefs.getInt("ml_max_tokens", 1024),
+        mlTelemetry = prefs.getBoolean("ml_telemetry", true),
     )
 
     fun update(transform: (SettingsData) -> SettingsData) {
@@ -108,6 +117,10 @@ object QuantSettings {
             .putString("hotfix_channel", next.hotFixChannel)
             .putString("ai_provider", next.aiProvider)
             .putString("ai_api_key", next.aiApiKey)
+            .putFloat("ml_temperature", next.mlTemperature)
+            .putInt("ml_top_k", next.mlTopK)
+            .putInt("ml_max_tokens", next.mlMaxTokens)
+            .putBoolean("ml_telemetry", next.mlTelemetry)
             .apply()
         _state.value = next
     }

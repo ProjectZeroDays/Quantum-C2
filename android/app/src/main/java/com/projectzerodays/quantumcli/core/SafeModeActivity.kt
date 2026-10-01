@@ -25,6 +25,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.projectzerodays.quantumcli.MainActivity
+import com.projectzerodays.quantumcli.ui.ClassificationFrame
 import com.projectzerodays.quantumcli.ui.theme.QuantumTheme
 
 /**
@@ -37,9 +38,12 @@ class SafeModeActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.statusBarColor = android.graphics.Color.rgb(0x8B, 0x1A, 0x1A)
+        window.navigationBarColor = android.graphics.Color.rgb(0x8B, 0x1A, 0x1A)
         setContent {
             QuantumTheme {
-                Surface(Modifier.fillMaxSize()) {
+                ClassificationFrame {
+                    Surface(Modifier.fillMaxSize()) {
                     Column(
                         Modifier
                             .fillMaxSize()
@@ -74,6 +78,7 @@ class SafeModeActivity : ComponentActivity() {
                             }
                         }
                     }
+                }
                 }
             }
         }

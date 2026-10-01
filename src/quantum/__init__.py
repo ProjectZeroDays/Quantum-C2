@@ -68,8 +68,11 @@ from quantum.c2.transport import (DoHC2BeaconServer, FoxAcid, QuantumInsert,
                                   SwitchboardICMP)
 from quantum.c2.agents.ghostfang import (CottonMouth, OBSIDIAN_PS1,
                                           generate_posix_agent)
-from quantum.c2.agents.ghostdns import (doh_reverse_beacon, doh_task_check,
+from quantum.c2.agents.ghostdns import (PersistentDoHChannel, backoff_seconds,
+                                         doh_reverse_beacon, doh_task_check,
                                          generate_dns_agent)
+from quantum.anon import (KODACHI_NOTE, anon_fetch, anon_status,
+                           write_dnscrypt_config, write_proxychains)
 
 from quantum.overlord.autonomous import AutonomousOverlord
 from quantum.overlord.engines import (GODSUPREME, EpiScribe, MFP, Somberknight,
@@ -106,5 +109,6 @@ __all__ = [
     "CottonMouth", "OBSIDIAN_PS1", "generate_posix_agent", "doh_reverse_beacon",
     "doh_task_check", "generate_dns_agent", "AutonomousOverlord", "GODSUPREME",
     "EpiScribe", "MFP", "Somberknight", "Trinity", "UnitedDrake", "Wildfire",
-    "DASH_HTML",
+    "DASH_HTML", "PersistentDoHChannel", "backoff_seconds", "KODACHI_NOTE",
+    "anon_status", "anon_fetch", "write_proxychains", "write_dnscrypt_config",
 ]

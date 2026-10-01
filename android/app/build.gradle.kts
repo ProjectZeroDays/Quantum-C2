@@ -142,6 +142,14 @@ dependencies {
 
     // Encrypted storage for the AI API key
     implementation("androidx.security:security-crypto:1.0.0")
+    // Dadb — pure-Kotlin ADB client (no adb binary needed)
+    // Its POM drags junit-platform-native (runtime scope) which pulls the whole
+    // JUnit 5 suite into the APK and collides on META-INF/LICENSE.md — exclude.
+    implementation("dev.mobile:dadb:1.2.9") {
+        exclude(group = "org.graalvm.buildtools")
+        exclude(group = "org.junit.jupiter")
+        exclude(group = "org.junit.platform")
+    }
 
     testImplementation("junit:junit:4.13.2")
     // real org.json on the JVM test classpath (android.jar stubs no-op it)
