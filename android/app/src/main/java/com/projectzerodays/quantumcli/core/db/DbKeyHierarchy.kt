@@ -102,18 +102,20 @@ object DbKeyHierarchy {
     }
 
     /** Open a sealed blob; null on any failure (tamper, wrong key, bad AAD). */
-    fun openSealed(key: ByteArray, sealed: ByteArray, aad: ByteArray? = null): ByteArray? = try {
-        if (sealed.size <= NONCE_LEN) return null
-        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(
-            Cipher.DECRYPT_MODE,
-            SecretKeySpec(key, "AES"),
-            GCMParameterSpec(GCM_TAG_BITS, sealed, 0, NONCE_LEN),
-        )
-        aad?.let { cipher.updateAAD(it) }
-        cipher.doFinal(sealed, NONCE_LEN, sealed.size - NONCE_LEN)
-    } catch (_: Exception) {
-        null
+    fun openSealed(key: ByteArray, sealed: ByteArray, aad: ByteArray? = null): ByteArray? {
+        return try {
+            if (sealed.size <= NONCE_LEN) return null
+            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+            cipher.init(
+                Cipher.DECRYPT_MODE,
+                SecretKeySpec(key, "AES"),
+                GCMParameterSpec(GCM_TAG_BITS, sealed, 0, NONCE_LEN),
+            )
+            aad?.let { cipher.updateAAD(it) }
+            cipher.doFinal(sealed, NONCE_LEN, sealed.size - NONCE_LEN)
+        } catch (_: Exception) {
+            null
+        }
     }
 
     // ----------------------------------------------------------- per-row HMAC

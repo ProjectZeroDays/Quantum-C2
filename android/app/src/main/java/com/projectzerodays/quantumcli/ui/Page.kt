@@ -14,6 +14,7 @@ import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SettingsRemote
 import androidx.compose.material.icons.outlined.Sensors
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.SmartToy
 import androidx.compose.material.icons.outlined.Videocam
 import androidx.compose.material.icons.outlined.Wifi
@@ -35,6 +36,7 @@ enum class Page(val title: String, val icon: ImageVector) {
     DEVICES("Devices", Icons.Outlined.Adb),
     HONEYPOT("Honeypot", Icons.Outlined.Sensors),
     RAT("Remote Access", Icons.Outlined.SettingsRemote),
+    DORK("Google Dorking", Icons.Outlined.Search),
     TERMINAL("Terminal", Icons.Outlined.Code),
     SETTINGS("Settings", Icons.Outlined.Settings),
 }

