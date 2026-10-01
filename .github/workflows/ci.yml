@@ -39,7 +39,7 @@ jobs:
         run: python -c "import quantum_cli; assert len(quantum_cli.ZERO_DAY_REGISTRY) >= 25"
       - name: Pre-sync catalogs (PayloadsAllTheThings zip, so the synced-path test runs)
         if: runner.os == 'Linux'
-        run: python -c "from quantum.catalog import payloads_all as p; r = p.sync(); assert r.get('ok'), r; print(r)"
+        run: python -c "import sys; sys.path.insert(0, 'src'); from quantum.catalog import payloads_all as p; r = p.sync(); assert r.get('ok'), r; print(r)"
       - name: Full pytest suite with coverage
         run: python -m pytest tests/ -q --cov=quantum --cov-report=term
         shell: bash

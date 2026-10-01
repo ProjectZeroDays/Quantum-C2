@@ -114,7 +114,7 @@ def test_persistence_run_key_roundtrip():
         pytest.skip("windows-only persistence method")
     cmd = "cmd /c echo qcli-test"
     r = persistence.win_run_key(cmd, name="QCliTestEntry")
-    assert r["ok"] is True and r["undo"]
+    assert r["ok"] is True and r["undo"], r
     # remove via winreg directly (undo string documents the same op)
     import winreg
     with winreg.OpenKey(winreg.HKEY_CURRENT_USER, persistence.RUN_KEY,
