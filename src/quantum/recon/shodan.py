@@ -4,7 +4,6 @@ Provides Shodan API integration with preset queries for various intents.
 """
 from __future__ import annotations
 
-import json
 import os
 from datetime import datetime
 

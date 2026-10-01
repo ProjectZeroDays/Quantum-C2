@@ -388,7 +388,7 @@ def register_routes(app, agents, API):
     @app.route("/api/dorks/state")
     def dorks_state():
         from quantum.recon.dorks import dorks_dashboard_state
-        return jsonify(dorks_state())
+        return jsonify(dorks_dashboard_state())
 
     # ---- Shodan ----
     @app.route("/api/shodan/presets")
