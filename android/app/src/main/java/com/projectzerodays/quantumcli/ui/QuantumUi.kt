@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -37,9 +38,11 @@ import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Send
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.Stop
+import androidx.compose.material.icons.outlined.Videocam
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -130,10 +133,19 @@ import com.projectzerodays.quantumcli.ui.theme.QuantumTypography
 import com.projectzerodays.quantumcli.ui.theme.SoftCyan
 import com.projectzerodays.quantumcli.ui.theme.Softest
 import com.projectzerodays.quantumcli.ui.theme.quantumPanel
+import com.projectzerodays.quantumcli.ops.CamPreview
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import android.graphics.Bitmap
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import java.io.File
 
 // ---------------------------------------------------------------------------
@@ -1495,7 +1507,20 @@ fun CamerasPage() {
 
 @Composable
 private fun CameraCard(cam: CameraHit) {
+    var previewOpen by remember { mutableStateOf(false) }
+    // Bumped to force a thumbnail re-fetch (after PTZ moves / preview close).
+    var thumbVersion by remember { mutableStateOf(0) }
     Column(Modifier.fillMaxWidth().quantumPanel().padding(12.dp)) {
+        CameraThumb(
+            cam,
+            thumbVersion,
+            onOpen = { previewOpen = true },
+            onRetry = {
+                CamPreview.invalidate(cam.ip)
+                thumbVersion++
+            },
+        )
+        Spacer(Modifier.height(8.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 cam.ip,
@@ -1564,6 +1589,9 @@ private fun CameraCard(cam: CameraHit) {
                         onClick = {
                             ioOp("CAM") {
                                 if (CamWar.ptzNudge(cam.ip, cam.vendor, cam.creds, action)) {
+                                    // the view moved — drop the stale thumbnail
+                                    CamPreview.invalidate(cam.ip)
+                                    thumbVersion++
                                     "PTZ $action ${cam.ip}"
                                 } else {
                                     "PTZ $action ${cam.ip} failed"
@@ -1574,6 +1602,234 @@ private fun CameraCard(cam: CameraHit) {
                         modifier = Modifier.height(34.dp),
                     ) { Text(glyph, fontSize = 12.sp) }
                 }
+        }
+    }
+    if (previewOpen) {
+        CameraPreviewDialog(
+            cam,
+            onDismiss = {
+                previewOpen = false
+                // pick up whatever the preview last saw as the new thumbnail
+                CamPreview.invalidate(cam.ip)
+                thumbVersion++
+            },
+        )
+    }
+}
+
+/**
+ * Live thumbnail tile for a camera card — a real JPEG frame from
+ * CamWar.snapshot, decoded small. 2×2-inch (320dp) clickable square with
+ * a centered play button that opens the full video-feed preview; the button
+ * lights up when the camera is CONTROLLED (creds cracked) and dims
+ * otherwise (the feed still tries the default-credential path). A camera
+ * that answers no snapshot endpoint shows an honest NO SIGNAL tile that
+ * can be retried by tapping.
+ */
+@Composable
+private fun CameraThumb(
+    cam: CameraHit,
+    version: Int,
+    onOpen: () -> Unit,
+    onRetry: () -> Unit,
+) {
+    var thumb by remember(cam.ip, cam.creds) { mutableStateOf<Bitmap?>(null) }
+    var loading by remember(cam.ip) { mutableStateOf(false) }
+    var failed by remember(cam.ip) { mutableStateOf(false) }
+
+    LaunchedEffect(cam.ip, cam.creds, version) {
+        if (thumb != null && version == 0) return@LaunchedEffect
+        loading = true
+        failed = false
+        val bmp = withContext(Dispatchers.IO) {
+            CamPreview.thumbnail(cam.ip, cam.vendor, cam.creds)
+        }
+        thumb = bmp
+        failed = bmp == null
+        loading = false
+    }
+
+    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        Box(
+            Modifier
+                .size(320.dp) // 2 x 2 inch physical
+                .background(Color.Black)
+                .clickable { if (failed) onRetry() else onOpen() },
+            contentAlignment = Alignment.Center,
+        ) {
+            val bmp = thumb
+            when {
+                bmp != null -> Image(
+                    bmp.asImageBitmap(),
+                    contentDescription = "live thumbnail ${cam.ip}",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                )
+                loading -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator(Modifier.size(28.dp), color = Cyan)
+                    Spacer(Modifier.height(6.dp))
+                    Text("FETCHING FRAME…", style = QuantumTypography.labelSmall, color = Muted)
+                }
+                failed -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        Icons.Outlined.Videocam,
+                        contentDescription = null,
+                        tint = Muted,
+                        modifier = Modifier.size(40.dp),
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text("NO SIGNAL", style = QuantumTypography.labelSmall, color = Danger)
+                    Text("tap to retry", style = QuantumTypography.labelSmall, color = Muted)
+                }
+            }
+            if (bmp != null) {
+                // centered play button — cyan when CONTROLLED, dim otherwise
+                Box(
+                    Modifier
+                        .size(64.dp)
+                        .background(Color(0x88000000), CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        Icons.Outlined.PlayArrow,
+                        contentDescription = "play video feed ${cam.ip}",
+                        tint = if (cam.creds != null) Cyan else SoftCyan,
+                        modifier = Modifier.size(44.dp),
+                    )
+                }
+                Text(
+                    if (cam.creds != null) "● LIVE FEED" else "● FEED (NOT CONTROLLED)",
+                    style = QuantumTypography.labelSmall,
+                    color = if (cam.creds != null) Ok else Muted,
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(6.dp)
+                        .background(Color(0xAA000000))
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Full-screen camera preview — auto-refreshing JPEG stills (default every
+ * 3s) over the same snapshot endpoints, so it plays like live video without
+ * an RTSP stack. Honest states: frame + capture time, NO SIGNAL, paused.
+ */
+@Composable
+private fun CameraPreviewDialog(cam: CameraHit, onDismiss: () -> Unit) {
+    var frame by remember(cam.ip) { mutableStateOf<CamPreview.Frame?>(null) }
+    var fetching by remember { mutableStateOf(false) }
+    var noSignal by remember { mutableStateOf(false) }
+    var live by remember { mutableStateOf(true) }
+    val scope = rememberCoroutineScope()
+
+    suspend fun fetchFrame() {
+        if (fetching) return
+        fetching = true
+        try {
+            val f = withContext(Dispatchers.IO) {
+                CamPreview.frame(cam.ip, cam.vendor, cam.creds)
+            }
+            if (f != null) {
+                frame = f
+                noSignal = false
+            } else {
+                noSignal = true
+            }
+        } finally {
+            fetching = false
+        }
+    }
+
+    LaunchedEffect(cam.ip) { fetchFrame() }
+    LaunchedEffect(cam.ip, live) {
+        while (live && isActive) {
+            delay(3000)
+            fetchFrame()
+        }
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .background(Color(0xF2000810))
+                .padding(12.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "PREVIEW · ${cam.ip}",
+                    style = QuantumTypography.titleSmall,
+                    color = Cyan,
+                    modifier = Modifier.weight(1f),
+                )
+                Text("LIVE", style = QuantumTypography.labelSmall, color = if (live) Ok else Muted)
+                Spacer(Modifier.width(6.dp))
+                Switch(checked = live, onCheckedChange = { live = it })
+                IconButton(onClick = { scope.launch { fetchFrame() } }) {
+                    Icon(Icons.Outlined.Refresh, contentDescription = "refresh frame")
+                }
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Outlined.Close, contentDescription = "close preview")
+                }
+            }
+            Box(
+                Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .background(Color.Black),
+                contentAlignment = Alignment.Center,
+            ) {
+                val f = frame
+                when {
+                    f != null -> Image(
+                        f.bitmap.asImageBitmap(),
+                        contentDescription = "live preview ${cam.ip}",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Fit,
+                    )
+                    fetching -> CircularProgressIndicator(Modifier.size(32.dp), color = Cyan)
+                    noSignal -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            Icons.Outlined.Videocam,
+                            contentDescription = null,
+                            tint = Muted,
+                            modifier = Modifier.size(48.dp),
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text("NO SIGNAL", color = Danger)
+                        Text(
+                            "${cam.ip} answers none of the snapshot endpoints",
+                            style = QuantumTypography.labelSmall,
+                            color = Muted,
+                        )
+                    }
+                    else -> {}
+                }
+                if (f != null) {
+                    Text(
+                        f.ts,
+                        style = QuantumTypography.labelSmall,
+                        color = Ok,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(6.dp)
+                            .background(Color(0xAA000000))
+                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                    )
+                }
+            }
+            Spacer(Modifier.height(6.dp))
+            Text(
+                if (live) "live stills · auto-refresh 3s" else "paused · frame from ${frame?.ts ?: "—"}",
+                style = QuantumTypography.labelSmall,
+                color = Muted,
+            )
         }
     }
 }
