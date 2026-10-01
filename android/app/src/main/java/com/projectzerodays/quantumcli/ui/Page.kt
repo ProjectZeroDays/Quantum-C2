@@ -30,6 +30,7 @@ enum class Page(val title: String, val icon: ImageVector) {
     SKILLS("Skills", Icons.Outlined.Extension),
     TASKS("Tasks", Icons.Outlined.Checklist),
     ML("Machine Learning", Icons.Outlined.AutoAwesome),
+    DEVICES("Devices", Icons.Outlined.Adb),
     TERMINAL("Terminal", Icons.Outlined.Code),
     SETTINGS("Settings", Icons.Outlined.Settings),
 }
