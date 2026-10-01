@@ -234,7 +234,11 @@ def main(argv=None):
                             "macreset", "keylog", "wipe", "persist", "ghostdns", "cagebreak",
                             "agents", "skills", "workflows", "p0feed", "providers",
                             "exploitdb", "payloads", "badusb", "kev", "gitdork",
-                            "lockknife", "tools"],
+                            "lockknife", "tools",
+                            "trackip", "trackimei", "trackphone",
+                            "rat", "ransomware", "botnet", "ddos",
+                            "messaging", "stego", "apn", "exif",
+                            "darkweb", "dorks", "shodan", "map2d", "phantomdroid"],
                    help="direct command (optional)")
     p.add_argument("--menu", action="store_true", help="manual console")
     p.add_argument("--scope", "-c", dest="cidr", help="autonomous/scan scope CIDR")
@@ -495,6 +499,94 @@ def main(argv=None):
         if a.query:
             print(json.dumps(tools.detect(a.query), indent=2, default=str)); return
         print(json.dumps(tools.detect_all(), indent=2, default=str)); return
+    elif a.cmd == "trackip":
+        from quantum.recon.trackers import track_ip_downloads
+        print(json.dumps(track_ip_downloads(a.target), indent=2, default=str)); return
+    elif a.cmd == "trackimei":
+        from quantum.recon.trackers import track_imei
+        print(json.dumps(track_imei(a.target), indent=2, default=str)); return
+    elif a.cmd == "trackphone":
+        from quantum.recon.trackers import track_phone_location
+        print(json.dumps(track_phone_location(a.target), indent=2, default=str)); return
+    elif a.cmd == "rat":
+        from quantum.control.rat import rat_dashboard_state, list_rat_repos, mspy_feature_list, messaging_app_list
+        if a.query == "repos":
+            print(json.dumps(list_rat_repos(), indent=2, default=str)); return
+        if a.query == "features":
+            print(json.dumps({"features": mspy_feature_list(), "messaging_apps": messaging_app_list()}, indent=2)); return
+        print(json.dumps(rat_dashboard_state(), indent=2, default=str)); return
+    elif a.cmd == "ransomware":
+        from quantum.control.ransomware import ransomware_dashboard_state, list_ransomware_tools, list_deployment_modules
+        if a.query == "tools":
+            print(json.dumps(list_ransomware_tools(), indent=2, default=str)); return
+        if a.query == "modules":
+            print(json.dumps(list_deployment_modules(), indent=2, default=str)); return
+        print(json.dumps(ransomware_dashboard_state(), indent=2, default=str)); return
+    elif a.cmd == "botnet":
+        from quantum.control.botnet import botnet_dashboard_state, list_botnet_types, list_botnet_capabilities
+        if a.query == "types":
+            print(json.dumps(list_botnet_types(), indent=2, default=str)); return
+        if a.query == "capabilities":
+            print(json.dumps(list_botnet_capabilities(), indent=2, default=str)); return
+        print(json.dumps(botnet_dashboard_state(), indent=2, default=str)); return
+    elif a.cmd == "ddos":
+        from quantum.control.ddos import ddos_dashboard_state, list_ddos_tools, list_ddos_techniques
+        if a.query == "tools":
+            print(json.dumps(list_ddos_tools(), indent=2, default=str)); return
+        if a.query == "techniques":
+            print(json.dumps(list_ddos_techniques(), indent=2, default=str)); return
+        print(json.dumps(ddos_dashboard_state(), indent=2, default=str)); return
+    elif a.cmd == "messaging":
+        from quantum.social.messaging import messaging_dashboard_state, list_messaging_platforms, list_social_engineering_techniques
+        if a.query == "platforms":
+            print(json.dumps(list_messaging_platforms(), indent=2, default=str)); return
+        if a.query == "techniques":
+            print(json.dumps(list_social_engineering_techniques(), indent=2, default=str)); return
+        print(json.dumps(messaging_dashboard_state(), indent=2, default=str)); return
+    elif a.cmd == "stego":
+        from quantum.exploits.steganography import steganography_dashboard_state, list_steganography_methods, list_pdf_exploit_methods
+        if a.query == "methods":
+            print(json.dumps(list_steganography_methods(), indent=2, default=str)); return
+        if a.query == "pdf":
+            print(json.dumps(list_pdf_exploit_methods(), indent=2, default=str)); return
+        print(json.dumps(steganography_dashboard_state(), indent=2, default=str)); return
+    elif a.cmd == "apn":
+        from quantum.exploits.apn import apn_dashboard_state, list_apn_hardware, list_apn_attack_methods
+        if a.query == "hardware":
+            print(json.dumps(list_apn_hardware(), indent=2, default=str)); return
+        if a.query == "methods":
+            print(json.dumps(list_apn_attack_methods(), indent=2, default=str)); return
+        print(json.dumps(apn_dashboard_state(), indent=2, default=str)); return
+    elif a.cmd == "exif":
+        from quantum.recon.exif import exif_dashboard_state, analyze_exif
+        if a.target:
+            print(json.dumps(analyze_exif(a.target), indent=2, default=str)); return
+        print(json.dumps(exif_dashboard_state(), indent=2, default=str)); return
+    elif a.cmd == "darkweb":
+        from quantum.markets.darkweb import darkweb_dashboard_state, list_onion_services
+        if a.query == "services":
+            print(json.dumps(list_onion_services(), indent=2, default=str)); return
+        print(json.dumps(darkweb_dashboard_state(), indent=2, default=str)); return
+    elif a.cmd == "dorks":
+        from quantum.recon.dorks import dorks_dashboard_state, list_dork_categories
+        if a.query == "categories":
+            print(json.dumps(list_dork_categories(), indent=2, default=str)); return
+        print(json.dumps(dorks_dashboard_state(), indent=2, default=str)); return
+    elif a.cmd == "shodan":
+        from quantum.recon.shodan import shodan_dashboard_state, list_shodan_presets
+        if a.query == "presets":
+            print(json.dumps(list_shodan_presets(), indent=2, default=str)); return
+        print(json.dumps(shodan_dashboard_state(), indent=2, default=str)); return
+    elif a.cmd == "map2d":
+        from quantum.control.map2d import map2d_dashboard_state
+        print(json.dumps(map2d_dashboard_state(), indent=2, default=str)); return
+    elif a.cmd == "phantomdroid":
+        from quantum.control.phantomdroid import phantomdroid_dashboard_state, discover_adb_devices, list_phantomdroid_features
+        if a.query == "devices":
+            print(json.dumps(discover_adb_devices(), indent=2, default=str)); return
+        if a.query == "features":
+            print(json.dumps(list_phantomdroid_features(), indent=2, default=str)); return
+        print(json.dumps(phantomdroid_dashboard_state(), indent=2, default=str)); return
 
 
 if __name__ == "__main__":
