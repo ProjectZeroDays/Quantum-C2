@@ -9,7 +9,7 @@ import os
 import struct
 import uuid
 import random
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 
@@ -158,7 +158,7 @@ class PCAPReplayEngine:
                 payload_size = random.randint(*pattern["payload_size_range"])
                 protocol = pattern["protocol"]
 
-                timestamp = datetime.utcnow().timestamp() + i * pattern["interval_seconds"]
+                timestamp = datetime.now(timezone.utc).timestamp() + i * pattern["interval_seconds"]
                 src_ip = self._random_ip()
                 dst_ip = self._random_ip()
 
@@ -172,7 +172,7 @@ class PCAPReplayEngine:
             "traffic_type": traffic_type,
             "packet_count": packet_count,
             "description": pattern["description"],
-            "generated_at": datetime.utcnow().isoformat() + "Z",
+            "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         }
 
         self._save_metadata(result)
@@ -220,7 +220,7 @@ class PCAPReplayEngine:
             "total_detections": len(detections),
             "detections": detections,
             "status": "completed",
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         }
 
         self._save_metadata(result, "replay")

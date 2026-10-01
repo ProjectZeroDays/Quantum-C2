@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
 from datetime import datetime
 
 from quantum.core.env import LOG_DIR

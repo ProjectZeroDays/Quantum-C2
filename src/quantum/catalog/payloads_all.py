@@ -14,7 +14,6 @@ JSON-safe: every public function returns plain data and never raises.
 from __future__ import annotations
 
 import os
-import re
 import zipfile
 from datetime import datetime, timezone
 

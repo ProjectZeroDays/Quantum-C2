@@ -6,10 +6,9 @@ from __future__ import annotations
 
 import json
 import os
-import time
 import uuid
 from typing import Any
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class RedTeamSimulator:
@@ -23,7 +22,7 @@ class RedTeamSimulator:
     def _record_event(self, event_type: str, details: dict[str, Any]) -> dict[str, Any]:
         """Record a simulation event to the output log."""
         event = {
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             "event_type": event_type,
             "simulation_id": self.simulation_id,
             "details": details,
@@ -52,7 +51,7 @@ class RedTeamSimulator:
             "target": target_profile.get("name", "unknown"),
             "stages": stages,
             "status": "completed",
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             "estimated_success_rate": 0.72,
             "credentials_harvested": 12,
         }
@@ -74,7 +73,7 @@ class RedTeamSimulator:
             "hops": hops,
             "compromised_hosts": len(hops),
             "status": "completed",
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         }
 
         self._record_event("lateral_movement_complete", result)

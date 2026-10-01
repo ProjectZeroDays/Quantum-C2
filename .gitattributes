@@ -1,0 +1,29 @@
+# Normalize text files to LF in the repo; checkouts match per-OS need.
+* text=auto
+
+# Always LF (parsed/compared cross-platform: py, json, yml, sh, gradle)
+*.py text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.sh text eol=lf
+*.md text eol=lf
+*.kts text eol=lf
+*.kt text eol=lf
+*.toml text eol=lf
+*.txt text eol=lf
+
+# Windows-native
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary — never touch
+*.png binary
+*.jpg binary
+*.ico binary
+*.gz binary
+*.apk binary
+*.zip binary
+*.dex binary
+*.so binary
+*.gfy binary

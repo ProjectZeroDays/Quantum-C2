@@ -30,6 +30,6 @@ def macos_recovery_reset():
     fn = os.path.join(QCLI_DIR, "macreset.sh")
     open(fn, "w").write(script)
     try: os.chmod(fn, 0o755)
-    except Exception: pass
+    except OSError as e: log(f"macreset.sh chmod failed: {e}", "WARN")
     log("MacReset armed: macreset.sh (run from Recovery Terminal)", "ATK")
     return fn

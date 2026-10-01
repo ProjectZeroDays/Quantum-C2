@@ -9,7 +9,6 @@ import threading
 import time
 
 from quantum.camwar.rtsp import rtsp_probe
-from quantum.camwar.vendors import vendor_from_str
 from quantum.core.deps import HTTPBasicAuth, HTTPDigestAuth, requests
 from quantum.core.env import LOOT_DIR
 from quantum.core.grayfish import GRAYFISH

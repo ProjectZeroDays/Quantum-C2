@@ -14,7 +14,6 @@ from quantum.camwar.engine import CAMWAR
 from quantum.c2.agents.ghostfang import generate_posix_agent
 from quantum.core.env import AGENT, QCLI_DIR, PRIV, local_ip
 from quantum.core.grayfish import GRAYFISH
-from quantum.core.jurgen import QBrain
 from quantum.core.logging import MitreMapper, log
 from quantum.core.opsec import network_aware_jitter
 from quantum.overlord.decide import decide

@@ -7,7 +7,7 @@ import socket
 import subprocess
 import sys
 
-from quantum.core.deps import nrpc, transport, HAS_IMPACKET
+from quantum.core.deps import nrpc, transport
 from quantum.core.env import LOOT_DIR
 from quantum.core.grayfish import GRAYFISH
 from quantum.core.logging import log
@@ -120,7 +120,7 @@ def exploit_zerologon(dc_ip, dc_name, domain=""):
     finally:
         try:
             if dce: dce.disconnect()
-        except Exception: pass
+        except Exception as e: log(f"dce disconnect cleanup failed: {e}", "WARN")
 
 
 def zerologon_dump(dc_ip, dc_name, domain):

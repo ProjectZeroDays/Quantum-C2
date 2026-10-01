@@ -7,10 +7,24 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  lint:
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Ruff gate (error-class: syntax, undefined names)
+        run: |
+          pip install ruff
+          ruff check --select E9,F63,F7,F82,F401,F811 src tests quantum_cli.py exploit_payloads
+
+  test:
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
+        os: [ubuntu-latest, windows-latest]
         python-version: ["3.9", "3.11", "3.13"]
     steps:
       - uses: actions/checkout@v4
@@ -20,18 +34,25 @@ jobs:
       - name: Install deps
         run: |
           python -m pip install --upgrade pip
-          pip install flask requests waitress pycryptodome cryptography colorama impacket pysmb pytest
+          pip install -r requirements.txt
       - name: Smoke — launcher imports
         run: python -c "import quantum_cli; assert len(quantum_cli.ZERO_DAY_REGISTRY) >= 25"
-      - name: Full pytest suite (dirtypipe live on Linux)
-        run: python -m pytest tests/ -q
+      - name: Pre-sync catalogs (PayloadsAllTheThings zip, so the synced-path test runs)
+        if: runner.os == 'Linux'
+        run: python -c "from quantum.catalog import payloads_all as p; r = p.sync(); assert r.get('ok'), r; print(r)"
+      - name: Full pytest suite with coverage
+        run: python -m pytest tests/ -q --cov=quantum --cov-report=term
+        shell: bash
       - name: Faceoff — no-AI autonomy
+        if: runner.os == 'Linux'
         run: |
           python quantum_cli.py --no-ai --cycles 3 --camera-only --scope 127.0.0.0/29
           test -f logs/mitre_map.json
           test "$(wc -l < logs/decisions.jsonl)" = "3"
       - name: Faceoff — carpet bomb
+        if: runner.os == 'Linux'
         run: timeout 60 python quantum_cli.py camwar -c 127.0.0.0/29
       - name: Faceoff — kernel PoCs compile
+        if: runner.os == 'Linux'
         run: |
           cc --version && make -C weapons/poc all

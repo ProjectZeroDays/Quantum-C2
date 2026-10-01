@@ -1,7 +1,6 @@
 """quantum.ai.bootstrap — local model manager (Ollama-aware, honest)."""
 from __future__ import annotations
 
-import os
 import shutil
 
 from quantum.core.env import MODELS_DIR
