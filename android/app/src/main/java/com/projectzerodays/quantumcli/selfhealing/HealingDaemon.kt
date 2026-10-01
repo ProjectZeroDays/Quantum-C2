@@ -4,7 +4,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
@@ -56,6 +59,11 @@ object FeatureRegistry {
 
     private val state = LinkedHashMap<String, FeatureState>()
 
+    private val _killSwitchNotices = MutableStateFlow<List<String>>(emptyList())
+
+    /** Channel kill-switch notices (loud banner feed for dashboards). */
+    val killSwitchNotices: StateFlow<List<String>> = _killSwitchNotices.asStateFlow()
+
     @Synchronized
     fun register(id: String) {
         state.putIfAbsent(id, FeatureState(id, Health.OK, null))
@@ -69,6 +77,18 @@ object FeatureRegistry {
     @Synchronized
     fun restore(id: String) {
         state[id] = FeatureState(id, Health.OK, null)
+    }
+
+    @Synchronized
+    fun postKillNotice(notice: String) {
+        if (notice.isNotBlank()) {
+            _killSwitchNotices.value = _killSwitchNotices.value + notice
+        }
+    }
+
+    @Synchronized
+    fun clearKillNotices() {
+        _killSwitchNotices.value = emptyList()
     }
 
     @Synchronized

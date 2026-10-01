@@ -401,6 +401,7 @@ fun QuantumUi() {
                         Page.DEVICES -> DevicesPage()
                         Page.HONEYPOT -> HoneypotPage()
                         Page.RAT -> RatPage()
+                        Page.DORK -> DorkPage()
                         Page.TERMINAL -> TerminalPage()
                         Page.SETTINGS -> SettingsPage()
                     }

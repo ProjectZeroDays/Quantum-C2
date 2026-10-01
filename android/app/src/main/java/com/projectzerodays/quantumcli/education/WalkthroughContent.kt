@@ -4,7 +4,7 @@ import org.json.JSONObject
 
 /**
  * Walkthrough (guided tour) content — versioned JSON under
- * `assets/content/walkthroughs/*.json`. The engine that spotlights targets
+ * `assets/content/walkthroughs/` JSON files. The engine that spotlights targets
  * and consumes `advanceOn` events is a later phase; the CONTENT and its
  * tooltip-id gate land now so every step resolves against real tooltip files.
  */

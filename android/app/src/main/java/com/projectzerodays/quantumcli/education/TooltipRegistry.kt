@@ -4,7 +4,7 @@ import org.json.JSONObject
 
 /**
  * Parses and serves the versioned tooltip JSON shipped in
- * `assets/content/tooltips/*.json`. Parsing is pure (org.json) so the JVM
+ * `assets/content/tooltips/` JSON files. Parsing is pure (org.json) so the JVM
  * test suite can lint the real shipped files; [install] is called once at
  * app start (or after a signed hot-fix replaces the assets).
  */

