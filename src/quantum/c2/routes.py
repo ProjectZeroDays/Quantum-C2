@@ -18,7 +18,6 @@ from quantum.postexploit.killswitch import KILLSWITCH, TASKQ, kill_all_implants
 
 
 def register_routes(app, agents, API):
-    from quantum.c2.app import TURBINE, keygen  # TURBINE read at call time
 
     @app.route("/s", defaults={"profile": "default"})
     @app.route("/s/<profile>")

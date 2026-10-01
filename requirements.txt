@@ -1,0 +1,17 @@
+# Quantum CLI v4.4 — Python dependencies
+# Core runtime (python 3.9+)
+flask>=2.0
+waitress>=2.1
+requests>=2.28
+colorama>=0.4
+pycryptodome>=3.18
+cryptography>=42.0
+
+# Windows/SMB weapon probes (legacy + perimeter)
+impacket>=0.11
+pysmb>=1.2
+
+# Test + lint
+pytest>=7.0
+pytest-cov>=4.0
+ruff>=0.4

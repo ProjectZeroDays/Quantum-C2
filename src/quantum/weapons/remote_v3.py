@@ -2,8 +2,6 @@
 from __future__ import annotations
 
 from quantum.core.deps import requests
-from quantum.core.env import QCLI_DIR
-from quantum.core.logging import log
 from quantum.core.opsec import rand_hex, tcp_probe
 
 

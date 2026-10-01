@@ -11,7 +11,6 @@ from quantum.core.logging import log
 
 
 def wsdiscovery_cameras(timeout=5.0):
-    import uuid
     probe = (
         '<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" '
         'xmlns:a="http://schemas.xmlsoap.org/ws/2004/08/addressing" '

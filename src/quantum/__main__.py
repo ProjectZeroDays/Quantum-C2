@@ -22,9 +22,8 @@ from quantum.c2.transport import (DoHC2BeaconServer, FoxAcid,
 from quantum.c2.wsgi import run_c2
 from quantum.core.deps import Fore
 from quantum.core.env import (AGENT, MODELS_DIR, QCLI_DIR, load_env_file,
-                              local_ip, local_scope, no_ai_mode)
+                              local_ip, local_scope)
 from quantum.core.grayfish import GRAYFISH
-from quantum.core.jurgen import QBrain
 from quantum.core.logging import MitreMapper, log
 from quantum.core.opsec import OPSEC
 from quantum.overlord.autonomous import AutonomousOverlord

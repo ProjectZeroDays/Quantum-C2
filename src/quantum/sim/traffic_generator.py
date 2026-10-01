@@ -8,7 +8,7 @@ import json
 import os
 import random
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 from dataclasses import dataclass, field
 
@@ -79,7 +79,7 @@ class TrafficGenerator:
             protocol="TCP" if dst_port not in [53] else "UDP",
             bytes_transferred=random.randint(500, 50_000_000),
             duration_seconds=round(random.uniform(0.5, 60.0), 2),
-            timestamp=datetime.utcnow().isoformat() + "Z",
+            timestamp=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             flow_type="normal",
             tags=[action],
         )
@@ -130,7 +130,7 @@ class TrafficGenerator:
             protocol=protocol,
             bytes_transferred=bytes_val,
             duration_seconds=duration,
-            timestamp=datetime.utcnow().isoformat() + "Z",
+            timestamp=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             flow_type="malicious",
             tags=tags,
         )

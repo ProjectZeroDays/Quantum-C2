@@ -8,8 +8,7 @@ import json
 import os
 import uuid
 import random
-import string
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 from dataclasses import dataclass, field
 
@@ -72,7 +71,7 @@ class HoneypotManager:
             ip=self._generate_ip(),
             port=config["port"],
             status="deployed",
-            deployed_at=datetime.utcnow().isoformat() + "Z",
+            deployed_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         )
 
         self._honeypots[honeypot_id] = hp
@@ -109,7 +108,7 @@ class HoneypotManager:
             "type_distribution": type_distribution,
             "status_distribution": status_distribution,
             "all_interactions": len(self._all_interactions),
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         }
 
     def _save_state(self) -> None:

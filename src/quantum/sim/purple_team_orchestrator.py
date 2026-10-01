@@ -7,7 +7,7 @@ from __future__ import annotations
 import json
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from .red_team_sim import RedTeamSimulator
@@ -46,7 +46,7 @@ class PurpleTeamOrchestrator:
         """Log orchestration event."""
         log_path = os.path.join(self.output_dir, "orchestration.log.jsonl")
         event = {
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             "type": event_type,
             "sim_id": self.simulation_id,
             "data": data,
@@ -109,7 +109,7 @@ class PurpleTeamOrchestrator:
             "network_topology": network_topology,
             "data_profile": data_profile,
             "status": "completed",
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         }
 
         self._log("exercise_complete", result)

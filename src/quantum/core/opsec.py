@@ -5,7 +5,6 @@ import os
 import random
 import socket
 import subprocess
-import time
 
 from quantum.core.deps import requests
 from quantum.core.logging import log

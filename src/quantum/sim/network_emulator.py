@@ -8,9 +8,9 @@ import json
 import os
 import uuid
 import random
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass
@@ -199,7 +199,7 @@ class NetworkEmulator:
             dst_node = random.choice(potential_targets)
 
             flow = {
-                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
                 "src_ip": src_node.ip,
                 "dst_ip": dst_node.ip,
                 "src_port": random.randint(1024, 65535),
@@ -240,7 +240,7 @@ class NetworkEmulator:
             "type_distribution": type_distribution,
             "status_distribution": status_distribution,
             "traffic_logs": len(self._traffic_log),
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         }
 
     def _save_topology(self, topology: dict[str, Any]) -> None:

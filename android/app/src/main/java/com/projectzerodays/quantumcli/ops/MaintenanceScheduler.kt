@@ -97,9 +97,9 @@ data class HorizonEntry(
  * the bundled seed stays authoritative until a fresh copy lands.
  */
 object CatalogSync {
-    private const val EDB_URL =
+    internal const val EDB_URL =
         "https://gitlab.com/exploit-database/exploitdb/-/raw/main/files_exploits.csv"
-    private const val KEV_URL =
+    internal const val KEV_URL =
         "https://raw.githubusercontent.com/cisagov/kev-data/main/known_exploited_vulnerabilities.json"
 
     fun syncOnce(ctx: Context): String {

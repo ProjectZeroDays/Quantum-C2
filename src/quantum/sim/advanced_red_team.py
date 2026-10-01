@@ -7,7 +7,7 @@ from __future__ import annotations
 import json
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 
@@ -30,7 +30,7 @@ class AdvancedRedTeamSimulator:
         """Log simulation event."""
         log_path = os.path.join(self.output_dir, "simulation.log.jsonl")
         event = {
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             "type": event_type,
             "sim_id": self.simulation_id,
             "data": data,
@@ -120,7 +120,7 @@ class AdvancedRedTeamSimulator:
             "target": target_profile.get("name", "unknown"),
             "simulation_id": self.simulation_id,
             "status": "completed",
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             "total_techniques": len(stages),
             "successful_stages": sum(1 for s in stages if s["status"] == "completed"),
             "simulated_stages": sum(1 for s in stages if s["status"] == "simulated"),
@@ -152,7 +152,7 @@ class AdvancedRedTeamSimulator:
             "target": target_profile.get("name", "unknown"),
             "stages": stages,
             "status": "completed",
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             "files_encrypted": 1250,
             "estimated_ransom": "$2.5M",
         }
@@ -176,7 +176,7 @@ class AdvancedRedTeamSimulator:
             "scenarios": [apt_result, ransomware_result],
             "total_scenarios": 2,
             "status": "completed",
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             "overall_success_rate": 0.87,
         }
 

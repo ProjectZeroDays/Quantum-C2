@@ -82,6 +82,6 @@ done
     fn = os.path.join(QCLI_DIR, "ghostdns.sh")
     open(fn, "w").write(script)
     try: os.chmod(fn, 0o755)
-    except Exception: pass
+    except OSError as e: log(f"ghostdns.sh chmod failed: {e}", "WARN")
     log(f"GHOSTFANG-DNS agent generated -> ghostdns.sh (domain {domain})", "C2")
     return fn

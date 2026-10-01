@@ -7,7 +7,7 @@ from __future__ import annotations
 import json
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 
@@ -30,7 +30,7 @@ class BlueTeamSimulator:
         """Log simulation event."""
         log_path = os.path.join(self.output_dir, "simulation.log.jsonl")
         event = {
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             "type": event_type,
             "sim_id": self.simulation_id,
             "data": data,
@@ -64,7 +64,7 @@ class BlueTeamSimulator:
             "phases_completed": len(phases),
             "phases": phases,
             "status": "completed",
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             "mean_time_to_detect": 180,
             "mean_time_to_respond": 340,
             "mean_time_to_contain": 520,
@@ -84,7 +84,7 @@ class BlueTeamSimulator:
             "hypothesis_techniques": ["sigma_rules", "yara_scans", "log_correlation"],
             "findings": [],
             "status": "completed",
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             "hunt_duration_minutes": 45,
         }
 

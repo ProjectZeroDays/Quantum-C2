@@ -11,8 +11,6 @@ import re
 import shutil
 import sys
 
-from quantum.core.logging import log
-from quantum.core.opsec import tcp_probe
 
 _POC_ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))), "weapons", "poc")
