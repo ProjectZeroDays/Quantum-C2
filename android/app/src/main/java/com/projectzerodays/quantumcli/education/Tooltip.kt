@@ -4,7 +4,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /** Tooltip copy shown on an anchored control (id matches a registry key). */
-data class TooltipContent(
+data class ContentTip(
     val id: String,
     val title: String,
     val body: String,

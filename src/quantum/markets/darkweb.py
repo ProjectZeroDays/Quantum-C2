@@ -6,11 +6,8 @@ FOR AUTHORIZED SECURITY TESTING AND RESEARCH ONLY.
 """
 from __future__ import annotations
 
-import json
-import os
 from datetime import datetime
 
-from quantum.core.logging import log
 
 ONION_SERVICES = {
     "search_engines": {
@@ -134,6 +131,7 @@ ONION_SERVICES = {
             "description": "Email service (seized 2020; address kept as a historical reference)",
             "type": "email",
         },
+    },
 }
 
 

@@ -7,13 +7,8 @@ log dump/wipe, trace removal, app management.
 """
 from __future__ import annotations
 
-import json
-import os
-import subprocess
-import sys
 from datetime import datetime
 
-from quantum.core.deps import requests
 from quantum.core.logging import log
 
 RAT_OPEN_SOURCE_REPOS = {

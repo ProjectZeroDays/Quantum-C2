@@ -4,10 +4,8 @@ Provides intent-based dork presets for cameras, directories, sensitive files, et
 """
 from __future__ import annotations
 
-import json
 from datetime import datetime
 
-from quantum.core.logging import log
 
 DORK_CATEGORIES = {
     "cameras": {
@@ -2303,4 +2301,25 @@ DORK_CATEGORIES = {
             "intitle:\"Apache Tomcat\" \"Services\"",
             "intitle:\"Apache Tomcat\" \"Endpoints\"",
             "intitle:\"Apache Tomcat\" \"Resources\"",
-            "int</longcat_think>"
+        ],
+    },
+}
+
+
+def list_dork_categories():
+    """Category ids present in the catalog."""
+    return sorted(DORK_CATEGORIES)
+
+
+def dorks_dashboard_state():
+    """Dashboard state over the catalog (counts only — no live queries)."""
+    return {
+        "categories": {
+            name: len(info.get("dorks", []))
+            for name, info in DORK_CATEGORIES.items()
+        },
+        "total_dorks": sum(
+            len(info.get("dorks", [])) for info in DORK_CATEGORIES.values()
+        ),
+        "generated_at": datetime.now().isoformat(),
+    }

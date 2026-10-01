@@ -40,7 +40,7 @@ object ContentRegistry {
     private val _state = MutableStateFlow(State())
     val state: StateFlow<State> = _state.asStateFlow()
 
-    private val tooltips = LinkedHashMap<String, TooltipContent>()
+    private val tooltips = LinkedHashMap<String, ContentTip>()
     private val walks = LinkedHashMap<String, Walkthrough>()
     private lateinit var filesRoot: File
     private var channelUrl: String = ""
@@ -59,7 +59,7 @@ object ContentRegistry {
         publish("loaded")
     }
 
-    fun get(id: String): TooltipContent? = tooltips[id]
+    fun get(id: String): ContentTip? = tooltips[id]
     fun walkthrough(route: String): Walkthrough? = walks[route]
 
     /** Hot-fix channel is opt-in; unset means the check is a documented no-op. */
@@ -97,7 +97,7 @@ object ContentRegistry {
         val arr = o.getJSONArray("tooltips")
         for (i in 0 until arr.length()) {
             val t = arr.getJSONObject(i)
-            tooltips[t.getString("id")] = TooltipContent(
+            tooltips[t.getString("id")] = ContentTip(
                 id = t.getString("id"),
                 title = t.getString("title"),
                 body = t.getString("body"),
