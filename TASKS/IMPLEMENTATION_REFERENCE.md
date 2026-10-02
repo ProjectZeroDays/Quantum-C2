@@ -388,3 +388,46 @@ into a single, state-of-the-art, uniform user experience.
   LedgerBindings claim-vs-module lint, no-AI purity, no literal-secrets regex lint.
 - **UX acceptance:** every tool masked to the four-surface contract; every widget has a settings
   route; drag-drop + per-page lock verified; classification banners visible on every screen.
+
+---
+
+## 14. Admin & guest access — operational guide (the access-code solution)
+
+The access codes are **not compiled into the APK**. Shipped bytecode is trivially reversible
+(the legacy docs admitted this about the exposed 9-digit code), so both codes are
+deployment-configured, stored **hashed**, and moderable at runtime. Functionally identical to
+hardcoding — admin gets a master code, special users get gift codes — but nothing recoverable
+from the binary.
+
+### 14.1 Admin access
+1. **First launch → onboarding wizard → "Administrator setup":** select PIN access and choose
+   the admin PIN. It is hashed (Argon2id/PBKDF2) into `quantum_secrets`; this account alone
+   sees the admin console (user roster, monitoring, access codes, paywall config, kill switch).
+2. **Master code (full admin + paywall bypass):** configured at deployment — entered at the
+   first-run prompt or provisioned via encrypted settings import; stored hashed only.
+   ⚠️ The historical master code value leaked in legacy docs is **compromised — do not reuse
+   it**; provision a fresh value at first deployment and treat the old one as burned.
+3. Entering the master code at the lock screen (or paywall gate) unlocks the admin account and
+   all features. Losing both admin PIN and master code ⇒ the forgot-auth wipe flow (§13.3) and
+   fresh onboarding — there is deliberately no other recovery path.
+
+### 14.2 Guest / special-user access
+1. **Admin console → Access codes → "Gift code":** generates a random ≥10-digit code (stored
+   hashed), optionally scoped with expiry or feature limits.
+2. A special user enters the gift code at the paywall gate → full-feature access without a
+   subscription. Admin can revoke/rotate codes anytime; revocation takes effect at next
+   license check.
+3. **Regular users:** $99/month USDC subscription via the Subscriptions dashboard (wallet
+   address is deployment-configured in settings, never a code constant); on-chain verification
+   with offline-grace policy. In-app crypto wallet + kycnot.me discovery per Phase 15.
+
+### 14.3 Where the values live
+| Secret | Location | Form |
+|---|---|---|
+| Admin PIN (chosen at setup) | `quantum_secrets` DB | Hashed |
+| Admin master code | Deployment config / first-run prompt → SecretStore | Hashed |
+| Gift codes | Admin console (admin-created) | Hashed, revocable |
+| Paywall wallet address | Settings (deployment-configured) | Plaintext config value (not a secret) |
+
+Nothing in this table ever appears in source, docs, or git — enforced by the no-literal-secrets
+CI lint (§9) and the checklist's Appendix B rule.
