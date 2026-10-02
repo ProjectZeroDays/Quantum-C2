@@ -328,7 +328,8 @@ def shodan_search(query: str, api_key: str = None, limit: int = 100) -> dict:
     if not api_key:
         api_key = os.environ.get("SHODAN_API_KEY", "")
     if not api_key:
-        return {"error": "Shodan API key not configured. Set SHODAN_API_KEY environment variable."}
+        return {"error": "Shodan API key not configured. Set SHODAN_API_KEY environment variable.",
+                "query": query, "results": []}
     out = {
         "query": query,
         "searched_at": datetime.now().isoformat(),
@@ -373,7 +374,8 @@ def shodan_host_info(ip: str, api_key: str = None) -> dict:
     if not api_key:
         api_key = os.environ.get("SHODAN_API_KEY", "")
     if not api_key:
-        return {"error": "Shodan API key not configured. Set SHODAN_API_KEY environment variable."}
+        return {"error": "Shodan API key not configured. Set SHODAN_API_KEY environment variable.",
+                "ip": ip, "info": {}}
     out = {
         "ip": ip,
         "queried_at": datetime.now().isoformat(),

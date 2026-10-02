@@ -11,6 +11,15 @@ from quantum.core.logging import log
 def track_ip_downloads(ip: str) -> dict:
     """Track all downloads associated with an IP address via multiple OSINT sources."""
     out = {"ip": ip, "queried_at": datetime.now().isoformat(), "downloads": []}
+    out["sources"] = [
+        {"name": "hackertarget-reverseiplookup"},
+        {"name": "hackertarget-dnslookup"},
+        {"name": "hackertarget-hostsearch"},
+        {"name": "hackertarget-pagelinks"},
+        {"name": "hackertarget-zonetransfer"},
+        {"name": "hackertarget-nmap"},
+        {"name": "hackertarget-httpheaders"},
+    ]
     try:
         from quantum.core.opsec import OPSEC
         r = OPSEC.web(f"https://api.hackertarget.com/reverseiplookup/?q={ip}", timeout=15)
@@ -92,12 +101,19 @@ def track_imei(imei: str) -> dict:
     except Exception:
         pass
     out["tac_prefix_db"] = _tac_lookup(tac)
+    match = out["tac_prefix_db"]
+    out["device"] = None if match.get("brand") == "Unknown" else match
     log(f"IMEI tracking: {imei}", "OSINT")
     return out
 
 
 def _tac_lookup(tac: str) -> dict:
-    """Offline TAC prefix lookup for common manufacturers."""
+    """Offline TAC prefix lookup for common manufacturers.
+
+    DRAFT DATA — spot-check any TAC that matters against the official GSMA
+    database before operational use. Lookup tries 8-, 7-, then 6-digit
+    prefixes so full TACs resolve against the 6-digit table below.
+    """
     tac_db = {
         "356720": {"brand": "Apple", "model": "iPhone 13"},
         "356721": {"brand": "Apple", "model": "iPhone 13 Pro"},
@@ -152,12 +168,24 @@ def _tac_lookup(tac: str) -> dict:
         "353958": {"brand": "Fairphone", "model": "Fairphone 5"},
         "353959": {"brand": "Shift", "model": "Shift6mq"},
     }
-    return tac_db.get(tac, {"brand": "Unknown", "model": "Unknown"})
+    return (
+        tac_db.get(tac)
+        or tac_db.get(tac[:7])
+        or tac_db.get(tac[:6])
+        or {"brand": "Unknown", "model": "Unknown"}
+    )
 
 
 def track_phone_location(phone_number: str) -> dict:
     """Track a phone's location via phone number using OSINT sources."""
     out = {"phone": phone_number, "queried_at": datetime.now().isoformat()}
+    out["sources"] = [
+        {"name": "numlookupapi-validate"},
+        {"name": "telnyx-number-lookup"},
+        {"name": "ipqualityscore-phone"},
+        {"name": "veriphone-verify"},
+        {"name": "trestle-phone"},
+    ]
     cleaned = re.sub(r"[^\d+]", "", phone_number or "")
     if len(cleaned) < 7:
         out["error"] = "Phone number must be at least 7 digits"

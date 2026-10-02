@@ -10,7 +10,10 @@ import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Dashboard
 import androidx.compose.material.icons.outlined.Devices
 import androidx.compose.material.icons.outlined.Extension
+import androidx.compose.material.icons.outlined.Hub
 import androidx.compose.material.icons.outlined.Inventory2
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Password
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SettingsRemote
 import androidx.compose.material.icons.outlined.Sensors
@@ -37,6 +40,13 @@ enum class Page(val title: String, val icon: ImageVector) {
     HONEYPOT("Honeypot", Icons.Outlined.Sensors),
     RAT("Remote Access", Icons.Outlined.SettingsRemote),
     DORK("Google Dorking", Icons.Outlined.Search),
+    OSINT("OSINT", Icons.Outlined.Search),
+    WDEFENSE("Wi-Fi Defense", Icons.Outlined.Wifi),
+    BLE("BLE Recon", Icons.Outlined.Sensors),
+    BOTNET("Botnet", Icons.Outlined.Hub),
+    PHISH("Phishing", Icons.Outlined.Lock),
+    BRUTE("Brute Force", Icons.Outlined.Password),
+    DDOS("DDoS / Stress", Icons.Outlined.Wifi),
     TERMINAL("Terminal", Icons.Outlined.Code),
     SETTINGS("Settings", Icons.Outlined.Settings),
 }
