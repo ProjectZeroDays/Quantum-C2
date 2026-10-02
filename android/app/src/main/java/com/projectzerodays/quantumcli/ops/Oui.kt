@@ -120,7 +120,7 @@ object Oui {
     fun describeCaps(caps: String): String {
         val f = listOfNotNull(
             "WPA3" to caps.contains("SAE"), "WPA2" to caps.contains("PSK"),
-            "WPA" to caps.contains("WPA") && !caps.contains("WPA2"),
+            "WPA" to (caps.contains("WPA") && !caps.contains("WPA2")),
             "WEP" to caps.contains("WEP"),
             "ESS" to caps.contains("ESS"),
         ).filter { it.second }.joinToString(" ") { it.first }
