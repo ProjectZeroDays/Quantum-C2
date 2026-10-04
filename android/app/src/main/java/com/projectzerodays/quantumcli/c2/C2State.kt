@@ -137,22 +137,6 @@ object C2State {
         }
     }
 
-    fun dohShellTargets(): JSONArray {
-        val arr = JSONArray()
-        _implants.value.forEach { (host, info) ->
-            arr.put(JSONObject().put("host", host).put("os", info.os ?: "unknown"))
-        }
-        return arr
-    }
-
-    fun pushDohTask(body: JSONObject): JSONObject {
-        val hostId = body.optString("host_id", "hq")
-        val command = body.optString("command", "shell")
-        val params = body.optJSONObject("params") ?: JSONObject()
-        audit("C2", "DoH task pushed to $hostId: $command")
-        return JSONObject().put("ok", true).put("host_id", hostId).put("command", command)
-    }
-
     private fun findFreePort(): Int {
         var port = 9100
         while (port < 9999) {

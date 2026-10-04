@@ -79,14 +79,26 @@ object NseScripts {
 
     fun get(id: String): Script? = SCRIPTS.firstOrNull { it.id == id }
 
-    /** True when [script] should run against [port] (banner runs everywhere). */
+    /** True when [script] should run against [port].
+     *
+     * Three gates (any one suffices): the banner script always runs; a port
+     * match runs the script; otherwise the already-grabbed banner is matched
+     * as evidence (greeting-first protocols reveal themselves, so ephemeral
+     * or non-standard ports still get the right probes). Silent ports stay
+     * scoped — no speculative timeouts are burned.
+     */
     fun appliesTo(script: Script, port: Int, bannerHint: String = ""): Boolean {
         if (script.id == "banner") return true
         if (port in script.ports) return true
-        // HTTP scripts also follow the evidence: an HTTP-looking banner
-        // on a non-standard port still gets the HTTP probes.
-        if (script.id.startsWith("http-") && looksHttp(bannerHint)) return true
-        return false
+        val guess = guessService(bannerHint)
+        return when (script.id) {
+            "ssh-banner" -> guess == "ssh"
+            "ftp-anon" -> guess == "ftp" || guess == "ftp-or-smtp"
+            "smtp-greet" -> guess == "smtp" || guess == "ftp-or-smtp"
+            "telnet-banner" -> guess == "telnet"
+            "http-headers", "http-methods" -> looksHttp(bannerHint)
+            else -> false // ssl-cert and unknown ids stay port-scoped
+        }
     }
 
     // ------------------------------------------------------------ runner
@@ -310,10 +322,10 @@ object NseScripts {
         val resp = tcpRead(ip, port, timeoutMs, "EHLO qcli\r\n".toByteArray(), 2048) ?: return null
         val exts = resp.lineSequence()
             .mapNotNull { line ->
-                val m = Regex("^250[ -]([A-Z0-9][A-Z0-9_-]*)", RegexOption.IGNORE_CASE).find(line.trim())
-                m?.groupValues?.getOrNull(1)
+                val m = Regex("^250[ -](.+)$", RegexOption.IGNORE_CASE).find(line.trim())
+                m?.groupValues?.getOrNull(1)?.trim()?.take(64)
             }
-            .filter { it.uppercase() != "EHLO" && it.isNotBlank() }
+            .filter { it.isNotBlank() && !it.equals("hello", ignoreCase = true) }
             .distinct()
             .toList()
         return exts.joinToString(" ").ifBlank { null }
