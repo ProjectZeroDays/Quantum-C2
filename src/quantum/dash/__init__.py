@@ -69,6 +69,7 @@ DASH_HTML = """<!doctype html>
   <button onclick="showModule('map2d')">2D Map</button>
   <button onclick="showModule('phantomdroid')">PhantomDroid</button>
   <button onclick="showModule('dohshell')">DoH Shell</button>
+  <button onclick="showModule('listeners')">Listeners</button>
 </div>
 
 <div id="home" class="module active">
@@ -221,6 +222,15 @@ DASH_HTML = """<!doctype html>
     <div class="card"><h2>Agent Generator</h2><pre id="dohshell-agent">…</pre></div>
     <div class="card"><h2>Task Queue</h2><pre id="dohshell-tasks">…</pre></div>
     <div class="card"><h2>C2 Config</h2><pre id="dohshell-config">…</pre></div>
+  </div>
+</div>
+
+<div id="listeners" class="module">
+  <div class="grid">
+    <div class="card"><h2>Active Listeners</h2><pre id="listeners-active">…</pre></div>
+    <div class="card"><h2>Deploy Listener</h2><pre id="listeners-deploy">…</pre></div>
+    <div class="card"><h2>Hit Log</h2><pre id="listeners-hits">…</pre></div>
+    <div class="card"><h2>Statistics</h2><pre id="listeners-stats">…</pre></div>
   </div>
 </div>
 
