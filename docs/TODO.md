@@ -4,22 +4,35 @@ Status: done / doing / parked / todo. Update after every task. (Requested by use
 
 ## Doing
 
-- [ ] **Sprint 0.5 foundation package** (Artifacts A/B/C): the GitHub Project import
-      yaml + sync script, three-DB SQLCipher module, SettingDefinition registry,
-      DashboardScaffold/WidgetShell/RecoveryBoundary, HealingDaemon, ToolBridge,
-      and tooltip/walkthrough pilot + TooltipLinter still need real implementations.
+- [ ] **Sprint 0.5 tail** (most of Artifacts A/B/C already landed: `scripts/github-project.yaml`
+      + `sync-issues.sh`, `core/db/DbKeyHierarchy.kt` (HKDF/envelope/HMAC, RFC vectors),
+      `settings/` registry (defaults cross-checked vs SettingsData), `widgetengine/`
+      (DashboardScaffold/WidgetShell/RecoveryBoundary/TooltipChip), `selfhealing/`
+      (HealingDaemon + CrashLoopGuard + app health mesh), `toolbridge/`, tooltip +
+      walkthrough assets + linter gate). Remainder: Room/SQLCipher Gradle wiring,
+      generated settings UI, WidgetGrid drag-drop, concrete healers, Termux executor.
 
 ## Todo
 
-- [ ] **Sprint 0.5 foundation package** (Artifacts A/B/C from master doc): GitHub Project
-      import yaml + sync script, three-DB SQLCipher module, SettingDefinition registry,
-      DashboardScaffold/WidgetShell/RecoveryBoundary, HealingDaemon, ToolBridge,
-      tooltip/walkthrough content pilot + TooltipLinter.
 - [ ] **Simplenote task list** — `http://simp.ly/p/2KNqlr` is login-walled (redirects to
       app.simplenote.com/login). Blocked on user pasting the note contents.
-- [ ] Extended Zenmap NSE-style scan profiles (beyond T0–T5 + port ranges already shipped).
 
 ## Done
+
+- [x] **NSE-style scan profiles** — `ops/NseScripts.kt`: 8 observation-only scripts
+      (banner, http-headers, http-methods, ssl-cert, ssh-banner, ftp-anon,
+      smtp-greet, telnet-banner) with port-scoped + evidence-driven application,
+      per-probe timeouts, never-throw; findings carry INFO/NOTE/WARN only for
+      observed facts (no CVE claims). NetworkPage UI: script toggles + RUN SCRIPTS
+      + findings list. 12 tests (catalog, parsers, cert-date math, loopback
+      SSH/FTP/HTTP/SMTP/telnet servers, closed-port behavior).
+- [x] **Cross-agent repair batch** — removed no-op DoH-task stub shadowing the real
+      queue, fixed route self-recursion, repaired two truncated data files,
+      de-duplicated TooltipContent/FeatureRegistry, made content parsers
+      boot-safe for both JSON shapes, fixed HKDF empty-salt + Windows file-store
+      rename + exfil parity byte, added test import preambles, fixed 11
+      contract-shape gaps honestly (echo fields, sources metadata, prefix TAC
+      match; TAC table flagged as unverified draft).
 
 - [x] **RAT dashboard ("Remote Access", never product-labeled)** *(user request)* —
       Python `quantum.rat` (13 capabilities with honest `requires` tags, TASKQ

@@ -36,12 +36,25 @@ class NseScriptsTest {
     fun bannerAppliesEverywhereOthersArePortScoped() {
         val banner = NseScripts.get("banner")!!
         val http = NseScripts.get("http-headers")!!
+        val ssh = NseScripts.get("ssh-banner")!!
+        val ftp = NseScripts.get("ftp-anon")!!
+        val smtp = NseScripts.get("smtp-greet")!!
+        val telnet = NseScripts.get("telnet-banner")!!
+        val ssl = NseScripts.get("ssl-cert")!!
         assertTrue(NseScripts.appliesTo(banner, 9999))
         assertFalse(NseScripts.appliesTo(http, 9999))
         assertTrue(NseScripts.appliesTo(http, 80))
-        // evidence-driven: HTTP-looking banner pulls HTTP scripts anywhere
+        // evidence-driven: greeting banners pull the right probes on any port
         assertTrue(NseScripts.appliesTo(http, 9999, "HTTP/1.1 200 OK\r\nServer: x\r\n"))
-        assertFalse(NseScripts.appliesTo(NseScripts.get("ssh-banner")!!, 9999, "HTTP/1.1"))
+        assertTrue(NseScripts.appliesTo(ssh, 9999, "SSH-2.0-OpenSSH_8.9\r\n"))
+        assertTrue(NseScripts.appliesTo(ftp, 9999, "220 (vsFTPd 3.0.5)\r\n"))
+        assertTrue(NseScripts.appliesTo(smtp, 9999, "220 mail ESMTP Postfix\r\n"))
+        assertTrue(NseScripts.appliesTo(telnet, 9999, "\r\nlogin: "))
+        // wrong-hint and silent ports stay scoped (no speculative timeouts)
+        assertFalse(NseScripts.appliesTo(ssh, 9999, "HTTP/1.1"))
+        assertFalse(NseScripts.appliesTo(ftp, 9999, ""))
+        assertFalse(NseScripts.appliesTo(ssl, 9999, "SSH-2.0-x"))
+        assertFalse(NseScripts.appliesTo(ssl, 9999, ""))
     }
 
     @Test
@@ -194,8 +207,15 @@ class NseScriptsTest {
 
     @Test
     fun httpHeaderProbeReadsServerBanner() {
+        // Harness note: the fake greets immediately (real HTTP servers wait
+        // for the request). This exercises dispatch-by-evidence plus the real
+        // HEAD-over-socket probe and header parse; ordering is irrelevant to
+        // what is verified.
         val (server, port) = fakeServer { sock ->
             sock.use { s ->
+                val out = s.getOutputStream()
+                out.write("HTTP/1.1 200 OK\r\nServer: FakeSrv/9.9\r\n\r\n".toByteArray())
+                out.flush()
                 val rd = BufferedReader(InputStreamReader(s.getInputStream()))
                 try {
                     while (true) {
@@ -205,8 +225,8 @@ class NseScriptsTest {
                 } catch (_: Exception) {
                 }
                 val body = "HTTP/1.1 200 OK\r\nServer: FakeSrv/9.9\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
-                s.getOutputStream().write(body.toByteArray())
-                s.getOutputStream().flush()
+                out.write(body.toByteArray())
+                out.flush()
             }
         }
         try {
@@ -214,6 +234,53 @@ class NseScriptsTest {
             val h = findings.firstOrNull { it.scriptId == "http-headers" }
             assertTrue(h != null && h.detail.contains("FakeSrv/9.9"))
             assertTrue(h!!.level == NseScripts.Level.NOTE) // version disclosed
+        } finally {
+            server.close()
+        }
+    }
+
+    @Test
+    fun smtpGreetProbeListsExtensions() {
+        val (server, port) = fakeServer { sock ->
+            sock.use { s ->
+                val rd = BufferedReader(InputStreamReader(s.getInputStream()))
+                val wr = OutputStreamWriter(s.getOutputStream())
+                wr.write("220 fake ESMTP TestMTA\r\n")
+                wr.flush()
+                val line = try {
+                    rd.readLine()
+                } catch (_: Exception) {
+                    null
+                } ?: return@use
+                if (line.startsWith("EHLO", ignoreCase = true)) {
+                    wr.write("250-Hello\r\n250 AUTH PLAIN\r\n")
+                    wr.flush()
+                }
+                Thread.sleep(200)
+            }
+        }
+        try {
+            val findings = NseScripts.runScripts("127.0.0.1", listOf(port), setOf("smtp-greet"))
+            val f = findings.firstOrNull { it.scriptId == "smtp-greet" }
+            assertTrue(f != null && f.detail.contains("AUTH PLAIN"))
+        } finally {
+            server.close()
+        }
+    }
+
+    @Test
+    fun telnetPromptIsFlaggedCleartext() {
+        val (server, port) = fakeServer { sock ->
+            sock.use { s ->
+                s.getOutputStream().write("\r\nFakeOS login: ".toByteArray())
+                s.getOutputStream().flush()
+                Thread.sleep(300)
+            }
+        }
+        try {
+            val findings = NseScripts.runScripts("127.0.0.1", listOf(port), setOf("telnet-banner"))
+            val f = findings.firstOrNull { it.scriptId == "telnet-banner" }
+            assertTrue(f != null && f.level == NseScripts.Level.WARN)
         } finally {
             server.close()
         }
