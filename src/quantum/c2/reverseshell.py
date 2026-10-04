@@ -454,7 +454,6 @@ def android_c2_doh_endpoint(domain, host_id=None):
     Returns:
         Response dict
     """
-    from quantum.recon.doh import DoH
 
     # In production, the Android C2 would receive the DNS query directly
     # For now, we simulate by checking for local beacon files

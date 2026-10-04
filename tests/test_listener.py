@@ -1,5 +1,4 @@
 """Tests for quantum.c2.listener — unique listener deployment."""
-import pytest
 from quantum.c2.listener import Listener, ListenerManager
 
 
