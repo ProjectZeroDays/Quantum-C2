@@ -31,6 +31,7 @@ import androidx.compose.material.icons.outlined.ChatBubble
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Dashboard
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Image
@@ -44,6 +45,7 @@ import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.Stop
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.Videocam
+import androidx.compose.material.icons.outlined.Wifi
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -66,6 +68,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -138,10 +141,13 @@ import com.projectzerodays.quantumcli.ui.theme.Muted
 import com.projectzerodays.quantumcli.ui.theme.Ok
 import com.projectzerodays.quantumcli.ui.theme.Panel
 import com.projectzerodays.quantumcli.ui.theme.PanelBright
+import com.projectzerodays.quantumcli.ui.theme.QuantumBg0
+import com.projectzerodays.quantumcli.ui.theme.QuantumBg1
 import com.projectzerodays.quantumcli.ui.theme.QuantumTypography
 import com.projectzerodays.quantumcli.ui.theme.SoftCyan
 import com.projectzerodays.quantumcli.ui.theme.Softest
 import com.projectzerodays.quantumcli.ui.theme.Warn
+import com.projectzerodays.quantumcli.ui.theme.quantumBackground
 import com.projectzerodays.quantumcli.ui.theme.quantumPanel
 import com.projectzerodays.quantumcli.ops.CamPreview
 import kotlinx.coroutines.Dispatchers
@@ -382,6 +388,8 @@ fun QuantumUi() {
     var showChat by rememberSaveable { mutableStateOf(false) }
     var showWizard by rememberSaveable { mutableStateOf(false) }
     var showManual by rememberSaveable { mutableStateOf(false) }
+    var showC2Gate by rememberSaveable { mutableStateOf(false) }
+    var showRemoteDialog by remember { mutableStateOf(false) }
 
     val settings by QuantSettings.state.collectAsState()
     val dlActive by AiModelDownloader.downloading.collectAsState()
@@ -394,6 +402,15 @@ fun QuantumUi() {
         if (!QuantSettings.state.value.wizardDone) showWizard = true
         runCatching { AiModelDownloader.maybeAutoDownload() }
             .onFailure { C2State.audit("ERR", "startup model check failed: ${it.message}") }
+    }
+
+    // C2 destination gate — shown once on first launch (before the main dashboard)
+    // so the operator chooses between self-hosting the embedded C2 or connecting
+    // to a remote one. Default after the countdown is Self-Host.
+    LaunchedEffect(Unit) {
+        if (!QuantSettings.state.value.c2DestinationGateShown) {
+            showC2Gate = true
+        }
     }
 
     // Dashboard chat FAB -> open the floating chat overlay (or the wizard
@@ -540,6 +557,69 @@ fun QuantumUi() {
 
     if (showWizard) SetupWizard(onDismiss = { showWizard = false })
     if (showManual) ManualDialog(onDismiss = { showManual = false })
+    if (showC2Gate) {
+        C2DestinationGate(
+            onSelfHost = {
+                QuantSettings.update {
+                    it.copy(c2Mode = "self_host", c2DestinationGateShown = true)
+                }
+                showC2Gate = false
+                // Self-host: ensure the embedded C2 server is running so the
+                // native dashboard reflects the same state as the web /dash panel.
+                val port = QuantSettings.state.value.c2Port
+                if (!QuantServerManager.running.value) {
+                    scope.launch(Dispatchers.IO) {
+                        val ok = QuantServerManager.start(port)
+                        if (ok) {
+                            C2State.audit("C2", "self-host C2 auto-started on :$port")
+                        } else {
+                            C2State.audit("ERR", "self-host C2 auto-start failed on :$port")
+                        }
+                    }
+                }
+                selectedPage = Page.DASHBOARD
+            },
+            onRemoteConnect = {
+                showC2Gate = false
+                showRemoteDialog = true
+            },
+            onSkip = {
+                QuantSettings.update {
+                    it.copy(c2DestinationGateShown = true)
+                }
+                showC2Gate = false
+                selectedPage = Page.DASHBOARD
+            },
+        )
+    }
+    if (showRemoteDialog) {
+        RemoteConnectDialog(
+            initialHost = settings.c2RemoteHost,
+            onDismiss = { showRemoteDialog = false },
+            onConnect = { host ->
+                QuantSettings.update {
+                    it.copy(
+                        c2Mode = "remote_connect",
+                        c2RemoteHost = host.trim(),
+                        c2DestinationGateShown = true,
+                    )
+                }
+                showRemoteDialog = false
+                C2State.audit(
+                    "C2",
+                    "remote-connect C2 configured for $host — open /dash on that host for the web panel"
+                )
+                // Open the remote web dashboard in a browser so the operator can
+                // see the web C2 panel alongside the native dashboard controls.
+                val url = buildString {
+                    append(host.trim().removeSuffix("/"))
+                    append("/dash")
+                }
+                openUrl(ctx, url)
+                selectedPage = Page.DASHBOARD
+            },
+        )
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -914,6 +994,7 @@ fun DashboardPage() {
     val killswitch by C2State.killswitch.collectAsState()
     val overlordRunning by Overlord.running.collectAsState()
     val serverRunning by QuantServerManager.running.collectAsState()
+    val ctx = LocalContext.current
     var showAutoRunDlg by remember { mutableStateOf(false) }
     var armConfirm by remember { mutableStateOf(false) }
     var showEmojiDlg by remember { mutableStateOf(false) }
@@ -933,7 +1014,47 @@ fun DashboardPage() {
                 .padding(horizontal = 20.dp),
         ) {
             Text("Dashboard", style = QuantumTypography.displaySmall, color = Cyan)
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(4.dp))
+
+            // ---- C2 destination indicator (self-host vs remote-connect) --------
+            val c2Settings by QuantSettings.state.collectAsState()
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(bottom = 8.dp),
+            ) {
+                val isSelfHost = c2Settings.c2Mode == "self_host"
+                Icon(
+                    if (isSelfHost) Icons.Outlined.Dashboard else Icons.Outlined.Wifi,
+                    contentDescription = null,
+                    tint = if (isSelfHost) Ok else SoftCyan,
+                    modifier = Modifier.size(16.dp),
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    if (isSelfHost) "Self-Host C2"
+                    else "Remote-Connect: ${c2Settings.c2RemoteHost}",
+                    style = QuantumTypography.labelSmall,
+                    color = if (isSelfHost) Ok else SoftCyan,
+                )
+                if (!isSelfHost) {
+                    Spacer(Modifier.width(8.dp))
+                    TextButton(
+                        onClick = {
+                            openUrl(
+                                ctx,
+                                "${c2Settings.c2RemoteHost.trim().removeSuffix("/")}/dash",
+                            )
+                        },
+                        enabled = c2Settings.c2RemoteHost.isNotBlank(),
+                    ) {
+                        Text(
+                            "open web panel",
+                            style = QuantumTypography.labelSmall,
+                            color = Cyan,
+                        )
+                    }
+                }
+            }
 
             // ---- operator status strip (ROOT/VPN/IP/MAC/DNS+proxy) ---------
             DashboardStatusStrip()
@@ -3713,6 +3834,8 @@ fun SettingsPage() {
     var cyclesText by rememberSaveable { mutableStateOf(settings.overlordCycles.toString()) }
     var scopeText by rememberSaveable { mutableStateOf(settings.overlordScope) }
     var domainText by rememberSaveable { mutableStateOf(settings.c2Domain) }
+    var remoteHost by rememberSaveable { mutableStateOf(settings.c2RemoteHost) }
+    var showRemoteDialog by remember { mutableStateOf(false) }
     var updateResult by remember { mutableStateOf<UpdateChecker.Result?>(null) }
     var checking by remember { mutableStateOf(false) }
 
@@ -3837,6 +3960,35 @@ fun SettingsPage() {
             "Auto-start C2 server on app open",
             settings.autostart,
         ) { QuantSettings.update { it.copy(autostart = it.autostart.not()) } }
+
+        HorizontalDivider(color = Cyan.copy(0.18f), modifier = Modifier.padding(vertical = 12.dp))
+
+        // ---- C2 destination (self-host vs remote-connect) -------------------
+        Text("C2 destination", style = QuantumTypography.titleSmall, color = SoftCyan)
+        Spacer(Modifier.height(4.dp))
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "Mode: ${if (settings.c2Mode == "self_host") "Self-Host" else "Remote-Connect"}",
+                color = if (settings.c2Mode == "self_host") Ok else SoftCyan,
+                modifier = Modifier.weight(1f),
+                style = QuantumTypography.bodyMedium,
+            )
+            OutlinedButton(onClick = { showRemoteDialog = true }) {
+                Text(
+                    if (settings.c2Mode == "self_host") "SWITCH TO REMOTE"
+                    else "EDIT REMOTE URL",
+                    style = QuantumTypography.bodySmall,
+                )
+            }
+        }
+        if (settings.c2RemoteHost.isNotBlank()) {
+            Text(
+                "Remote: ${settings.c2RemoteHost}",
+                style = QuantumTypography.bodySmall,
+                color = SoftCyan,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
 
         HorizontalDivider(color = Cyan.copy(0.18f), modifier = Modifier.padding(vertical = 12.dp))
 
@@ -4001,6 +4153,24 @@ fun SettingsPage() {
 
         Spacer(Modifier.height(16.dp))
     }
+
+    if (showRemoteDialog) {
+        RemoteConnectDialog(
+            initialHost = remoteHost,
+            onDismiss = { showRemoteDialog = false },
+            onConnect = { host ->
+                QuantSettings.update {
+                    it.copy(
+                        c2Mode = "remote_connect",
+                        c2RemoteHost = host.trim(),
+                    )
+                }
+                remoteHost = host.trim()
+                C2State.audit("C2", "C2 destination switched to remote-connect: $host")
+                openUrl(ctx, "${host.trim().removeSuffix("/")}/dash")
+            },
+        )
+    }
 }
 
 @Composable
@@ -4033,7 +4203,8 @@ fun ManualDialog(onDismiss: () -> Unit) {
                     .fillMaxWidth(),
             ) {
                 ManualSection("HOW TO") {
-                    M("1. Setup — sidebar → Setup wizard. Choose Abliteration.ai (paste your key), Local model (auto-downloads the on-device fallback once), or Skip for manual-only mode.")
+                    M("0. C2 Destination Gate — on first launch the app presents a 3-second choice between Self-Host C2 (starts the embedded NanoHTTPD C2 server on-device and shows the native dashboard) and Remote-Connect C2 (point at an externally-hosted QUANTUMDASH endpoint). Self-Host is auto-selected after the countdown elapses. Change the mode later in Settings → C2 destination.")
+M("1. Setup — sidebar → Setup wizard. Choose Abliteration.ai (paste your key), Local model (auto-downloads the on-device fallback once), or Skip for manual-only mode.")
                     M("2. Auto Run — Dashboard → AUTO RUN. Unlocks once AI is configured. Camera-only restricts the act whitelist to camera operations; the interval slider controls the decision cadence; aggression (balanced / aggressive / patient) and cycles (0 = infinite) tune the loop; a CIDR scope limits targets (blank = local /24).")
                     M("3. Manual ops — every page has controls. Implants: queue PERSIST / WIPE tasks per host. Cameras: DISCOVER + BRUTE, per-camera SNAPSHOT and the PTZ nudge row (◀ ▲ ▼ ▶ ■) driving the vendor PTZ channel. Exploits: FINGERPRINT, ZERO-CHECK, FIRE, plus the weapon registry — a tier-colored list (V3_HIGH red, V3_MED green, legacy cyan) where tapping a row arms its CVE into the FIRE field. Loot: triage header (items / hosts / vault size), SEAL ALL / UNSEAL ALL bulk ops, per-item UNSEAL / DELETE.")
                     M("4. Chat — natural language ('scan for cameras', 'start background job', 'kill-switch') or bare /ai commands ('run task fingerprint 10.0.0.5'). Locked until AI is configured.")
@@ -4086,6 +4257,221 @@ private fun M(text: String) {
         style = QuantumTypography.bodySmall,
         color = Softest,
         modifier = Modifier.padding(vertical = 3.dp),
+    )
+}
+
+// ---------------------------------------------------------------------------
+// C2 Destination Gate — first-launch splash: Self-Host vs Remote-Connect C2
+// ---------------------------------------------------------------------------
+
+/**
+ * Full-screen startup gate with a 3-second countdown. Presents two buttons at
+ * the bottom:
+ *
+ *  • Self-Host C2  — starts the on-device embedded C2 server (NanoHTTPD /dash)
+ *    and lands the user on the native dashboard.
+ *  • Remote-Connect C2 — opens a dialog for the operator to point at an
+ *    externally-hosted QUANTUMDASH endpoint.
+ *
+ * If nothing is tapped within 3 seconds, Self-Host is auto-selected (the
+ * operator can see the countdown tick down live).
+ */
+@Composable
+fun C2DestinationGate(
+    onSelfHost: () -> Unit,
+    onRemoteConnect: () -> Unit,
+    onSkip: () -> Unit,
+) {
+    var countdown by remember { mutableStateOf(3) }
+
+    // Countdown coroutine — ticks once per second, then fires the default.
+    LaunchedEffect(Unit) {
+        while (countdown > 0) {
+            delay(1000)
+            countdown--
+        }
+        // Countdown hit zero — auto-select Self-Host (unless already dismissed).
+        onSelfHost()
+    }
+
+    // If the user taps either button we kill the countdown so it doesn't fire.
+    fun cancelAutoSelect() {
+        countdown = -1
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = QuantumBg1,
+    ) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .quantumBackground(),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                // ---- branding ----
+                Text(
+                    "QUANTUM-CLI",
+                    style = QuantumTypography.displaySmall,
+                    color = Cyan,
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "C2 Destination",
+                    style = QuantumTypography.headlineSmall,
+                    color = SoftCyan,
+                )
+                Spacer(Modifier.height(16.dp))
+
+                // ---- alert: default selection warning ----
+                if (countdown > 0) {
+                    Text(
+                        "Self-Host C2 will be selected automatically in $countdown second(s)",
+                        style = QuantumTypography.bodyMedium,
+                        color = Warn,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .quantumPanel()
+                            .padding(12.dp),
+                    )
+                } else {
+                    Text(
+                        "Auto-selecting Self-Host C2…",
+                        style = QuantumTypography.bodyMedium,
+                        color = Ok,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .quantumPanel()
+                            .padding(12.dp),
+                    )
+                }
+                Spacer(Modifier.height(16.dp))
+
+                // ---- countdown number pulse ----
+                Text(
+                    if (countdown > 0) countdown.toString() else "GO",
+                    style = QuantumTypography.displayMedium,
+                    color = when {
+                        countdown <= 0 -> Ok
+                        countdown <= 1 -> Danger
+                        else -> Warn
+                    },
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "self-hosting the embedded C2 and opening the native dashboard",
+                    style = QuantumTypography.bodySmall,
+                    color = Muted,
+                    textAlign = TextAlign.Center,
+                )
+            }
+
+            // ---- two buttons at the bottom ----
+            Column(
+                Modifier.align(Alignment.BottomCenter),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Button(
+                    onClick = { cancelAutoSelect(); onSelfHost() },
+                    modifier = Modifier.fillMaxWidth(0.9f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Cyan.copy(alpha = 0.18f),
+                        contentColor = Cyan,
+                    ),
+                ) {
+                    Icon(
+                        Icons.Outlined.Dashboard,
+                        contentDescription = null,
+                        tint = Cyan,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("SELF-HOST C2", style = QuantumTypography.labelLarge)
+                }
+                OutlinedButton(
+                    onClick = { cancelAutoSelect(); onRemoteConnect() },
+                    modifier = Modifier.fillMaxWidth(0.9f),
+                ) {
+                    Icon(
+                        Icons.Outlined.Wifi,
+                        contentDescription = null,
+                        tint = SoftCyan,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        "REMOTE-CONNECT C2",
+                        style = QuantumTypography.labelLarge,
+                        color = SoftCyan,
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+                TextButton(onClick = { cancelAutoSelect(); onSkip() }) {
+                    Text(
+                        "Skip — go straight to dashboard",
+                        style = QuantumTypography.bodySmall,
+                        color = Muted,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Dialog shown when the operator picks Remote-Connect C2 — asks for the
+ * remote C2 base URL (e.g. http://10.0.0.5:8443) and hands it back.
+ */
+@Composable
+fun RemoteConnectDialog(
+    initialHost: String,
+    onDismiss: () -> Unit,
+    onConnect: (String) -> Unit,
+) {
+    var host by rememberSaveable { mutableStateOf(initialHost.ifBlank { "http://<host>:8443" }) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Panel,
+        title = { Text("Remote C2 host", color = Cyan) },
+        text = {
+            Column {
+                Text(
+                    "Enter the base URL of the externally-hosted QUANTUMDASH\n" +
+                        "C2 server (e.g. http://10.0.0.5:8443). The web panel\n" +
+                        "will open at <host>/dash and the native dashboard\n" +
+                        "controls remain fully available.",
+                    style = QuantumTypography.bodySmall,
+                    color = Muted,
+                )
+                Spacer(Modifier.height(10.dp))
+                OutlinedTextField(
+                    value = host,
+                    onValueChange = { host = it },
+                    label = { Text("C2 base URL") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val h = host.trim()
+                    if (h.isNotBlank()) {
+                        onConnect(h)
+                    }
+                },
+                enabled = host.trim().isNotBlank(),
+            ) { Text("CONNECT") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
 }
 

@@ -34,6 +34,10 @@ data class SettingsData(
     val mlTopK: Int = 40,                        // top-K sampling (1..100)
     val mlMaxTokens: Int = 1024,                 // max output tokens (64..4096)
     val mlTelemetry: Boolean = true,             // record inference telemetry samples
+    // ---- C2 destination gate ----
+    val c2Mode: String = "self_host",            // "self_host" | "remote_connect"
+    val c2RemoteHost: String = "",               // e.g. "http://192.168.1.100:8443"
+    val c2DestinationGateShown: Boolean = false, // true once the gate has been dismissed
 )
 
 /**
@@ -93,6 +97,9 @@ object QuantSettings {
         mlTopK = prefs.getInt("ml_top_k", 40),
         mlMaxTokens = prefs.getInt("ml_max_tokens", 1024),
         mlTelemetry = prefs.getBoolean("ml_telemetry", true),
+        c2Mode = prefs.getString("c2_mode", "self_host") ?: "self_host",
+        c2RemoteHost = prefs.getString("c2_remote_host", "") ?: "",
+        c2DestinationGateShown = prefs.getBoolean("c2_dest_gate_shown", false),
     )
 
     fun update(transform: (SettingsData) -> SettingsData) {
@@ -121,6 +128,9 @@ object QuantSettings {
             .putInt("ml_top_k", next.mlTopK)
             .putInt("ml_max_tokens", next.mlMaxTokens)
             .putBoolean("ml_telemetry", next.mlTelemetry)
+            .putString("c2_mode", next.c2Mode)
+            .putString("c2_remote_host", next.c2RemoteHost)
+            .putBoolean("c2_dest_gate_shown", next.c2DestinationGateShown)
             .apply()
         _state.value = next
     }

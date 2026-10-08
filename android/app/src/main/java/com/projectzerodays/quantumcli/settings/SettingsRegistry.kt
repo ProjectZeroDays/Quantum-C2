@@ -134,6 +134,37 @@ object SettingsRegistry {
                 dataField = "hotFixChannel",
             ),
         )
+        add(
+            SettingDefinition(
+                key = "c2.mode",
+                type = SettingType.DROPDOWN,
+                defaultValue = "self_host",
+                dropdownOptions = listOf(
+                    "self_host" to "Self-Host (on-device)",
+                    "remote_connect" to "Remote-Connect (external)",
+                ),
+                tooltipId = "settings.c2.mode",
+                dataField = "c2Mode",
+            ),
+        )
+        add(
+            SettingDefinition(
+                key = "c2.remote_host",
+                type = SettingType.TEXT,
+                defaultValue = "",
+                tooltipId = "settings.c2.remote_host",
+                dataField = "c2RemoteHost",
+            ),
+        )
+        add(
+            SettingDefinition(
+                key = "c2.destination_gate_shown",
+                type = SettingType.SWITCH,
+                defaultValue = false,
+                tooltipId = "settings.c2.destination_gate_shown",
+                dataField = "c2DestinationGateShown",
+            ),
+        )
     }
 
     private val byKey: Map<String, SettingDefinition> = definitions.associateBy { it.key }

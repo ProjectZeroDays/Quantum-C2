@@ -47,6 +47,18 @@
     "settings.updates.hotfix_channel": {
       "title": "Content Hot-Fix Channel",
       "howTo": "Base URL of a signed content channel for tooltip/kill-switch hot-fixes. Blank = disabled and only the shipped assets are used. Content from the channel is signature-checked before it replaces anything."
+    },
+    "settings.c2.mode": {
+      "title": "C2 Destination",
+      "howTo": "Self-Host runs the embedded NanoHTTPD C2 server on-device and serves QUANTUMDASH at /dash. Remote-Connect points the native dashboard at an externally-hosted C2 endpoint; the web panel at <host>/dash is opened in a browser alongside the native controls."
+    },
+    "settings.c2.remote_host": {
+      "title": "Remote C2 Host",
+      "howTo": "Base URL of the externally-hosted C2 server (e.g. http://10.0.0.5:8443). The native dashboard controls work regardless of mode; only dashboard indicators and the web-panel link target this host."
+    },
+    "settings.c2.destination_gate_shown": {
+      "title": "C2 Destination Gate Shown",
+      "howTo": "Tracks whether the first-launch C2 destination gate has been dismissed. When false, the gate splash will appear on next launch; when true it is skipped so the dashboard opens directly."
     }
   }
 }

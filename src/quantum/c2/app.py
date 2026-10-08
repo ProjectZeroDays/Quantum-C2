@@ -100,7 +100,42 @@ FEDERATION = Federation()
 
 
 class QCLI_API:
-    """C2 /ai dispatcher — JSON in/out command router."""
+    """C2 /ai dispatcher — JSON in/out command router.
+
+    COMMANDS is the canonical command surface registry
+    (cmd -> [description, params hint]); the dashboard's
+    console card reads it. handle() dispatches exactly
+    these commands.
+    """
+
+    COMMANDS = {
+        "status": ["C2 status (version, implants)",
+                   "{}"],
+        "zerocheck": ["Zero-day check against an IP",
+                      "ip"],
+        "flashfill": ["Flashfill credential technique",
+                      "{}"],
+        "emojisms": ["Emoji obfuscation encode/decode",
+                     "text"],
+        "rtspbrute": ["RTSP camera brute force",
+                      "ip"],
+        "roast": ["RTSP credential roast",
+                  "ip, domain"],
+        "macreset": ["macOS recovery reset script",
+                     "{}"],
+        "mshtmaldoc": ["MSHTML maldoc generator",
+                       "ip"],
+        "camwar": ["Camera sweep (CAMWAR)",
+                   "cidr"],
+        "mitre": ["MITRE ATT&CK coverage report",
+                  "{}"],
+        "decide": ["QBrain decision",
+                   "state, acts"],
+        "kill": ["Kill every implant",
+                 "wipe"],
+        "plan": ["QBrain attack plan",
+                 "recon"],
+    }
 
     def __init__(self):
         self.turbine = None

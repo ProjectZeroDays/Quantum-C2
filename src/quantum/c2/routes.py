@@ -564,4 +564,391 @@ def register_routes(app, agents, API):
         from quantum.control.phantomdroid import phantomdroid_dashboard_state
         return jsonify(phantomdroid_dashboard_state())
 
+    # ---- OSINT vendors: Intelligence X / ShadowDragon / DarkOwl ----
+    @app.route("/api/osint/intelx/state")
+    def osint_intelx_state():
+        from quantum.recon.intelx import intelx_dashboard_state_full
+        return jsonify(intelx_dashboard_state_full())
+
+    @app.route("/api/osint/intelx/tools")
+    def osint_intelx_tools():
+        from quantum.recon.intelx import intelx_tools
+        return jsonify(intelx_tools())
+
+    @app.route("/api/osint/intelx/recent")
+    def osint_intelx_recent():
+        from quantum.recon.intelx import intelx_recent_queries
+        return jsonify(intelx_recent_queries(
+            int(request.args.get("limit", 20))))
+
+    @app.route("/api/osint/intelx/search", methods=["POST"])
+    def osint_intelx_search():
+        from quantum.recon.intelx import intelx_search
+        d = request.json or {}
+        return jsonify(intelx_search(
+            d.get("query", ""), d.get("api_key"),
+            d.get("maxresults", 100), d.get("terminate", "date"),
+            d.get("timeout", 5000), d.get("buckets"), d.get("media", 0)))
+
+    @app.route("/api/osint/intelx/phonebook", methods=["POST"])
+    def osint_intelx_phonebook():
+        from quantum.recon.intelx import intelx_phonebook
+        d = request.json or {}
+        return jsonify(intelx_phonebook(
+            d.get("value", ""), d.get("api_key"),
+            d.get("limit", 100)))
+
+    @app.route("/api/osint/shadowdragon/state")
+    def osint_shadowdragon_state():
+        from quantum.recon.shadowdragon import shadowdragon_dashboard_state
+        return jsonify(shadowdragon_dashboard_state())
+
+    @app.route("/api/osint/shadowdragon/matrix")
+    def osint_shadowdragon_matrix():
+        from quantum.recon.shadowdragon import shadowdragon_source_matrix
+        return jsonify(shadowdragon_source_matrix())
+
+    @app.route("/api/osint/shadowdragon/products")
+    def osint_shadowdragon_products():
+        from quantum.recon.shadowdragon import shadowdragon_products
+        return jsonify(shadowdragon_products())
+
+    @app.route("/api/osint/shadowdragon/license")
+    def osint_shadowdragon_license():
+        from quantum.recon.shadowdragon import shadowdragon_license_status
+        return jsonify(shadowdragon_license_status())
+
+    @app.route("/api/osint/shadowdragon/plan", methods=["POST"])
+    def osint_shadowdragon_plan():
+        from quantum.recon.shadowdragon import shadowdragon_query_plan
+        d = request.json or {}
+        return jsonify(shadowdragon_query_plan(
+            d.get("subject_type", "name"), d.get("subject_value", "")))
+
+    @app.route("/api/osint/darkowl/state")
+    def osint_darkowl_state():
+        from quantum.recon.darkowl import darkowl_dashboard_state
+        return jsonify(darkowl_dashboard_state())
+
+    @app.route("/api/osint/darkowl/search", methods=["POST"])
+    def osint_darkowl_search():
+        from quantum.recon.darkowl import darkowl_search
+        d = request.json or {}
+        return jsonify(darkowl_search(
+            d.get("query", ""), d.get("public_key"),
+            d.get("private_key"), d.get("extra_params")))
+
+    @app.route("/api/osint/darkowl/test", methods=["POST"])
+    def osint_darkowl_test():
+        from quantum.recon.darkowl import darkowl_test
+        d = request.json or {}
+        return jsonify(darkowl_test(
+            d.get("public_key"), d.get("private_key")))
+
+    @app.route("/api/osint/darkowl/entity/<etype>/<value>", methods=["POST"])
+    def osint_darkowl_entity(etype, value):
+        from quantum.recon.darkowl import darkowl_entity
+        d = request.json or {}
+        return jsonify(darkowl_entity(
+            etype, value, d.get("public_key"), d.get("private_key")))
+
+    # ---- Password cracking: hashes ----
+    @app.route("/api/crack/formats")
+    def crack_formats():
+        from quantum.brute.hashes import cracking_dashboard_state
+        return jsonify(cracking_dashboard_state()["formats"])
+
+    @app.route("/api/crack/hash/state")
+    def crack_hash_state():
+        from quantum.brute.hashes import (cracking_dashboard_state,
+                                          cracking_recent_runs)
+        state = cracking_dashboard_state()
+        state["recent"] = cracking_recent_runs()
+        return jsonify(state)
+
+    @app.route("/api/crack/hash", methods=["POST"])
+    def crack_hash():
+        from quantum.brute.hashes import crack_hashes
+        d = request.json or {}
+        res = crack_hashes(d.get("targets", []), d.get("wordlist", []),
+                           d.get("fmt", "md5"), d.get("salt"))
+        log(f"CRACK hash dict fmt={d.get('fmt', 'md5')} "
+            f"tried={res.get('tried', 0)} hits={len(res.get('hits', []))}",
+            "CRACK")
+        return jsonify(res)
+
+    @app.route("/api/crack/hash/brute", methods=["POST"])
+    def crack_hash_brute():
+        from quantum.brute.hashes import brute_force_hashes
+        d = request.json or {}
+        res = brute_force_hashes(
+            d.get("targets", []), d.get("fmt", "md5"), d.get("salt"),
+            d.get("min_len", 1), d.get("max_len", 4),
+            d.get("charset"))
+        log(f"CRACK hash brute fmt={d.get('fmt', 'md5')} "
+            f"tried={res.get('tried', 0)} hits={len(res.get('hits', []))}",
+            "CRACK")
+        return jsonify(res)
+
+    @app.route("/api/crack/hash/identify", methods=["POST"])
+    def crack_hash_identify():
+        from quantum.brute.hashes import identify_hash
+        d = request.json or {}
+        return jsonify({"hash": d.get("hash", ""),
+                        "formats": identify_hash(d.get("hash", ""))})
+
+    @app.route("/api/crack/hashcat", methods=["POST"])
+    def crack_hashcat():
+        from quantum.brute.hashes import hashcat_run
+        d = request.json or {}
+        try:
+            return jsonify(hashcat_run(
+                d.get("hash_path", ""), d.get("wordlist"),
+                d.get("fmt", "md5"), d.get("attack", 0),
+                d.get("rules"), d.get("mask"),
+                d.get("workload", "low"), d.get("session"),
+                d.get("pot_path"), d.get("extra"),
+                d.get("timeout", 300)))
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+
+    @app.route("/api/crack/john", methods=["POST"])
+    def crack_john():
+        from quantum.brute.hashes import john_run
+        d = request.json or {}
+        return jsonify(john_run(
+            d.get("hash_path", ""), d.get("wordlist"),
+            d.get("fmt"), d.get("rules"), d.get("session"),
+            d.get("extra"), d.get("timeout", 300)))
+
+    @app.route("/api/crack/john/show", methods=["POST"])
+    def crack_john_show():
+        from quantum.brute.hashes import john_show
+        d = request.json or {}
+        return jsonify(john_show(
+            d.get("hash_path", ""), d.get("fmt"), d.get("session")))
+
+    @app.route("/api/crack/sam", methods=["POST"])
+    def crack_sam():
+        from quantum.brute.hashes import parse_pwdump
+        d = request.json or {}
+        return jsonify(parse_pwdump(d.get("text", "")))
+
+    # ---- Password cracking: services ----
+    @app.route("/api/crack/service/state")
+    def crack_service_state():
+        from quantum.brute.services import services_dashboard_state
+        return jsonify(services_dashboard_state())
+
+    @app.route("/api/crack/service", methods=["POST"])
+    def crack_service():
+        from quantum.brute import services as _svc
+        d = request.json or {}
+        service = (d.get("service") or "").lower()
+        fn = {"ftp": _svc.brute_ftp, "http_basic": _svc.brute_http_basic,
+              "http_form": _svc.brute_http_form, "telnet": _svc.brute_telnet,
+              "smtp": _svc.brute_smtp_auth, "pop3": _svc.brute_pop3,
+              "ssh": _svc.brute_ssh}.get(service)
+        if fn is None:
+            return jsonify({"error": f"unknown service {service!r} "
+                                     "(ftp|http_basic|http_form|telnet|"
+                                     "smtp|pop3|ssh)"}), 400
+        host = d.get("host") or d.get("target") or d.get("url", "")
+        res = fn(host, d.get("port") or
+                 {"ftp": 21, "http_basic": 80, "http_form": 80,
+                  "telnet": 23, "smtp": 25, "pop3": 110,
+                  "ssh": 22}[service],
+                 d.get("users"), d.get("wordlist", []),
+                 d.get("timeout", 5))
+        return jsonify(res)
+
+    @app.route("/api/crack/hydra", methods=["POST"])
+    def crack_hydra():
+        from quantum.brute.services import hydra_run
+        d = request.json or {}
+        try:
+            return jsonify(hydra_run(
+                d.get("target", ""), d.get("protocol", "ssh"),
+                d.get("user"), d.get("user_list"), d.get("wordlist"),
+                d.get("port"), d.get("threads", 16),
+                d.get("verbose", False), d.get("extra"),
+                d.get("timeout", 600)))
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+
+    # ---- Password cracking: vaults ----
+    @app.route("/api/crack/vault/state")
+    def crack_vault_state():
+        from quantum.brute.vaults import vaults_dashboard_state
+        return jsonify(vaults_dashboard_state())
+
+    @app.route("/api/crack/vault/recent")
+    def crack_vault_recent():
+        from quantum.brute.vaults import vault_recent_runs
+        return jsonify(vault_recent_runs(
+            int(request.args.get("limit", 20))))
+
+    @app.route("/api/crack/vault", methods=["POST"])
+    def crack_vault():
+        from quantum.brute.vaults import (
+            archive_password_check, cryptomator_masterkey_check,
+            truecrypt_test_password, veracrypt_test_password)
+        import os as _os
+        d = request.json or {}
+        target, password = d.get("target", ""), d.get("password", "")
+        kind = (d.get("kind") or "auto").lower()
+        if kind == "cryptomator":
+            if _os.path.isfile(str(target)):
+                with open(target, encoding="utf-8") as fh:
+                    target = fh.read()
+            try:
+                import json as _json
+                mk = _json.loads(target) if isinstance(target, str) \
+                    else target
+            except Exception as e:
+                return jsonify({"ok": False,
+                                "error": f"bad masterkey JSON: {e}"}), 400
+            return jsonify(cryptomator_masterkey_check(mk, password))
+        if kind == "veracrypt":
+            return jsonify(veracrypt_test_password(
+                target, password, d.get("pim"), d.get("prf", "sha512")))
+        if kind == "truecrypt":
+            return jsonify(truecrypt_test_password(target, password))
+        return jsonify(archive_password_check(target, password))
+
+    @app.route("/api/crack/vault/brute", methods=["POST"])
+    def crack_vault_brute():
+        from quantum.brute.vaults import vault_brute_force
+        d = request.json or {}
+        return jsonify(vault_brute_force(
+            d.get("target", ""), d.get("wordlist", []),
+            d.get("kind", "auto"), d.get("prf", "sha512"),
+            d.get("pim")))
+
+    @app.route("/api/crack/state")
+    def crack_state():
+        from quantum.brute.hashes import (cracking_dashboard_state,
+                                          cracking_recent_runs)
+        from quantum.brute.services import services_dashboard_state
+        from quantum.brute.vaults import (vault_recent_runs,
+                                          vaults_dashboard_state)
+        return jsonify({"hashes": cracking_dashboard_state(),
+                        "hash_runs": cracking_recent_runs(),
+                        "services": services_dashboard_state(),
+                        "vaults": vaults_dashboard_state(),
+                        "vault_runs": vault_recent_runs()})
+
+    # ---- Agents / skills / commands / tasks / workflows console ----
+    @app.route("/api/console/agents", methods=["GET", "POST"])
+    def console_agents():
+        from quantum.ai.console import list_agents, save_agent
+        if request.method == "POST":
+            d = request.json or {}
+            return jsonify(save_agent(d))
+        return jsonify(list_agents())
+
+    @app.route("/api/console/agents/<agent_id>",
+               methods=["GET", "PUT", "DELETE"])
+    def console_agent(agent_id):
+        from quantum.ai.console import (delete_agent, get_agent,
+                                        save_agent)
+        if request.method == "DELETE":
+            return jsonify(delete_agent(agent_id))
+        if request.method == "PUT":
+            d = request.json or {}
+            d["id"] = agent_id
+            return jsonify(save_agent(d))
+        agent = get_agent(agent_id)
+        if agent is None or "error" in agent:
+            return jsonify({"error": f"unknown agent: {agent_id}"}), 404
+        return jsonify(agent)
+
+    @app.route("/api/console/agents/deploy", methods=["POST"])
+    def console_agent_deploy():
+        from quantum.ai.console import deploy_agent
+        d = request.json or {}
+        if not d.get("agent_id"):
+            return jsonify({"error": "agent_id required"}), 400
+        return jsonify(deploy_agent(d["agent_id"]))
+
+    @app.route("/api/console/skills", methods=["GET", "POST"])
+    def console_skills():
+        from quantum.ai.console import list_skills, save_skill
+        if request.method == "POST":
+            return jsonify(save_skill(request.json or {}))
+        return jsonify(list_skills())
+
+    @app.route("/api/console/skills/<skill_id>",
+               methods=["GET", "PUT", "DELETE"])
+    def console_skill(skill_id):
+        from quantum.ai.console import (delete_skill, get_skill,
+                                        save_skill)
+        if request.method == "DELETE":
+            return jsonify(delete_skill(skill_id))
+        if request.method == "PUT":
+            d = request.json or {}
+            d["id"] = skill_id
+            return jsonify(save_skill(d))
+        skill = get_skill(skill_id)
+        if skill is None or "error" in skill:
+            return jsonify({"error": f"unknown skill: {skill_id}"}), 404
+        return jsonify(skill)
+
+    @app.route("/api/console/workflows", methods=["GET", "POST"])
+    def console_workflows():
+        from quantum.ai.console import list_workflows, save_workflow
+        if request.method == "POST":
+            return jsonify(save_workflow(request.json or {}))
+        return jsonify(list_workflows())
+
+    @app.route("/api/console/workflows/<workflow_id>",
+               methods=["GET", "PUT", "DELETE"])
+    def console_workflow(workflow_id):
+        from quantum.ai.console import (delete_workflow, get_workflow,
+                                        save_workflow)
+        if request.method == "DELETE":
+            return jsonify(delete_workflow(workflow_id))
+        if request.method == "PUT":
+            d = request.json or {}
+            d["id"] = workflow_id
+            return jsonify(save_workflow(d))
+        flow = get_workflow(workflow_id)
+        if flow is None or "error" in flow:
+            return jsonify({"error":
+                            f"unknown workflow: {workflow_id}"}), 404
+        return jsonify(flow)
+
+    @app.route("/api/console/workflows/<workflow_id>/run",
+               methods=["POST"])
+    def console_workflow_run(workflow_id):
+        from quantum.ai.console import run_workflow
+        d = request.json or {}
+        return jsonify(run_workflow(workflow_id, d.get("variables")))
+
+    @app.route("/api/console/commands")
+    def console_commands():
+        from quantum.ai.console import commands
+        return jsonify(commands())
+
+    @app.route("/api/console/tasks")
+    def console_tasks():
+        from quantum.ai.console import task_queue
+        return jsonify(task_queue())
+
+    @app.route("/api/console/tasks/<host>", methods=["DELETE"])
+    def console_task_clear(host):
+        from quantum.ai.console import clear_task
+        return jsonify(clear_task(host))
+
+    @app.route("/api/console/state")
+    def console_state():
+        from quantum.ai.console import console_dashboard_state
+        return jsonify(console_dashboard_state())
+
+    @app.route("/api/console/events")
+    def console_events():
+        from quantum.ai.console import console_recent_events
+        return jsonify(console_recent_events(
+            int(request.args.get("limit", 20))))
+
     return app

@@ -70,6 +70,9 @@ DASH_HTML = """<!doctype html>
   <button onclick="showModule('phantomdroid')">PhantomDroid</button>
   <button onclick="showModule('dohshell')">DoH Shell</button>
   <button onclick="showModule('listeners')">Listeners</button>
+  <button onclick="showModule('vendors')">OSINT Vendors</button>
+  <button onclick="showModule('crack')">Crack</button>
+  <button onclick="showModule('console')">Console</button>
 </div>
 
 <div id="home" class="module active">
@@ -234,6 +237,36 @@ DASH_HTML = """<!doctype html>
   </div>
 </div>
 
+<div id="vendors" class="module">
+  <div class="grid">
+    <div class="card"><h2>Intelligence X</h2><pre id="vendors-intelx">…</pre></div>
+    <div class="card"><h2>ShadowDragon</h2><pre id="vendors-shadowdragon">…</pre></div>
+    <div class="card"><h2>DarkOwl Vision</h2><pre id="vendors-darkowl">…</pre></div>
+    <div class="card"><h2>Vendor search (POST /api/osint/&lt;vendor&gt;/…)</h2><pre id="vendors-help">intelx: POST /api/osint/intelx/search {query}
+phonebook: POST /api/osint/intelx/phonebook {value}
+plan: POST /api/osint/shadowdragon/plan {subject_type, subject_value}
+darkowl: POST /api/osint/darkowl/search {query}</pre></div>
+  </div>
+</div>
+
+<div id="crack" class="module">
+  <div class="grid">
+    <div class="card"><h2>Hash formats</h2><pre id="crack-formats">…</pre></div>
+    <div class="card"><h2>Hash crack (POST /api/crack/hash {targets, wordlist, fmt})</h2><pre id="crack-hash">…</pre></div>
+    <div class="card"><h2>Vault / archive (POST /api/crack/vault {target, password, kind})</h2><pre id="crack-vault">…</pre></div>
+    <div class="card"><h2>Services + recent runs</h2><pre id="crack-services">…</pre></div>
+  </div>
+</div>
+
+<div id="console" class="module">
+  <div class="grid">
+    <div class="card"><h2>Agents</h2><pre id="console-agents">…</pre></div>
+    <div class="card"><h2>Skills</h2><pre id="console-skills">…</pre></div>
+    <div class="card"><h2>Workflows</h2><pre id="console-workflows">…</pre></div>
+    <div class="card"><h2>Commands / tasks / events</h2><pre id="console-commands">…</pre></div>
+  </div>
+</div>
+
 <script>
 function showModule(name) {
   document.querySelectorAll('.module').forEach(m => m.classList.remove('active'));
@@ -245,6 +278,34 @@ function showModule(name) {
 
 async function loadModuleData(name) {
   try {
+    if (name === 'vendors') {
+      const [ix, sd, dl] = await Promise.all([
+        fetch('/api/osint/intelx/state').then(r => r.json()),
+        fetch('/api/osint/shadowdragon/state').then(r => r.json()),
+        fetch('/api/osint/darkowl/state').then(r => r.json()),
+      ]);
+      document.getElementById('vendors-intelx').textContent = JSON.stringify(ix, null, 1).slice(0, 4000);
+      document.getElementById('vendors-shadowdragon').textContent = JSON.stringify(sd, null, 1).slice(0, 4000);
+      document.getElementById('vendors-darkowl').textContent = JSON.stringify(dl, null, 1).slice(0, 4000);
+      return;
+    }
+    if (name === 'crack') {
+      const s = await fetch('/api/crack/state').then(r => r.json());
+      document.getElementById('crack-formats').textContent = JSON.stringify(s.hashes.formats || {}, null, 1).slice(0, 4000);
+      document.getElementById('crack-hash').textContent = JSON.stringify({engines: s.hashes.engines, hashcat: s.hashes.hashcat_installed, john: s.hashes.john_installed, runs: (s.hash_runs || []).slice(-5)}, null, 1).slice(0, 4000);
+      document.getElementById('crack-vault').textContent = JSON.stringify({engines: s.vaults.engines, runs: (s.vault_runs || []).slice(-5)}, null, 1).slice(0, 4000);
+      document.getElementById('crack-services').textContent = JSON.stringify(s.services, null, 1).slice(0, 4000);
+      return;
+    }
+    if (name === 'console') {
+      const s = await fetch('/api/console/state').then(r => r.json());
+      const ev = await fetch('/api/console/events?limit=10').then(r => r.json());
+      document.getElementById('console-agents').textContent = JSON.stringify(s.agents, null, 1).slice(0, 4000);
+      document.getElementById('console-skills').textContent = JSON.stringify(s.skills, null, 1).slice(0, 4000);
+      document.getElementById('console-workflows').textContent = JSON.stringify(s.workflows, null, 1).slice(0, 4000);
+      document.getElementById('console-commands').textContent = JSON.stringify({commands: s.commands, tasks: s.tasks, events: ev}, null, 1).slice(0, 4000);
+      return;
+    }
     const r = await fetch('/dash/api/state');
     const s = await r.json();
     if (name === 'home') {

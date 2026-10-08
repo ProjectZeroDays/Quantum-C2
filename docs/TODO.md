@@ -19,6 +19,26 @@ Status: done / doing / parked / todo. Update after every task. (Requested by use
 
 ## Done
 
+- [x] **OSINT vendor + crack + console dashboards** — `recon/intelx.py`
+      (real intelx.io Search/Phonebook client, `INTELX_API_KEY`, honest no-key
+      reporting), `recon/shadowdragon.py` (licensed-SaaS catalog + query
+      planner, honest licensing boundary), `recon/darkowl.py` (real Vision
+      API client with documented OWL HMAC-SHA1 auth, `answer: hoot` test
+      endpoint), `brute/hashes.py` (pure-Python MD4/NTLM + dict/brute engines,
+      hashcat/john builders + passthroughs), `brute/services.py` (hydra
+      builder/passthrough + embedded ftp/http/telnet/smtp/pop3/ssh engines),
+      `brute/vaults.py` (verified VeraCrypt/TrueCrypt XTS oracles,
+      Cryptomator scrypt+AES-KW oracle, zip/7z/rar/pdf passthroughs),
+      `ai/console.py` (agent/skill/workflow CRUD + deploy + workflow run +
+      task queue) — all wired as Flask routes in `c2/routes.py` and webcards
+      in `dash/__init__.py` (Vendors/Crack/Console modules). New tests:
+      `test_hashes.py`, `test_vaults.py` (XTS vs `cryptography` lib,
+      header round-trips), `test_services.py` (loopback HTTP basic),
+      `test_osint_vendors.py`, `test_console.py` (route integration).
+      Production fixes found by the tests: NTLM now hashes UTF-16LE
+      (MS-NLMP), john passthroughs include `argv` in not-installed results,
+      `sam_pwdump` docstring names the real `parse_pwdump()`.
+
 - [x] **NSE-style scan profiles** — `ops/NseScripts.kt`: 8 observation-only scripts
       (banner, http-headers, http-methods, ssl-cert, ssh-banner, ftp-anon,
       smtp-greet, telnet-banner) with port-scoped + evidence-driven application,

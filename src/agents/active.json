@@ -1,0 +1,9 @@
+{
+  "agent_id": "test-console-agent",
+  "name": "Test Agent",
+  "role": "intel",
+  "autonomy": 2,
+  "provider": "",
+  "model": "",
+  "deployed_at": "2026-10-08T05:58:55Z"
+}
