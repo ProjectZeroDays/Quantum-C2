@@ -78,3 +78,16 @@ def test_manifest_has_no_error_entries():
     manifest = json.loads(mj.read_text())
     errors = [e for e in manifest["non_payload"] if e["status"].endswith("error")]
     assert not errors, f"build/load errors: {errors}"
+
+ZIP_MODULES = ["cve_2023_42790_webos_aresinstall", "cve_2024_36210_roku_devmode"]
+
+@pytest.mark.parametrize("stem", ZIP_MODULES)
+def test_zip_entries_pinned_epoch(stem):
+    """ZIP builds must not embed wall-clock mtimes (manifest drift)."""
+    import io, zipfile
+    data = _load(stem).build()
+    with zipfile.ZipFile(io.BytesIO(data)) as z:
+        assert z.namelist(), f"{stem}: empty zip"
+        for info in z.infolist():
+            assert info.date_time == (1980, 1, 1, 0, 0, 0), \
+                f"{stem}:{info.filename} has wall-clock mtime {info.date_time}"

@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-10T21:44:51",
+  "generated": "2026-10-10T22:51:55",
   "count": 64,
   "total_bytes": 58471,
   "artifacts": [
@@ -305,7 +305,7 @@
       "status": "ok",
       "file": "CVE-2023-42790.ipk",
       "bytes": 484,
-      "sha256": "c8eed37c00ef49e3b03a4abeff915f4075d8cf736291f37c844f3f1b0c1b8d28"
+      "sha256": "bd644905171ad93d61957fc2f8fbca544b90f2677b3cd2312585f8fcb99ea7f3"
     },
     {
       "cve": "CVE-2023-42791",
@@ -393,7 +393,7 @@
       "status": "ok",
       "file": "CVE-2024-36210.zip",
       "bytes": 307,
-      "sha256": "dc00f90eb62ab0e020771d6367f4158ef14837adbdb3d5a12aae064e5dcf5276"
+      "sha256": "2742e21f4171709b39277ff25afe775c0e28b0a46c4e19de0ffbe08fbaf0c15b"
     },
     {
       "cve": "CVE-2024-36212",
