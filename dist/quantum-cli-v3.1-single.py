@@ -1113,6 +1113,27 @@ def check_boothole(ip=None, params=None):
             "grub_markers": markers or "none found"}
 
 
+def check_forcedentry(ip=None, params=None):
+    """CVE-2021-30860 FORCEDENTRY — JBIG2 zero-click staging check."""
+    return {"cve": "CVE-2021-30860", "status": "check",
+            "detail": "staging: crafted PDF via iMessage attach",
+            "target": ip}
+
+
+def check_webkit_typeconf(ip=None, params=None):
+    """CVE-2023-32409 WebKit type confusion — drive-by staging check."""
+    return {"cve": "CVE-2023-32409", "status": "check",
+            "detail": "staging: crafted web content (drive-by)",
+            "target": ip}
+
+
+def check_bt_hid(ip=None, params=None):
+    """CVE-2023-45866 BT HID injection — pairing-mode staging check."""
+    return {"cve": "CVE-2023-45866", "status": "check",
+            "detail": "staging: HID connect while target in pairing mode",
+            "target": ip}
+
+
 # ---- legacy tier -----------------------------------------------------------
 
 def check_ms17010(ip, params=None):
@@ -1208,6 +1229,9 @@ ZERO_DAY_REGISTRY = {
     "CVE-2023-41064": {"name": "Apple ImageIO", "tier": "V3_CHECK", "weapon": "check_apple_imageio"},
     "CVE-2021-30858": {"name": "WebKit Escape", "tier": "V3_CHECK", "weapon": "check_webkit_escape"},
     "CVE-2022-21894": {"name": "BootHole", "tier": "V3_CHECK", "weapon": "check_boothole"},
+    "CVE-2021-30860": {"name": "FORCEDENTRY", "tier": "V3_CHECK", "weapon": "check_forcedentry"},
+    "CVE-2023-32409": {"name": "WebKit type confusion", "tier": "V3_CHECK", "weapon": "check_webkit_typeconf"},
+    "CVE-2023-45866": {"name": "BT HID injection", "tier": "V3_CHECK", "weapon": "check_bt_hid"},
     # ---- bluetooth (BlueBorne family + BlackBED-class BLE) ----
     "CVE-2017-0781": {"name": "BlueBorne BNEP", "tier": "V3_CHECK", "weapon": "check_blueborne_bnep"},
     "CVE-2017-0785": {"name": "BlueBorne SDP", "tier": "V3_CHECK", "weapon": "check_blueborne_sdp"},

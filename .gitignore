@@ -1,32 +1,16 @@
-# runtime state
-logs/
-loot/
-qcli/
-models/
-__pycache__/
+# Build artifacts
+dist/
 *.pyc
+__pycache__/
 .pytest_cache/
-.qcli_flash/
-
-# secrets — never commit
-.env
-*.pem
-logs/.lootkey
-
-# build outputs
-agents/build/out/
-weapons/poc/bin/
-dist/*.apk
-build/
-.gradle/
-local.properties
-
-# video2code plugin hook state + plan gate artifacts
-android/.v2c/
-android/out/
-
-# Mimosa plugin state (uninstalled 2026-09-28)
-.mimosa/
-**/.mimosa/
-
+.ruff_cache/
 .coverage
+
+# Exploit build outputs (lock file is committed)
+!payloads.lock.json
+
+# TV sweep state
+tv_state.json
+callback.log
+c2_cert.pem
+c2_key.pem

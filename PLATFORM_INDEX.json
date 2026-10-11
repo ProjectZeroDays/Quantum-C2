@@ -1,0 +1,493 @@
+{
+  "count": 61,
+  "exploits": [
+    {
+      "cve": "CVE-2017-0144",
+      "home": "zero-click",
+      "platform": "windows",
+      "weapon": "check_ms17010",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\windows\\CVE-2017-0144-eternalblue",
+      "repo": "exploit_payloads/CVE-2017-0144-eternalblue/deploy.py"
+    },
+    {
+      "cve": "CVE-2017-13077",
+      "home": "zero-click",
+      "platform": "wifi",
+      "weapon": "check_krack",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\wifi\\CVE-2017-13077-krack",
+      "repo": "exploit_payloads/CVE-2017-13077-krack/deploy.py"
+    },
+    {
+      "cve": "CVE-2020-0022",
+      "home": "zero-click",
+      "platform": "bluetooth",
+      "weapon": "check_bluefrag",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\bluetooth\\CVE-2020-0022-bluefrag",
+      "repo": "exploit_payloads/CVE-2020-0022-bluefrag/deploy.py"
+    },
+    {
+      "cve": "CVE-2023-45866",
+      "home": "zero-click",
+      "platform": "bluetooth",
+      "weapon": "check_bt_hid",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\bluetooth\\CVE-2023-45866-bt-hid-injection",
+      "repo": "exploit_payloads/CVE-2023-45866-bt-hid-injection/deploy.py"
+    },
+    {
+      "cve": "CVE-2019-3568",
+      "home": "zero-click",
+      "platform": "messaging",
+      "weapon": "check_whatsapp_voip",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\messaging\\CVE-2019-3568-whatsapp-voip",
+      "repo": "exploit_payloads/CVE-2019-3568-whatsapp-voip/deploy.py"
+    },
+    {
+      "cve": "CVE-2021-30860",
+      "home": "zero-click",
+      "platform": "messaging",
+      "weapon": "check_forcedentry",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\messaging\\CVE-2021-30860-forcedentry",
+      "repo": "exploit_payloads/CVE-2021-30860-forcedentry/deploy.py"
+    },
+    {
+      "cve": "CVE-2022-27492",
+      "home": "zero-click",
+      "platform": "messaging",
+      "weapon": "v3_whatsapp_libmultiple",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\messaging\\CVE-2022-27492-whatsapp-libmultiple",
+      "repo": "exploit_payloads/CVE-2022-27492-whatsapp-libmultiple/deploy.py"
+    },
+    {
+      "cve": "CVE-2023-41061",
+      "home": "zero-click",
+      "platform": "messaging",
+      "weapon": "check_blastpass_wallet",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\messaging\\CVE-2023-41061-blastpass-wallet",
+      "repo": "exploit_payloads/CVE-2023-41061-blastpass-wallet/deploy.py"
+    },
+    {
+      "cve": "CVE-2023-41064",
+      "home": "zero-click",
+      "platform": "messaging",
+      "weapon": "check_apple_imageio",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\messaging\\CVE-2023-41064-apple-imageio",
+      "repo": "exploit_payloads/CVE-2023-41064-apple-imageio/deploy.py"
+    },
+    {
+      "cve": "CVE-2023-23397",
+      "home": "zero-click",
+      "platform": "messaging",
+      "weapon": "check_outlook_ntlm",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\messaging\\CVE-2023-23397-outlook-ntlm-leak",
+      "repo": "exploit_payloads/CVE-2023-23397-outlook-ntlm-leak/deploy.py"
+    },
+    {
+      "cve": "CVE-2025-32711",
+      "home": "zero-click",
+      "platform": "messaging",
+      "weapon": "check_echoleak",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\messaging\\CVE-2025-32711-echoleak",
+      "repo": "exploit_payloads/CVE-2025-32711-echoleak/deploy.py"
+    },
+    {
+      "cve": "CVE-2021-30858",
+      "home": "zero-click",
+      "platform": "browser",
+      "weapon": "check_webkit_escape",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\browser\\CVE-2021-30858-webkit-escape",
+      "repo": "exploit_payloads/CVE-2021-30858-webkit-escape/deploy.py"
+    },
+    {
+      "cve": "CVE-2023-32409",
+      "home": "zero-click",
+      "platform": "browser",
+      "weapon": "check_webkit_typeconf",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\browser\\CVE-2023-32409-webkit-type-confusion",
+      "repo": "exploit_payloads/CVE-2023-32409-webkit-type-confusion/deploy.py"
+    },
+    {
+      "cve": "CVE-2023-32435",
+      "home": "zero-click",
+      "platform": "browser",
+      "weapon": "check_triangulation_webkit",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\browser\\CVE-2023-32435-triangulation-webkit",
+      "repo": "exploit_payloads/CVE-2023-32435-triangulation-webkit/deploy.py"
+    },
+    {
+      "cve": "CVE-2023-42924",
+      "home": "zero-click",
+      "platform": "browser",
+      "weapon": "check_webkit_itw_2023",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\browser\\CVE-2023-42924-webkit-itw",
+      "repo": "exploit_payloads/CVE-2023-42924-webkit-itw/deploy.py"
+    },
+    {
+      "cve": "CVE-2023-4863",
+      "home": "zero-click",
+      "platform": "browser",
+      "weapon": "check_libwebp",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\browser\\CVE-2023-4863-libwebp",
+      "repo": "exploit_payloads/CVE-2023-4863-libwebp/deploy.py"
+    },
+    {
+      "cve": "CVE-2024-4438",
+      "home": "zero-click",
+      "platform": "browser",
+      "weapon": "check_webkit_intellexa",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\browser\\CVE-2024-4438-webkit-intellexa",
+      "repo": "exploit_payloads/CVE-2024-4438-webkit-intellexa/deploy.py"
+    },
+    {
+      "cve": "CVE-2025-24085",
+      "home": "zero-click",
+      "platform": "browser",
+      "weapon": "check_webkit_itw_2025",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\browser\\CVE-2025-24085-webkit-itw",
+      "repo": "exploit_payloads/CVE-2025-24085-webkit-itw/deploy.py"
+    },
+    {
+      "cve": "CVE-2025-41300",
+      "home": "zero-click",
+      "platform": "browser",
+      "weapon": "check_pegasus_webkit",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\browser\\CVE-2025-41300-pegasus-webkit",
+      "repo": "exploit_payloads/CVE-2025-41300-pegasus-webkit/deploy.py"
+    },
+    {
+      "cve": "CVE-2023-32434",
+      "home": "zero-click",
+      "platform": "ios",
+      "weapon": "check_triangulation_kernel",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\ios\\CVE-2023-32434-triangulation-kernel",
+      "repo": "exploit_payloads/CVE-2023-32434-triangulation-kernel/deploy.py"
+    },
+    {
+      "cve": "CVE-2024-23225",
+      "home": "zero-click",
+      "platform": "ios",
+      "weapon": "check_ios_kernel",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\ios\\CVE-2024-23225-ios-kernel",
+      "repo": "exploit_payloads/CVE-2024-23225-ios-kernel/deploy.py"
+    },
+    {
+      "cve": "CVE-2022-44319",
+      "home": "zero-click",
+      "platform": "android",
+      "weapon": "check_samsung_baseband",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\android\\CVE-2022-44319-samsung-baseband",
+      "repo": "exploit_payloads/CVE-2022-44319-samsung-baseband/deploy.py"
+    },
+    {
+      "cve": "CVE-2023-24033",
+      "home": "zero-click",
+      "platform": "android",
+      "weapon": "check_exynos_baseband",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\android\\CVE-2023-24033-exynos-baseband",
+      "repo": "exploit_payloads/CVE-2023-24033-exynos-baseband/deploy.py"
+    },
+    {
+      "cve": "CVE-2026-0073",
+      "home": "zero-click",
+      "platform": "android",
+      "weapon": "v3_adb_tls",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\android\\CVE-2026-0073-adb-tls-bypass",
+      "repo": "exploit_payloads/CVE-2026-0073-adb-tls-bypass/deploy.py"
+    },
+    {
+      "cve": "CVE-2020-1472",
+      "home": "zero-click",
+      "platform": "network",
+      "weapon": "check_zerologon",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\network\\CVE-2020-1472-zerologon",
+      "repo": "exploit_payloads/CVE-2020-1472-zerologon/deploy.py"
+    },
+    {
+      "cve": "CVE-2021-1675",
+      "home": "zero-click",
+      "platform": "network",
+      "weapon": "check_printnightmare",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\network\\CVE-2021-1675-printnightmare",
+      "repo": "exploit_payloads/CVE-2021-1675-printnightmare/deploy.py"
+    },
+    {
+      "cve": "CVE-2021-26855",
+      "home": "zero-click",
+      "platform": "network",
+      "weapon": "check_proxylogon",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\network\\CVE-2021-26855-proxylogon",
+      "repo": "exploit_payloads/CVE-2021-26855-proxylogon/deploy.py"
+    },
+    {
+      "cve": "CVE-2021-34473",
+      "home": "zero-click",
+      "platform": "network",
+      "weapon": "v3_proxyshell",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\network\\CVE-2021-34473-proxyshell",
+      "repo": "exploit_payloads/CVE-2021-34473-proxyshell/deploy.py"
+    },
+    {
+      "cve": "CVE-2021-36942",
+      "home": "zero-click",
+      "platform": "network",
+      "weapon": "check_petitpotam",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\network\\CVE-2021-36942-petitpotam",
+      "repo": "exploit_payloads/CVE-2021-36942-petitpotam/deploy.py"
+    },
+    {
+      "cve": "CVE-2021-44228",
+      "home": "zero-click",
+      "platform": "network",
+      "weapon": "v3_log4shell",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\network\\CVE-2021-44228-log4shell",
+      "repo": "exploit_payloads/CVE-2021-44228-log4shell/deploy.py"
+    },
+    {
+      "cve": "CVE-2022-22965",
+      "home": "zero-click",
+      "platform": "network",
+      "weapon": "v3_spring4shell",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\network\\CVE-2022-22965-spring4shell",
+      "repo": "exploit_payloads/CVE-2022-22965-spring4shell/deploy.py"
+    },
+    {
+      "cve": "CVE-2022-41040",
+      "home": "zero-click",
+      "platform": "network",
+      "weapon": "v3_proxynotshell",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\network\\CVE-2022-41040-proxynotshell",
+      "repo": "exploit_payloads/CVE-2022-41040-proxynotshell/deploy.py"
+    },
+    {
+      "cve": "CVE-2023-4966",
+      "home": "zero-click",
+      "platform": "network",
+      "weapon": "v3_citrixbleed",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\network\\CVE-2023-4966-citrix-bleed",
+      "repo": "exploit_payloads/CVE-2023-4966-citrix-bleed/deploy.py"
+    },
+    {
+      "cve": "CVE-2024-6387",
+      "home": "zero-click",
+      "platform": "network",
+      "weapon": "v3_regresshion",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\network\\CVE-2024-6387-regresssion",
+      "repo": "exploit_payloads/CVE-2024-6387-regresssion/deploy.py"
+    },
+    {
+      "cve": "CVE-2025-5777",
+      "home": "zero-click",
+      "platform": "network",
+      "weapon": "v3_citrixbleed2",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\network\\CVE-2025-5777-citrix-bleed2",
+      "repo": "exploit_payloads/CVE-2025-5777-citrix-bleed2/deploy.py"
+    },
+    {
+      "cve": "CVE-2019-19781",
+      "home": "zero-click",
+      "platform": "webapp",
+      "weapon": "v3_citrix_path",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\webapp\\CVE-2019-19781-citrix-path-traversal",
+      "repo": "exploit_payloads/CVE-2019-19781-citrix-path-traversal/deploy.py"
+    },
+    {
+      "cve": "CVE-2020-14882",
+      "home": "zero-click",
+      "platform": "webapp",
+      "weapon": "v3_weblogic_console",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\webapp\\CVE-2020-14882-weblogic-console",
+      "repo": "exploit_payloads/CVE-2020-14882-weblogic-console/deploy.py"
+    },
+    {
+      "cve": "CVE-2021-21972",
+      "home": "zero-click",
+      "platform": "webapp",
+      "weapon": "v3_vcenter_upload",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\webapp\\CVE-2021-21972-vcenter-upload",
+      "repo": "exploit_payloads/CVE-2021-21972-vcenter-upload/deploy.py"
+    },
+    {
+      "cve": "CVE-2021-35464",
+      "home": "zero-click",
+      "platform": "webapp",
+      "weapon": "v3_forgerock",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\webapp\\CVE-2021-35464-forgerock",
+      "repo": "exploit_payloads/CVE-2021-35464-forgerock/deploy.py"
+    },
+    {
+      "cve": "CVE-2022-26134",
+      "home": "zero-click",
+      "platform": "webapp",
+      "weapon": "v3_confluence_ognl",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\webapp\\CVE-2022-26134-confluence-ognl",
+      "repo": "exploit_payloads/CVE-2022-26134-confluence-ognl/deploy.py"
+    },
+    {
+      "cve": "CVE-2023-0669",
+      "home": "zero-click",
+      "platform": "webapp",
+      "weapon": "v3_goanywhere",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\webapp\\CVE-2023-0669-goanywhere",
+      "repo": "exploit_payloads/CVE-2023-0669-goanywhere/deploy.py"
+    },
+    {
+      "cve": "CVE-2023-27350",
+      "home": "zero-click",
+      "platform": "webapp",
+      "weapon": "v3_papercut",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\webapp\\CVE-2023-27350-papercut",
+      "repo": "exploit_payloads/CVE-2023-27350-papercut/deploy.py"
+    },
+    {
+      "cve": "CVE-2023-34362",
+      "home": "zero-click",
+      "platform": "webapp",
+      "weapon": "v3_moveit_probe",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\webapp\\CVE-2023-34362-moveit-sqli",
+      "repo": "exploit_payloads/CVE-2023-34362-moveit-sqli/deploy.py"
+    },
+    {
+      "cve": "CVE-2023-35078",
+      "home": "zero-click",
+      "platform": "webapp",
+      "weapon": "v3_ivanti_epmm",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\webapp\\CVE-2023-35078-ivanti-epmm",
+      "repo": "exploit_payloads/CVE-2023-35078-ivanti-epmm/deploy.py"
+    },
+    {
+      "cve": "CVE-2024-1709",
+      "home": "zero-click",
+      "platform": "webapp",
+      "weapon": "v3_screenconnect",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\webapp\\CVE-2024-1709-screenconnect",
+      "repo": "exploit_payloads/CVE-2024-1709-screenconnect/deploy.py"
+    },
+    {
+      "cve": "CVE-2024-3400",
+      "home": "zero-click",
+      "platform": "webapp",
+      "weapon": "v3_panos_cmd",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\webapp\\CVE-2024-3400-panos-globalprotect",
+      "repo": "exploit_payloads/CVE-2024-3400-panos-globalprotect/deploy.py"
+    },
+    {
+      "cve": "CVE-2024-47575",
+      "home": "zero-click",
+      "platform": "webapp",
+      "weapon": "v3_fortimanager",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\webapp\\CVE-2024-47575-fortimanager",
+      "repo": "exploit_payloads/CVE-2024-47575-fortimanager/deploy.py"
+    },
+    {
+      "cve": "CVE-2025-0282",
+      "home": "zero-click",
+      "platform": "webapp",
+      "weapon": "v3_ivanti_connect",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\webapp\\CVE-2025-0282-ivanti-connect-secure",
+      "repo": "exploit_payloads/CVE-2025-0282-ivanti-connect-secure/deploy.py"
+    },
+    {
+      "cve": "CVE-2025-31324",
+      "home": "zero-click",
+      "platform": "webapp",
+      "weapon": "v3_sap_netweaver",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-click_exploits\\_cve\\webapp\\CVE-2025-31324-sap-netweaver",
+      "repo": "exploit_payloads/CVE-2025-31324-sap-netweaver/deploy.py"
+    },
+    {
+      "cve": "CVE-2021-3156",
+      "home": "zero-day",
+      "platform": "linux",
+      "weapon": "check_baron_samedit",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-day_exploits\\_cve\\linux\\CVE-2021-3156-baron-samedit",
+      "repo": "exploit_payloads/CVE-2021-3156-baron-samedit/deploy.py"
+    },
+    {
+      "cve": "CVE-2021-4034",
+      "home": "zero-day",
+      "platform": "linux",
+      "weapon": "check_pwnkit",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-day_exploits\\_cve\\linux\\CVE-2021-4034-pwnkit",
+      "repo": "exploit_payloads/CVE-2021-4034-pwnkit/deploy.py"
+    },
+    {
+      "cve": "CVE-2022-0847",
+      "home": "zero-day",
+      "platform": "linux",
+      "weapon": "v3_dirtypipe",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-day_exploits\\_cve\\linux\\CVE-2022-0847-dirtypipe",
+      "repo": "exploit_payloads/CVE-2022-0847-dirtypipe/deploy.py"
+    },
+    {
+      "cve": "CVE-2023-2640",
+      "home": "zero-day",
+      "platform": "linux",
+      "weapon": "check_overlayfs",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-day_exploits\\_cve\\linux\\CVE-2023-2640-overlayfs",
+      "repo": "exploit_payloads/CVE-2023-2640-overlayfs/deploy.py"
+    },
+    {
+      "cve": "CVE-2023-32233",
+      "home": "zero-day",
+      "platform": "linux",
+      "weapon": "check_nftables_uaf",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-day_exploits\\_cve\\linux\\CVE-2023-32233-nftables-uaf",
+      "repo": "exploit_payloads/CVE-2023-32233-nftables-uaf/deploy.py"
+    },
+    {
+      "cve": "CVE-2024-1086",
+      "home": "zero-day",
+      "platform": "linux",
+      "weapon": "check_nftables_dblfree",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-day_exploits\\_cve\\linux\\CVE-2024-1086-nftables-dblfree",
+      "repo": "exploit_payloads/CVE-2024-1086-nftables-dblfree/deploy.py"
+    },
+    {
+      "cve": "CVE-2017-7494",
+      "home": "zero-day",
+      "platform": "linux",
+      "weapon": "v3_sambacry",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-day_exploits\\_cve\\linux\\CVE-2017-7494-sambacry",
+      "repo": "exploit_payloads/CVE-2017-7494-sambacry/deploy.py"
+    },
+    {
+      "cve": "CVE-2021-40444",
+      "home": "zero-day",
+      "platform": "windows",
+      "weapon": "v3_mshtml_maldoc",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-day_exploits\\_cve\\windows\\CVE-2021-40444-mshtml-maldoc",
+      "repo": "exploit_payloads/CVE-2021-40444-mshtml-maldoc/deploy.py"
+    },
+    {
+      "cve": "CVE-2022-21894",
+      "home": "zero-day",
+      "platform": "windows",
+      "weapon": "check_boothole",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-day_exploits\\_cve\\windows\\CVE-2022-21894-boothole",
+      "repo": "exploit_payloads/CVE-2022-21894-boothole/deploy.py"
+    },
+    {
+      "cve": "CVE-2022-30190",
+      "home": "zero-day",
+      "platform": "windows",
+      "weapon": "check_follina",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-day_exploits\\_cve\\windows\\CVE-2022-30190-follina",
+      "repo": "exploit_payloads/CVE-2022-30190-follina/deploy.py"
+    },
+    {
+      "cve": "CVE-2023-36884",
+      "home": "zero-day",
+      "platform": "windows",
+      "weapon": "check_office_html",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-day_exploits\\_cve\\windows\\CVE-2023-36884-office-html",
+      "repo": "exploit_payloads/CVE-2023-36884-office-html/deploy.py"
+    },
+    {
+      "cve": "CVE-2023-20198",
+      "home": "zero-day",
+      "platform": "network-device",
+      "weapon": "v3_ios_admin",
+      "desktop": "C:\\Users\\Project Zero\\Desktop\\Exploits\\zero-day_exploits\\_cve\\network-device\\CVE-2023-20198-iosxe-webui",
+      "repo": "exploit_payloads/CVE-2023-20198-iosxe-webui/deploy.py"
+    }
+  ]
+}
