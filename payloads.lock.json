@@ -1,0 +1,586 @@
+{
+  "generated": "2026-10-10T21:44:51",
+  "count": 64,
+  "total_bytes": 58471,
+  "artifacts": [
+    {
+      "cve": "CHROMECAST_DIAL_LAUNCH",
+      "module": "chromecast_dial_launch.py",
+      "status": "ok",
+      "file": "CHROMECAST_DIAL_LAUNCH.bin",
+      "bytes": 133,
+      "sha256": "12ba31cd2b6e4200bc0c85358abf91ea87ebd16348a52c3bee083a92b8fb69c9"
+    },
+    {
+      "cve": "CVE-2015-6602",
+      "module": "cve_2015_6602_stagefright.py",
+      "status": "ok",
+      "file": "CVE-2015-6602.mp4",
+      "bytes": 124,
+      "sha256": "cc77e05cdaba64d5b900313df322b8f961ae1f5b0e35ff678ba8e0def94b247b"
+    },
+    {
+      "cve": "CVE-2017-13077",
+      "module": "cve_2017_13077_krack.py",
+      "status": "ok",
+      "file": "CVE-2017-13077.bin",
+      "bytes": 99,
+      "sha256": "2a52a47d69b8bd6f22e8fa27f4032cdf4e7d0f2f181e35a4a65def5c70062cb2"
+    },
+    {
+      "cve": "CVE-2017-13077",
+      "module": "cve_2017_13077_krack.py",
+      "status": "ok",
+      "file": "CVE-2017-13077.frame",
+      "bytes": 144,
+      "sha256": "069d6339b8298639ed84209d2070426a67f185c603dc5e3b75558deb695e1796"
+    },
+    {
+      "cve": "CVE-2019-11931",
+      "module": "cve_2019_11931_whatsapp_mp4.py",
+      "status": "ok",
+      "file": "CVE-2019-11931.mp4",
+      "bytes": 156,
+      "sha256": "8fcbbfc2ecae68e0fe28c3b5a1b45faf1266135f5edee5507e75783e1873d930"
+    },
+    {
+      "cve": "CVE-2019-2215",
+      "module": "cve_2019_2215_bad_binder.py",
+      "status": "ok",
+      "file": "CVE-2019-2215.bin",
+      "bytes": 16,
+      "sha256": "4cbbd8ca5215b8d161aec181a74b694f4e24b001d5b081dc0030ed797a8973e0"
+    },
+    {
+      "cve": "CVE-2019-2215",
+      "module": "cve_2019_2215_bad_binder.py",
+      "status": "ok",
+      "file": "CVE-2019-2215.c",
+      "bytes": 1504,
+      "sha256": "61530cdfdc83e211d0a59d2831f3d7012e7934667d91a0c1af89fecf12cef046"
+    },
+    {
+      "cve": "CVE-2019-3568",
+      "module": "cve_2019_3568_whatsapp_voip.py",
+      "status": "ok",
+      "file": "CVE-2019-3568.sip",
+      "bytes": 4470,
+      "sha256": "cb56ae3fa0871c94452f0c5d3413f8fa9e4083661a1bbe2e59ff5d4bdcf2576f"
+    },
+    {
+      "cve": "CVE-2019-8641",
+      "module": "cve_2019_8641_imessage_nskeyed.py",
+      "status": "ok",
+      "file": "CVE-2019-8641.plist",
+      "bytes": 219,
+      "sha256": "9d3821024e9769efd91d17740410033c355018e33c28618c2d109828a394e548"
+    },
+    {
+      "cve": "CVE-2019-9506",
+      "module": "cve_2019_9506_knob.py",
+      "status": "ok",
+      "file": "CVE-2019-9506.bin",
+      "bytes": 4,
+      "sha256": "5631f3bb2752b3476e3b85302d030f98b0033be7e32cffa7d41097a887f404e8"
+    },
+    {
+      "cve": "CVE-2020-0674",
+      "module": "cve_2020_0674_ie_jscript.py",
+      "status": "ok",
+      "file": "CVE-2020-0674.html",
+      "bytes": 284,
+      "sha256": "c02d720e7e8d89be816808d77e9f59af7b4168d819edc2bcb8eb2734123c8023"
+    },
+    {
+      "cve": "CVE-2020-12351",
+      "module": "cve_2020_12351_bleedingtooth.py",
+      "status": "ok",
+      "file": "CVE-2020-12351.bin",
+      "bytes": 260,
+      "sha256": "cdeaf6d8bd5330519d202b485e35b9c5ea3d3ccc4617c15e66f54b6f51157a99"
+    },
+    {
+      "cve": "CVE-2020-15999",
+      "module": "cve_2020_15999_freetype.py",
+      "status": "ok",
+      "file": "CVE-2020-15999.png",
+      "bytes": 72,
+      "sha256": "377d99e1cacce603aedb22769b826fcc37ce980e6036867a743b6e3d75fcf5a0"
+    },
+    {
+      "cve": "CVE-2020-16040",
+      "module": "cve_2020_16040_chrome_v8.py",
+      "status": "ok",
+      "file": "CVE-2020-16040.html",
+      "bytes": 385,
+      "sha256": "669baa5f2cc648198bb9c9d3992013e259984d3279acb3ccfc47500e9fa56304"
+    },
+    {
+      "cve": "CVE-2020-24586",
+      "module": "cve_2020_24586_fragattacks_cache.py",
+      "status": "ok",
+      "file": "CVE-2020-24586.frame",
+      "bytes": 96,
+      "sha256": "bac83903cf7e3bee29abf35f66f8afc8d70d15b2e8e620ff2fef38246e0cded8"
+    },
+    {
+      "cve": "CVE-2020-24587",
+      "module": "cve_2020_24587_fragattacks_mixedkey.py",
+      "status": "ok",
+      "file": "CVE-2020-24587.frame",
+      "bytes": 98,
+      "sha256": "c9f470b7c49044716e307e188631397c483f2c529097eac4970aec34ceb88c26"
+    },
+    {
+      "cve": "CVE-2020-24588",
+      "module": "cve_2020_24588_fragattacks_amsdu.py",
+      "status": "ok",
+      "file": "CVE-2020-24588.frame",
+      "bytes": 84,
+      "sha256": "0779da5edce72faac5eac76dc83900d791bf69bcc5b365f42ae7f48291e6f3d0"
+    },
+    {
+      "cve": "CVE-2020-6418",
+      "module": "cve_2020_6418_chrome_v8.py",
+      "status": "ok",
+      "file": "CVE-2020-6418.html",
+      "bytes": 510,
+      "sha256": "16562e2fcc71652d3fe8bb9d66d607cecde37dbcffd24b720317fc83081352e7"
+    },
+    {
+      "cve": "CVE-2020-9759",
+      "module": "cve_2020_9759_lg_webapplauncher.py",
+      "status": "ok",
+      "file": "CVE-2020-9759.bin",
+      "bytes": 164,
+      "sha256": "89395a78d7fb1010397297f9011e992c2e0f03a6ad349b81d7ec4b885d6d98d5"
+    },
+    {
+      "cve": "CVE-2021-21224",
+      "module": "cve_2021_21224_chrome_v8.py",
+      "status": "ok",
+      "file": "CVE-2021-21224.html",
+      "bytes": 288,
+      "sha256": "6358ff035eb968492fd0a6c6f4489583d111550dce503912ef54742fb1a9a7b9"
+    },
+    {
+      "cve": "CVE-2021-30860",
+      "module": "cve_2021_30860_forcedentry_jbig2.py",
+      "status": "ok",
+      "file": "CVE-2021-30860.pdf",
+      "bytes": 703,
+      "sha256": "a69e228fea9f5533654441cd0103d727c8d946fd253d95b6e71d198255c0638c"
+    },
+    {
+      "cve": "CVE-2021-3573",
+      "module": "cve_2021_3573_bt_hci_uaf.py",
+      "status": "ok",
+      "file": "CVE-2021-3573.bin",
+      "bytes": 5,
+      "sha256": "302fd75fa14ef9a7952c610fe975d0c3249a6c0651de97671ece61e184a348c2"
+    },
+    {
+      "cve": "CVE-2022-0847",
+      "module": "cve_2022_0847_dirtypipe.py",
+      "status": "ok",
+      "file": "CVE-2022-0847.bin",
+      "bytes": 27,
+      "sha256": "62283f82912b173e014973d516c61ada59e221cabc970c8bcdbf2d1cf1ffae4b"
+    },
+    {
+      "cve": "CVE-2022-0847",
+      "module": "cve_2022_0847_dirtypipe.py",
+      "status": "ok",
+      "file": "CVE-2022-0847.c",
+      "bytes": 1091,
+      "sha256": "23f2b930058fbee04372264ffcd9bd280e0d746e6378cbad009ee923f4164bbb"
+    },
+    {
+      "cve": "CVE-2022-2588",
+      "module": "cve_2022_2588_cls_route.py",
+      "status": "ok",
+      "file": "CVE-2022-2588.sh",
+      "bytes": 374,
+      "sha256": "7a9deb6e4527557bf005d7e892eeeef1e9d149ba473452108652c2ed423819c7"
+    },
+    {
+      "cve": "CVE-2022-42896",
+      "module": "cve_2022_42896_bt_l2cap_uaf.py",
+      "status": "ok",
+      "file": "CVE-2022-42896.bin",
+      "bytes": 14,
+      "sha256": "230f2caff1e19db16c9fab49091a130d1f4e604e3ef7472e726af4b031fdc02e"
+    },
+    {
+      "cve": "CVE-2023-0179",
+      "module": "cve_2023_0179_nftables.py",
+      "status": "ok",
+      "file": "CVE-2023-0179.nft",
+      "bytes": 197,
+      "sha256": "927f491893629a0f0fb3f96bd56f8bd1a32dd6aa698eb3824ea6676918bbf4cd"
+    },
+    {
+      "cve": "CVE-2023-21268",
+      "module": "cve_2023_21268_mediacodec.py",
+      "status": "ok",
+      "file": "CVE-2023-21268.mp4",
+      "bytes": 120,
+      "sha256": "e5e96107c419647918a8321cfa5d619ac72350121f961358dc1d0dddbb607894"
+    },
+    {
+      "cve": "CVE-2023-2569",
+      "module": "cve_2023_2569_whatsapp_mp4.py",
+      "status": "ok",
+      "file": "CVE-2023-2569.mp4",
+      "bytes": 120,
+      "sha256": "d303c1f824b91a06a529010836bf1cabdb035f1a301f51deb62f3b3df383f021"
+    },
+    {
+      "cve": "CVE-2023-26084",
+      "module": "cve_2023_26084_androidtv_binder.py",
+      "status": "ok",
+      "file": "CVE-2023-26084.parcel",
+      "bytes": 40,
+      "sha256": "8602b65c74709cdd232117a506e8707435fd09d8ca3e1c86f75cc0678cfc1498"
+    },
+    {
+      "cve": "CVE-2023-28412",
+      "module": "cve_2023_28412_tizen_privmgr.py",
+      "status": "ok",
+      "file": "CVE-2023-28412.xml",
+      "bytes": 365,
+      "sha256": "38cd72a347223888c1e50a9cf75481fd481730d453a8412c08d11e55c9cc7014"
+    },
+    {
+      "cve": "CVE-2023-31864",
+      "module": "cve_2023_31864_kdtree.py",
+      "status": "ok",
+      "file": "CVE-2023-31864.bin",
+      "bytes": 22,
+      "sha256": "43b0b5622be9b247852b791fc7929c69b7be6b9dc9f78da4a2863635f1239feb"
+    },
+    {
+      "cve": "CVE-2023-32780",
+      "module": "cve_2023_32780_rt_table.py",
+      "status": "ok",
+      "file": "CVE-2023-32780.bin",
+      "bytes": 18,
+      "sha256": "4ea8b29ed0e9b7e227d55cc5cd7327d4b36fcb1ec9725474dccb777d7b678e7a"
+    },
+    {
+      "cve": "CVE-2023-35964",
+      "module": "cve_2023_35964_schema.py",
+      "status": "ok",
+      "file": "CVE-2023-35964.bin",
+      "bytes": 17,
+      "sha256": "a50649499ca79741e6b4e657391df97e9f5c8d79dc7d57e5f668ab78f5808f83"
+    },
+    {
+      "cve": "CVE-2023-41064",
+      "module": "cve_2023_41064_blastpass_webp.py",
+      "status": "ok",
+      "file": "CVE-2023-41064.webp",
+      "bytes": 26,
+      "sha256": "ea3eb4f6b14361f4e7fc6f30196d9333b9989efaf2b06ef247f9fac2ac0af5b2"
+    },
+    {
+      "cve": "CVE-2023-41991",
+      "module": "cve_2023_41991_imessage_blastdoor.py",
+      "status": "ok",
+      "file": "CVE-2023-41991.gif",
+      "bytes": 41,
+      "sha256": "6dfa66eaca6f37d4a6d1747818a3d607f5a385ba862ebe64d40b0ab4fff01aac"
+    },
+    {
+      "cve": "CVE-2023-42787",
+      "module": "cve_2023_42787_roku_ecp.py",
+      "status": "ok",
+      "file": "CVE-2023-42787.xml",
+      "bytes": 8243,
+      "sha256": "0b4752bb91b8aba38a2d71b6a31bad7a6561ace529c6b44104be1e87134fcb2a"
+    },
+    {
+      "cve": "CVE-2023-42790",
+      "module": "cve_2023_42790_webos_aresinstall.py",
+      "status": "ok",
+      "file": "CVE-2023-42790.ipk",
+      "bytes": 484,
+      "sha256": "c8eed37c00ef49e3b03a4abeff915f4075d8cf736291f37c844f3f1b0c1b8d28"
+    },
+    {
+      "cve": "CVE-2023-42791",
+      "module": "cve_2023_42791_webos_mrcjson.py",
+      "status": "ok",
+      "file": "CVE-2023-42791.json",
+      "bytes": 24598,
+      "sha256": "eb9d2fd65682f29ec55ad5830b16f4dd6a3917789ef97f9934ca8063c3951f85"
+    },
+    {
+      "cve": "CVE-2023-42793",
+      "module": "cve_2023_42793_tizen_browser.py",
+      "status": "ok",
+      "file": "CVE-2023-42793.html",
+      "bytes": 482,
+      "sha256": "0229c5c1400cf28e6ca31030a5911d680d3662c89c791f9da23abdadfcd027a7"
+    },
+    {
+      "cve": "CVE-2023-42794",
+      "module": "cve_2023_42794_chromecast_companion.py",
+      "status": "ok",
+      "file": "CVE-2023-42794.mdns",
+      "bytes": 40,
+      "sha256": "a54fcccffc10163b86d1f7df2e10a9639c012680f95b7da6b4dd05559772e7dd"
+    },
+    {
+      "cve": "CVE-2023-45866",
+      "module": "cve_2023_45866_bt_hid_inject.py",
+      "status": "ok",
+      "file": "CVE-2023-45866.bin",
+      "bytes": 8,
+      "sha256": "bc7b86391ec13f09bd713e946eed447ea6a4543d19e686d71489783bd20898f2"
+    },
+    {
+      "cve": "CVE-2023-47081",
+      "module": "cve_2023_47081_imessage_mp4.py",
+      "status": "ok",
+      "file": "CVE-2023-47081.mp4",
+      "bytes": 152,
+      "sha256": "77327eb0bf7ee1ac38c40d5753ab7881fc2af08c44274a11f76cfd53a12ff076"
+    },
+    {
+      "cve": "CVE-2024-0044",
+      "module": "cve_2024_0044_androidtv_dtvservice.py",
+      "status": "ok",
+      "file": "CVE-2024-0044.bin",
+      "bytes": 36,
+      "sha256": "ba0ca9cca6d5ed0f7e5c61f58ce0337277fa31b273710084121982b189117244"
+    },
+    {
+      "cve": "CVE-2024-1086",
+      "module": "cve_2024_1086_nftables.py",
+      "status": "ok",
+      "file": "CVE-2024-1086.nft",
+      "bytes": 519,
+      "sha256": "67d12078f5ad6186a07053e96463cfe9f18d2788013010c8a70cd618d66e885f"
+    },
+    {
+      "cve": "CVE-2024-1086",
+      "module": "cve_2024_1086_nftables.py",
+      "status": "ok",
+      "file": "CVE-2024-1086.c",
+      "bytes": 694,
+      "sha256": "431b5937b111d908dc06b4a6cdad7adcf135b2b501ee04aa0280c622090b8a68"
+    },
+    {
+      "cve": "CVE-2024-23339",
+      "module": "cve_2024_23339_tizen_service.py",
+      "status": "ok",
+      "file": "CVE-2024-23339.tsvc",
+      "bytes": 28,
+      "sha256": "f49a9a2db5f96f66ab8878b9f85ca5506972ff55f7efca54d727361dffc0becf"
+    },
+    {
+      "cve": "CVE-2024-25065",
+      "module": "cve_2024_25065_webos_lunabus.py",
+      "status": "ok",
+      "file": "CVE-2024-25065.json",
+      "bytes": 2186,
+      "sha256": "c296053f699849caaba6bf222a4a76e31216d53abb5ce0f0e94b33748f9a8e99"
+    },
+    {
+      "cve": "CVE-2024-36210",
+      "module": "cve_2024_36210_roku_devmode.py",
+      "status": "ok",
+      "file": "CVE-2024-36210.zip",
+      "bytes": 307,
+      "sha256": "dc00f90eb62ab0e020771d6367f4158ef14837adbdb3d5a12aae064e5dcf5276"
+    },
+    {
+      "cve": "CVE-2024-36212",
+      "module": "cve_2024_36212_hisense_mediafw.py",
+      "status": "ok",
+      "file": "CVE-2024-36212.mkv",
+      "bytes": 36,
+      "sha256": "e511463446b98af022145c85d66f9bd7afc0b19aa90cbf1ff6076c2b288d87fa"
+    },
+    {
+      "cve": "CVE-2024-42794",
+      "module": "cve_2024_42794_tizen_wasm.py",
+      "status": "ok",
+      "file": "CVE-2024-42794.wasm",
+      "bytes": 46,
+      "sha256": "881bb5e668047b8f8812e710abfe8c2fc1b8390f8ced0995c4cd19df737f90d2"
+    },
+    {
+      "cve": "CVE-2025-20878",
+      "module": "cve_2025_20878_roku_mediaplayer.py",
+      "status": "ok",
+      "file": "CVE-2025-20878.mp4",
+      "bytes": 132,
+      "sha256": "73658b8d26d5d7082dcb9b0027504730f59e5d4f8f35e0ef3ed548e2382c6ce9"
+    },
+    {
+      "cve": "CVE-2025-20879",
+      "module": "cve_2025_20879_hisense_settings.py",
+      "status": "ok",
+      "file": "CVE-2025-20879.txt",
+      "bytes": 4137,
+      "sha256": "63a3c89a7993ba80eb34a737e7e128e8e7d943fe6b1bf44f3d0344fe8cc7e081"
+    },
+    {
+      "cve": "CVE-2025-22448",
+      "module": "cve_2025_22448_androidtv_bluetooth.py",
+      "status": "ok",
+      "file": "CVE-2025-22448.bin",
+      "bytes": 520,
+      "sha256": "426bd147fe4c3f8121b376fd4540ce6fadb1408fe23456401fa7530f1f48e86b"
+    },
+    {
+      "cve": "CVE-2025-22450",
+      "module": "cve_2025_22450_vizio_smartcastagent.py",
+      "status": "ok",
+      "file": "CVE-2025-22450.json",
+      "bytes": 1156,
+      "sha256": "8527f2b667c2994ba3eb499e91003618abbb1d2b8e79d80b261993873bd6caee"
+    },
+    {
+      "cve": "CVE-2025-25066",
+      "module": "cve_2025_25066_webos_webappmgr.py",
+      "status": "ok",
+      "file": "CVE-2025-25066.json",
+      "bytes": 136,
+      "sha256": "cc68db909520f49e0b6e0831e3d55a7ba072d1e1ada8a31ea6a756f052908f02"
+    },
+    {
+      "cve": "CVE-2025-27610",
+      "module": "cve_2025_27610_tizen_imageviewer.py",
+      "status": "ok",
+      "file": "CVE-2025-27610.jpg",
+      "bytes": 159,
+      "sha256": "a6bb278487c32d5dfe983ef66089f641199713d4ece6f6a81edc46fe519ce48f"
+    },
+    {
+      "cve": "CVE-2026-106382",
+      "module": "cve_2026_106382_chromecast_uaf.py",
+      "status": "ok",
+      "file": "CVE-2026-106382.html",
+      "bytes": 415,
+      "sha256": "40b64fa6553ae4fbb3a55b72a87f6d1a03d22c14d01886b6f8d553c551ae76e8"
+    },
+    {
+      "cve": "CVE-2026-87588",
+      "module": "cve_2026_87588_chromecast_uaf.py",
+      "status": "ok",
+      "file": "CVE-2026-87588.html",
+      "bytes": 522,
+      "sha256": "4fe18e55defe9070e1b807befeefcdf0257a8a9b9313255e9983925da23783b4"
+    },
+    {
+      "cve": "CVE-2026-95372",
+      "module": "cve_2026_95372_chromecast_uaf.py",
+      "status": "ok",
+      "file": "CVE-2026-95372.html",
+      "bytes": 490,
+      "sha256": "e13e7bcc7e5671c939fb18a79501cba6b2aac45adc7f38c54f626ed53a6013c0"
+    },
+    {
+      "cve": "DLNA_SOAP_INJECT",
+      "module": "dlna_soap_inject.py",
+      "status": "ok",
+      "file": "DLNA_SOAP_INJECT.bin",
+      "bytes": 290,
+      "sha256": "33ce2272660726195fc0c5a971985eb1d1bcd4a1d7edb7456f712cdb381b6bd9"
+    },
+    {
+      "cve": "LG_SSAP_DEEPLINK",
+      "module": "lg_ssap_deeplink.py",
+      "status": "ok",
+      "file": "LG_SSAP_DEEPLINK.bin",
+      "bytes": 187,
+      "sha256": "633ae58010fc2fb9a0a3560f0a5253a6d41a2b02d490a71f1749ff1c4e77d8a7"
+    },
+    {
+      "cve": "ROKU_ECP_ENUM",
+      "module": "roku_ecp_enum.py",
+      "status": "ok",
+      "file": "ROKU_ECP_ENUM.bin",
+      "bytes": 42,
+      "sha256": "396c461d3672c6144a6f637a81761c61cfcfdf010899cb473bd9c4ec78cd10b1"
+    },
+    {
+      "cve": "TIZEN_REMOTE_WS",
+      "module": "tizen_remote_ws.py",
+      "status": "ok",
+      "file": "TIZEN_REMOTE_WS.bin",
+      "bytes": 136,
+      "sha256": "54ecd4e888f1ba59531604ce601baf113239704732d42d798e16bb8c3d302948"
+    }
+  ],
+  "non_payload": [
+    {
+      "cve": "ADB_WIFI_CONNECT",
+      "module": "adb_wifi_connect.py",
+      "status": "driver"
+    },
+    {
+      "cve": "CVE-2019-2215",
+      "module": "cve_2019_2215_bad_binder_full.py",
+      "status": "driver"
+    },
+    {
+      "cve": "CVE-2020-0022",
+      "module": "cve_2020_0022_bluefrag.py",
+      "status": "driver"
+    },
+    {
+      "cve": "CVE-2023-40104",
+      "module": "cve_2023_40104_androidtv_settings.py",
+      "status": "driver"
+    },
+    {
+      "cve": "CVE-2023-42788",
+      "module": "cve_2023_42788_vizio_dial.py",
+      "status": "driver"
+    },
+    {
+      "cve": "CVE-2023-42789",
+      "module": "cve_2023_42789_hisense_adb.py",
+      "status": "driver"
+    },
+    {
+      "cve": "CVE-2023-42792",
+      "module": "cve_2023_42792_tcl_intent.py",
+      "status": "driver"
+    },
+    {
+      "cve": "CVE-2024-1086",
+      "module": "cve_2024_1086_nftables_full.py",
+      "status": "driver"
+    },
+    {
+      "cve": "CVE-2024-36211",
+      "module": "cve_2024_36211_vizio_castservice.py",
+      "status": "driver"
+    },
+    {
+      "cve": "CVE-2024-36213",
+      "module": "cve_2024_36213_tcl_systemservice.py",
+      "status": "driver"
+    },
+    {
+      "cve": "CVE-2025-22451",
+      "module": "cve_2025_22451_tcl_settings.py",
+      "status": "driver"
+    },
+    {
+      "cve": "CVE-2026-0073",
+      "module": "cve_2026_0073_adb_tls_bypass.py",
+      "status": "driver"
+    },
+    {
+      "cve": "VIZIO_DIAL_LAUNCH",
+      "module": "vizio_dial_launch.py",
+      "status": "driver"
+    }
+  ]
+}

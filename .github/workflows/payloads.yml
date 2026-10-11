@@ -1,0 +1,42 @@
+name: payloads
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  build-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dev deps
+        run: pip install -r requirements-dev.txt
+
+      - name: Build payloads + manifest
+        run: python run_all.py --outdir dist
+
+      - name: Smoke + structural tests
+        run: python -m pytest tests/ -q
+
+      - name: Verify hashes against fresh manifest
+        run: python run_all.py --outdir dist --verify
+
+      - name: Diff manifest against committed lock
+        run: python run_all.py --outdir dist --diff payloads.lock.json
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: payloads
+          path: dist/
+
+      - name: Comment drift on PR
+        if: failure()
+        run: |
+          echo "::warning::payload manifest drift — run 'make lock' locally and commit payloads.lock.json"
