@@ -6,6 +6,25 @@ __pycache__/
 .ruff_cache/
 .coverage
 
+# Build tooling
+.mimosa/
+.env
+logs/
+loot/
+build/
+android/.gradle/
+android/build/
+android/app/build/
+android/out/
+android/local.properties
+android/build.log
+android/build.err
+android/studio_build.log
+android/.mimosa/
+android/.v2c/
+android/app/src/main/java/com/projectzerodays/quantumcli/.mimosa/
+android/app/src/main/res/.mimosa/
+
 # Exploit build outputs (lock file is committed)
 !payloads.lock.json
 

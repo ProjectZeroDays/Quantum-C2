@@ -27,8 +27,8 @@ android {
         applicationId = "com.projectzerodays.quantumcli"
         minSdk = 26
         targetSdk = 34
-        versionCode = 3
-        versionName = "4.4.2"
+        versionCode = 4
+        versionName = "4.6.2"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
     }
@@ -126,12 +126,17 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.4")
     implementation("androidx.activity:activity-compose:1.9.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+    implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.8.4")
+    implementation("androidx.compose.runtime:runtime-livedata:1.5.14")
 
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
+    // Material view library — activity_quantum_native.xml uses
+    // MaterialCardView + Widget.MaterialComponents button styles
+    implementation("com.google.android.material:material:1.12.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
 
     // C2 HTTP server (embedded, ~100 KB jar — lighter than Ktor for on-device serving)
