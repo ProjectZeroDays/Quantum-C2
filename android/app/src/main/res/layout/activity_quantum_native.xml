@@ -113,18 +113,19 @@
 
                         <Button
                             android:id="@+id/btn_gui"
-                            style="@style/Widget.MaterialComponents.Button.FilledTonalButton"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="8dp"
                             android:text="GUI chat"
-                            android:textColor="#E6F7FF"
+                            android:textColor="#00E5FF"
                             android:textSize="12sp"
                             android:fontFamily="monospace"
-                            app:backgroundTint="#0C1E33" />
+                            app:strokeColor="#00E5FF"
+                            app:rippleColor="#00E5FF22" />
                     </LinearLayout>
                 </LinearLayout>
-            </com.google.android.card.MaterialCardView>
+            </com.google.android.material.card.MaterialCardView>
 
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/card_chat"
@@ -197,7 +198,7 @@
                         android:textSize="11sp"
                         android:fontFamily="monospace" />
                 </LinearLayout>
-            </com.google.android.card.MaterialCardView>
+            </com.google.android.material.card.MaterialCardView>
         </androidx.constraintlayout.widget.ConstraintLayout>
     </androidx.core.widget.NestedScrollView>
 
