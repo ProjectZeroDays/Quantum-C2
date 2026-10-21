@@ -77,8 +77,12 @@ def main() -> int:
             if rc == 0:
                 print(f"  [+] {c.name}"); ok += 1
             else:
-                first = (err.strip().splitlines() or ["?"])[0][:80] if err else "?"
-                print(f"  [-] {c.name}: {first}"); fail += 1
+                # Show enough of the compiler output to diagnose the
+                # failure — a single line ("In function 'main':") is not
+                # enough to tell what actually went wrong.
+                lines = (err or "").strip().splitlines() or ["?"]
+                detail = " | ".join(l.strip() for l in lines[:3])[:240]
+                print(f"  [-] {c.name}: {detail}"); fail += 1
 
         print(f"[{'PASS' if not fail else 'FAIL'}] {ok} compiled, {fail} failed")
         if a.outdir:

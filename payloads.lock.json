@@ -1,7 +1,7 @@
 {
-  "generated": "2026-10-21T09:37:42",
+  "generated": "2026-10-21T10:05:25",
   "count": 64,
-  "total_bytes": 62569,
+  "total_bytes": 62767,
   "artifacts": [
     {
       "cve": "CHROMECAST_DIAL_LAUNCH",
@@ -192,8 +192,8 @@
       "module": "cve_2022_0847_dirtypipe.py",
       "status": "ok",
       "file": "CVE-2022-0847.c",
-      "bytes": 1091,
-      "sha256": "23f2b930058fbee04372264ffcd9bd280e0d746e6378cbad009ee923f4164bbb"
+      "bytes": 1289,
+      "sha256": "3e9f5c18b575e9963a953d6ca0d4d6d560631beed935c7dec34c1c98e4c70876"
     },
     {
       "cve": "CVE-2022-2588",
