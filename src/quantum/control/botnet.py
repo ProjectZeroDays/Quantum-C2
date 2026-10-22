@@ -50,6 +50,30 @@ BOTNET_TYPES = {
         "strengths": ["anonymous", "resilient", "hard_to_takedown"],
         "weaknesses": ["slow", "complex"],
     },
+    "badbox": {
+        "name": "BadBox Botnet",
+        "description": "Android-based botnet using malicious APK injection and device fingerprinting for C2; zero-click vector via steganography/embedded payload delivery",
+        "protocol": "HTTPS / MQTT / TOR",
+        "features": ["apk_injection", "zero_click_stealth", "device_fingerprint", "reverse_shell", "data_exfil", "proxy", "mining", "security_disable", "downloader", "joiner"],
+        "strengths": ["stealth", "android_targeted", "embedded_payload_delivery", "reverse_shell_capability"],
+        "weaknesses": ["android_specific", "requires_app_install_vector"],
+    },
+    "iot": {
+        "name": "IoT Botnet",
+        "description": "Compromised IoT devices (cameras, routers, smart plugs) joined via LAN protocols (Kasa XOR, Tapo KLAP, Tuya AES-ECB, MQTT, ONVIF)",
+        "protocol": "MQTT / HTTP / ONVIF / LAN",
+        "features": ["iot_recon", "credential_spray", "mqtt_c2", "camera_access", "lan_exfil"],
+        "strengths": ["high_volume", "low_visibility", "persistent"],
+        "weaknesses": ["device_limited_cpu", "patchable"],
+    },
+    "badbox": {
+        "name": "BadBox Botnet",
+        "description": "Android-based botnet using malicious APK injection and device fingerprinting for C2; zero-click vector via steganography/embedded payload delivery",
+        "protocol": "HTTPS / MQTT / TOR",
+        "features": ["apk_injection", "zero_click_stealth", "device_fingerprint", "reverse_shell", "data_exfil", "proxy", "mining", "security_disable", "downloader", "joiner"],
+        "strengths": ["stealth", "android_targeted", "embedded_payload_delivery", "reverse_shell_capability"],
+        "weaknesses": ["android_specific", "requires_app_install_vector"],
+    },
     "blockchain": {
         "name": "Blockchain Botnet",
         "description": "Blockchain-based botnet with C2 embedded in transactions",
@@ -223,6 +247,9 @@ def generate_botnet_config(botnet_type: str, c2_host: str = "0.0.0.0",
     log(f"Botnet config generated: {botnet_type}", "BOTNET")
     return out
 
+
+def add_device_to_botnet(device_type="badbox", ip=None, c2_host="c2.quantum.local"):
+    return {"status":"added", "device_type":device_type, "ip":ip, "c2":c2_host, "iot_included": device_type in ("iot","badbox"), "updated": datetime.now().isoformat()}
 
 def botnet_dashboard_state() -> dict:
     """Return the full botnet dashboard state for the UI."""

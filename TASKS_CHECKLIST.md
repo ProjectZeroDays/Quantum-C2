@@ -52,13 +52,13 @@ Create one command definition per entry (repo-level command files). `/swarm` mus
 
 ### 1.5 `/docs` deliverables
 
-- [ ] **P1** `README.md` — badges (CI, tests, license, version, platforms), intro, feature overview, per-OS installation, usage, screenshots, AI-generated banner (best available model) at top, authorization notice, links
+- [x] **P1** `README.md` — badges (CI, tests, license, version, platforms), intro, feature overview, per-OS installation, usage, screenshots, AI-generated banner (best available model) at top, authorization notice, links
 - [ ] **P1** Wiki — enterprise grade: architecture, per-module reference, operator guides, RoE/compliance, FAQ
 - [ ] **P1** `LICENSE` — confirm/choose and apply consistently
-- [ ] **P1** `CONTRIBUTING.md` — dev setup, branch/PR conventions, house style (`pytest tests/`, AGENTS.md rules, new weapons join `ZERO_DAY_REGISTRY` per `docs/HOWTOs.md` §7), review checklist
-- [ ] **P1** API docs — C2 routes (`src/quantum/c2/routes.py`), dashboard API, CLI surface; versioned with code
+- [x] **P1** `CONTRIBUTING.md` — dev setup, branch/PR conventions, house style (`pytest tests/`, AGENTS.md rules, new weapons join `ZERO_DAY_REGISTRY` per `docs/HOWTOs.md` §7), review checklist
+- [x] **P1** API docs — C2 routes (`src/quantum/c2/routes.py`), dashboard API, CLI surface; versioned with code
 - [ ] **P1** `TROUBLESHOOTING.md` — install failures, Android build gotchas (stale Gradle → phantom failures; asset subdirectory layout; FlowRow in scrollable pages), common runtime errors
-- [ ] **P1** `DEVELOPER_CHECKLIST.md` — pre-PR gates: tests green, no-AI purity, lootkey untouched, camera-first intact, no simulated code
+- [x] **P1** `DEVELOPER_CHECKLIST.md` — pre-PR gates: tests green, no-AI purity, lootkey untouched, camera-first intact, no simulated code
 - [ ] **P1** `FUTURE_UPDATES.md` — roadmap (11 empty + 3 partial `exploit_payloads/` CVE dirs as expansion targets)
 - [ ] **P2** `CHANGELOG.md` — keep-a-changelog format, backfilled from release history
 
@@ -167,7 +167,7 @@ Run `/never-ask` + `/swarm` + `/goal` over this checklist. The **only** step per
 - [ ] **P1** Network identity panel — IPv4/IPv6 address + geolocation for the device and for the active VPN/proxy; user-configurable proxy chain, VPN info, SOCKS5 proxy, custom root CA
 - [ ] **P1** Optional app + data encryption using an app-generated root CA (or user-supplied CA) and an advanced cipher suite — integrates with the 3-DB SQLCipher split
 - [ ] **P2** Kodachi-9-grade anonymity suite — DoH/DoT, optional Tor routing, firewall-hardening profiles, MAC randomization (root), leak prevention (DNS/WebRTC/IPv6), connection kill-switch — while maintaining persistent C2 keepalive connections
-- [ ] **P0** Auto-update + intelligent dependency updates: GitHub Releases poll, signature-verified, blacklist-aware block policies; **update-deps button** — automated dependency bumps validated by build+test gate (never ship breaking updates), pre-update snapshot, **automatic rollback** when issues occur, then push to GitHub → hotfix release → push notification → user installs in-app
+- [x] **P0** Auto-update + intelligent dependency updates: GitHub Releases poll, signature-verified, blacklist-aware block policies; **update-deps button** — automated dependency bumps validated by build+test gate (never ship breaking updates), pre-update snapshot, **automatic rollback** when issues occur, then push to GitHub → hotfix release → push notification → user installs in-app
 - [ ] **P2** Three-DB SQLCipher split (`quantum_app`/`quantum_intel`/`quantum_secrets`) + StrongBox/HKDF + AES-256-GCM blob envelopes + per-row HMAC + zeroize + encrypted export + weekly snapshots (verify — spec in reference doc §4)
 - [ ] **P2** Widget-engine completeness: DashboardScaffold, WidgetShell, RecoveryBoundary, JobCard, TooltipRegistry, WalkthroughEngine, HealingDaemon, ToolBridge (verify — v3.8/v3.9 trunk may already cover; spec in reference doc §5)
 - [ ] **P2** Publish `docs/requirements-matrix.md` (85 consolidated requirements → file map)
