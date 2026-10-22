@@ -7,6 +7,22 @@ on:
     branches: [main]
 
 jobs:
+  census:
+    # The standing audit harness: the repo's rule is that no shipped
+    # module may claim a capability it did not verify, and no module may
+    # point at a service that does not exist. These two censuses are what
+    # makes that rule structural rather than aspirational.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: "Placeholder census (no simulated code in production)"
+        run: python scripts/placeholder_census.py
+      - name: "Endpoint census (no invented hosts in production)"
+        run: python scripts/endpoint_census.py
+
   lint:
     runs-on: ubuntu-latest
     steps:

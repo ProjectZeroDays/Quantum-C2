@@ -62,10 +62,6 @@ def find_bitcoin2john(env=None):
     return None
 
 
-def openfable_version_exe():
-    pass  # Not needed here; kept for symmetry with other modules if needed later.
-
-
 # ------------------------------------------------------------------ GPU / offload
 
 def detect_gpu():

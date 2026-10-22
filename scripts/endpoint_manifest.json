@@ -1,0 +1,131 @@
+{
+  "_comment": "Known-real API families and their live hosts. The endpoint census fails the build on a host that is not listed here and is not a runtime address, a template or an example-only host.",
+  "families": {
+    "ai_providers": [
+      "api.abliteration.ai",
+      "api.venice.ai",
+      "inference.agnes.ai",
+      "api.z.ai",
+      "docs.z.ai",
+      "platform.xiaomimimo.com",
+      "generativelanguage.googleapis.com",
+      "aistudio.google.com",
+      "api.groq.com",
+      "console.groq.com",
+      "text.pollinations.ai",
+      "openrouter.ai"
+    ],
+    "osint_and_recon": [
+      "intelx.io",
+      "shadowdragon.io",
+      "www.darkowl.com",
+      "vision.darkowl.com",
+      "docs.api.darkowl.com",
+      "api.hackertarget.com",
+      "api.shodan.io",
+      "ip-api.com",
+      "rdap.org",
+      "api.devicecheck.co",
+      "www.imei.info",
+      "imeiapi.com",
+      "api.mobilespecs.net",
+      "api.numlookupapi.com",
+      "api.telnyx.com",
+      "api.ipqualityscore.com",
+      "api.veriphone.io",
+      "api.trestle.com",
+      "hackforums.net",
+      "cock.li"
+    ],
+    "source_and_models": [
+      "github.com",
+      "api.github.com",
+      "raw.githubusercontent.com",
+      "gitlab.com",
+      "huggingface.co",
+      "live.sysinternals.com"
+    ],
+    "security_feeds": [
+      "www.cisa.gov",
+      "nvd.nist.gov",
+      "services.nvd.nist.gov",
+      "www.exploit-db.com"
+    ],
+    "dns_resolvers": [
+      "dns.google",
+      "cloudflare-dns.com",
+      "dns.alidns.com"
+    ],
+    "tor_hidden_services": [
+      "3bbad7fauom4d6sgppalyqddsqbf5u5p56b5k5uk2zxsy3d6ey2jobad.onion",
+      "alphbayonion2472334.onion",
+      "berlusconi2472334.onion",
+      "dreadytofatroptsdj6io7l3xptbet6onoyno2yv7jicoxknyazubrad.onion",
+      "dreammarket2472334.onion",
+      "duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion",
+      "exploit2472334.onion",
+      "haystak5njsmn2hqkewecpaxetahtwhsbsa64jom2k22z5afxhnpxfid.onion",
+      "juhanurmihxlp77nkq76byazcldy2hlmovfu2aeitby2flugzbv7it3itfid.onion",
+      "juhanurmihxlp77nkq76byazcldy2hlmovfu2epvl5ankdibsot4csyd.onion",
+      "phobosxilamwcg75xt22id7aywkzol6q6rfl2flipcqoc4e4ad.onion",
+      "protonmailrmez3lotccipshtkleegetolb73vfu2j7y4w3dohpzmad.onion",
+      "raid2472334.onion",
+      "sheep2472334.onion",
+      "sigaintevyh2rzvw.onion",
+      "tutanota2472334.onion",
+      "whitehouse2472334.onion",
+      "xmh57jrknzkhv6y3ls3ubitzfkrkrhgzhvdx7bbdyrbnq4ow4h53yd.onion",
+      "xmh57jrzrnw6insl.onion",
+      "xssis2472334.onion",
+      "zqktlwiu4pjlsuy5y3s5d5bhnai.onion"
+    ],
+    "documentation_and_specs": [
+      "www.w3.org",
+      "schemas.openxmlformats.org",
+      "schemas.xmlsoap.org",
+      "learn.microsoft.com",
+      "support.apple.com",
+      "developer.apple.com",
+      "developer.android.com",
+      "www.kernel.org",
+      "googleprojectzero.blogspot.com",
+      "www.amnesty.org",
+      "www.onvif.org",
+      "www.google.com",
+      "www.bing.com",
+      "www.startpage.com",
+      "www.youtube.com",
+      "duckduckgo.com"
+    ],
+    "hardware_and_tooling_vendors": [
+      "www.bluez.org",
+      "shop.hak5.org",
+      "espressif.com",
+      "badusb.net",
+      "uhd.ettus.com",
+      "www.ettus.com",
+      "limems.org",
+      "www.veracrypt.fr",
+      "www.truecrypt.fr",
+      "cryptomator.org",
+      "onionshare.org",
+      "www.rtl-sdr.com"
+    ]
+  },
+  "runtime": [
+    "0.0.0.0",
+    "10.0.0.1",
+    "127.0.0.1",
+    "169.254.169.254",
+    "192.168.1.10",
+    "::1",
+    "localhost"
+  ],
+  "example_only": [
+    "app",
+    "attacker",
+    "attacker.com",
+    "public-proxy.example",
+    "public.attacker.com"
+  ]
+}
