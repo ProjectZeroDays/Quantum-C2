@@ -111,6 +111,15 @@ yields identical archives. Every artifact in
 `quantum-payloads-v4.6.3.zip` matches `payloads.lock.json` by size and
 sha256.
 
+They are reproducible **across platforms** as well: the archives this
+release was built from are byte-identical to the ones a Windows
+checkout produces.
+
+| Archive | sha256 (first 16) |
+|---|---|
+| `quantum-exploits-v4.6.3.zip` | `8e150c825dfddd8a` |
+| `quantum-payloads-v4.6.3.zip` | `01acf2c12b7d493a` |
+
 Rebuild with:
 
 ```bash
