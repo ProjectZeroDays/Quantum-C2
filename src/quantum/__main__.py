@@ -227,7 +227,7 @@ def main(argv=None):
     p.add_argument("cmd", nargs="?", default=None,
                    choices=["serve", "foxacid", "quantum", "recon", "osint", "auto",
                             "dohc2", "icmp", "trinity", "camwar", "cams", "wifi", "triage",
-                            "mfp", "pcap", "camshot", "router", "worm", "episcribe",
+                            "mfp", "pcap", "camshot", "router", "routerexploit", "worm", "episcribe",
                             "cottonmouth", "validator", "tor", "seal", "unseal", "brute",
                             "phish", "keygen", "deployai", "zerologon", "mitre", "federation",
                             "posixagent", "zerocheck", "mshtmaldoc", "flashfill", "emoji",
