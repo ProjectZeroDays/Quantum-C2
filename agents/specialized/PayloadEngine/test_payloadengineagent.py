@@ -1,24 +1,24 @@
 #!/usr/bin/env python3
-"""Tests for PayloadEngine agent."""
+"""Tests for PayloadEngineAgent agent."""
 import pytest
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "agents" / "specialized"))
 
-from payloadengineagent import PayloadEngine
+from PayloadEngine.payloadengineagent import PayloadEngine
 
 
 def test_describe():
-    agent = PayloadEngine()
+    agent = PayloadEngineAgent()
     result = agent.describe()
-    assert result["name"] == "payload_engine"
+    assert result["name"] == "payloadengineagent"
     assert "description" in result
     assert result["category"] == "red_teaming"
 
 
 def test_capabilities():
-    agent = PayloadEngine()
+    agent = PayloadEngineAgent()
     desc = agent.describe()
     assert "capabilities" in desc
     assert len(desc["capabilities"]) > 0

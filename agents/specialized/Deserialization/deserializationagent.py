@@ -15,6 +15,8 @@ class DeserializationAgent:
         self.cves = [
             {"id": "CVE-2021-44228", "product": "Apache Log4j", "type": "jndi_injection", "severity": "critical",
              "description": "JNDI lookup in log messages allowed remote code execution via crafted string"},
+            {"id": "CVE-2024-ZZZZ", "product": "Hypothetical Java App", "type": "deserialization", "severity": "critical",
+             "description": "Unsafe Java deserialization of user-controlled input allowed gadget chain execution"},
         ]
 
     def describe(self):
@@ -51,7 +53,7 @@ class DeserializationAgent:
         result = {
             "gadget_chain": gadget_chain,
             "version": version,
-            "status": "pending_real_execution",
+            "status": "simulated",
             "success": True,
             "simulation_id": f"deser_java_{int(time.time())}",
             "details": chains.get(gadget_chain, {}),
@@ -81,7 +83,7 @@ class DeserializationAgent:
         return {
             "library": library,
             "payload_type": payload_type,
-            "status": "pending_real_execution",
+            "status": "simulated",
             "success": True,
             "details": libraries.get(library, {}),
         }
@@ -102,7 +104,7 @@ class DeserializationAgent:
         }
         return {
             "technique": technique,
-            "status": "pending_real_execution",
+            "status": "simulated",
             "success": True,
             "details": techniques.get(technique, {}),
         }
@@ -136,13 +138,13 @@ class DeserializationAgent:
             "chain_name": chain_name,
             "language": language,
             "details": chains.get(chain_name, {}),
-            "status": "pending_real_execution",
+            "status": "simulated",
             "success": True,
         }
 
     def get_cves(self):
         """Return reference CVEs for deserialization vulnerabilities."""
-        return {"cves": self.cves, "count": len(self.cves), "status": "pending_real_execution"}
+        return {"cves": self.cves, "count": len(self.cves), "status": "simulated"}
 
     def get_simulations(self):
         return {"simulations": self.simulations, "count": len(self.simulations)}

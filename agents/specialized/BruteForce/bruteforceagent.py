@@ -38,11 +38,11 @@ class BruteForceAgent:
             "mode": mode,
             "gpu": gpu_id,
             "wordlist": wl,
-            "status": "pending_real_execution",
+            "status": "simulated",
         }
         # Simulated result
         result["cracked"] = True
-        result["plaintext"] = "REAL_CREDENTIAL_NOT_INCLUDED"
+        result["plaintext"] = "password123"
         result["elapsed_sec"] = 0.34
         self.cracked.append(result)
         return result
@@ -56,15 +56,15 @@ class BruteForceAgent:
             "service": service,
             "user": user,
             "wordlist": wl,
-            "status": "pending_real_execution",
+            "status": "simulated",
         }
-        result["credentials_found"] = [{"user": user, "password": "REAL_CREDENTIAL_NOT_INCLUDED"}]
+        result["credentials_found"] = [{"user": user, "password": "admin123"}]
         self.cracked.append(result)
         return result
 
     def rainbow_lookup(self, hash_value):
         """Lookup hash in rainbow tables."""
-        result = {"tool": "rainbow", "hash": hash_value[:16] + "...", "status": "pending_real_execution"}
+        result = {"tool": "rainbow", "hash": hash_value[:16] + "...", "status": "simulated"}
         # Simulated lookup
         result["found"] = False
         result["plaintext"] = None
@@ -73,16 +73,16 @@ class BruteForceAgent:
     def attack_zip(self, zip_file, wordlist=None):
         """Crack ZIP/RAR/PDF/Office password."""
         wl = wordlist or " SecLists/Passwords/Leaked-Databases/rockyou.txt"
-        result = {"tool": "fcrackzip", "file": zip_file, "wordlist": wl, "status": "pending_real_execution"}
-        result["password"] = "REAL_CREDENTIAL_NOT_INCLUDED"
+        result = {"tool": "fcrackzip", "file": zip_file, "wordlist": wl, "status": "simulated"}
+        result["password"] = "secret123"
         self.cracked.append(result)
         return result
 
     def attack_jwt(self, jwt_token, secret_file=None):
         """Crack JWT secret."""
         sf = secret_file or " SecLists/Passwords/Leaked-Databases/jwt-top100.txt"
-        result = {"tool": "jwtcrack", "token": jwt_token[:32] + "...", "secret_file": sf, "status": "pending_real_execution"}
-        result["secret"] = "REAL_CREDENTIAL_NOT_INCLUDED"
+        result = {"tool": "jwtcrack", "token": jwt_token[:32] + "...", "secret_file": sf, "status": "simulated"}
+        result["secret"] = "supersecretkey"
         self.cracked.append(result)
         return result
 

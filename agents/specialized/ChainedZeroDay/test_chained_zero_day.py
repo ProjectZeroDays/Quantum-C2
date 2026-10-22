@@ -4,11 +4,13 @@ Run with: python -m pytest test_chained_zero_day.py
 """
 
 import pytest
-import pytest_asyncio
 import asyncio
-from chained_zero_day import ChainedZeroDayAgent
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "agents" / "specialized"))
+from ChainedZeroDay.chained_zero_day import ChainedZeroDayAgent
 
-@pytest_asyncio.fixture
+@pytest.fixture
 async def agent():
     """Create agent instance for tests"""
     return ChainedZeroDayAgent()
@@ -16,8 +18,6 @@ async def agent():
 class TestChainBuilding:
     """Test chain building functionality"""
     
-    @pytest.mark.asyncio
-
     async def test_build_chain(self, agent):
         """Test building a simple chain"""
         stages = [
@@ -33,8 +33,6 @@ class TestChainBuilding:
         assert "calculated_success_prob" in chain
         assert 0 <= chain["calculated_success_prob"] <= 0.95
     
-    @pytest.mark.asyncio
-
     async def test_chain_probability_calculation(self, agent):
         """Test probability calculation"""
         stages = [
@@ -46,8 +44,6 @@ class TestChainBuilding:
         
         assert chain["calculated_success_prob"] > 0.6  # Both high probabilities
         
-    @pytest.mark.asyncio
-
     async def test_chain_success_probability_stages(self, agent):
         """Test probability calculation per stage"""
         stages = [
@@ -63,8 +59,6 @@ class TestChainBuilding:
 class TestChainAnalysis:
     """Test chain analysis functionality"""
     
-    @pytest.mark.asyncio
-
     async def test_analyze_chain(self, agent):
         """Test chain analysis"""
         chain = await agent.build_chain([
@@ -80,8 +74,6 @@ class TestChainAnalysis:
         assert "risk_assessment" in analysis
         assert len(analysis["stage_analysis"]) == 1
     
-    @pytest.mark.asyncio
-
     async def test_risk_assessment(self, agent):
         """Test risk assessment"""
         chain = await agent.build_chain([
@@ -97,8 +89,6 @@ class TestChainAnalysis:
 class TestChainSimulation:
     """Test chain simulation functionality"""
     
-    @pytest.mark.asyncio
-
     async def test_simulate_chain(self, agent):
         """Test chain simulation"""
         chain = await agent.build_chain([
@@ -118,8 +108,6 @@ class TestChainSimulation:
         assert "result" in stage_result
         assert stage_result["result"] in ["success", "failed"]
     
-    @pytest.mark.asyncio
-
     async def test_create_final_result_success(self, agent):
         """Test final result calculation for mostly successful chain"""
         chain = await agent.build_chain([
@@ -132,8 +120,6 @@ class TestChainSimulation:
         assert result["final_result"]["exploit_established"] is True
         assert result["final_result"]["overall_status"] in ["success", "partial_failure"]
     
-    @pytest.mark.asyncio
-
     async def test_final_result_partial_failure(self, agent):
         """Test final result for partially successful chain"""
         chain = await agent.build_chain([
@@ -148,8 +134,6 @@ class TestChainSimulation:
 class TestChainOptimization:
     """Test chain optimization functionality"""
     
-    @pytest.mark.asyncio
-
     async def test_optimize_chain(self, agent):
         """Test chain optimization"""
         chain = await agent.build_chain([
@@ -159,18 +143,16 @@ class TestChainOptimization:
         optimization = await agent.optimize_chain(chain["chain_id"])
         
         assert "chain_id" in optimization
-        assert "optimized_success_prob" in optimization
-        assert "weaknesses" in optimization
-        assert "improvements" in optimization
-        assert "solutions" in optimization
-        assert len(optimization["weaknesses"]) >= 0
-        assert len(optimization["improvements"]) > 0
+        assert "viability_score" in optimization
+        assert "weak_points" in optimization
+        assert "improvement_suggestions" in optimization
+        assert "alternative_paths" in optimization
+        assert len(optimization["weak_points"]) >= 0
+        assert len(optimization["improvement_suggestions"]) > 0
 
 class TestCVEAccess:
     """Test CVE database access"""
     
-    @pytest.mark.asyncio
-
     async def test_get_cves(self, agent):
         """Test CVE database access"""
         cves = await agent.get_cves()
@@ -178,8 +160,6 @@ class TestCVEAccess:
         assert "cves" in cves
         assert "total_found" in cves
     
-    @pytest.mark.asyncio
-
     async def test_get_specific_cve(self, agent):
         """Test specific CVE lookup"""
         cves = await agent.get_cves("CVE-2019-8641")
@@ -192,8 +172,6 @@ class TestCVEAccess:
 class TestRealWorldChains:
     """Test real-world chains functionality"""
     
-    @pytest.mark.asyncio
-
     async def test_list_chains(self, agent):
         """Test listing real-world chains"""
         chains = await agent.list_chains()
@@ -203,8 +181,6 @@ class TestRealWorldChains:
         assert "chain_types" in chains
         assert len(chains["chains"]) > 0
     
-    @pytest.mark.asyncio
-
     async def test_specific_real_world_chain(self, agent):
         """Test accessing specific real-world chain"""
         chains = await agent.list_chains()

@@ -38,8 +38,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 #: The production trees the census covers.
 PRODUCTION_ROOTS = [
     os.path.join("src", "quantum"),
-    os.path.join("agents", "specialized"),
-    os.path.join("agents", "build"),
+    "agents",
     "quantum_cli.py",
 ]
 

@@ -12,7 +12,7 @@ from messagingrceagent import MessagingRCEAgent
 def test_describe():
     agent = MessagingRCEAgent()
     result = agent.describe()
-    assert result["name"] == "messagingrceagent"
+    assert result["name"] == "messaging_rce"
     assert "description" in result
     assert result["category"] == "red_teaming"
 

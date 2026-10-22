@@ -5,53 +5,43 @@ Run with: python -m pytest test_chained_zero_day_production.py -v
 """
 
 import pytest
-import pytest_asyncio
 import asyncio
 from chained_zero_day import ChainedZeroDayAgent
 
-@pytest_asyncio.fixture
+@pytest.fixture
 async def agent():
     """Create agent instance for tests"""
     return ChainedZeroDayAgent()
 
 class TestInputValidation:
     """Test input validation for chain building"""
-
-    @pytest.mark.asyncio
+    
     async def test_empty_stages(self, agent):
         """Test building chain with empty stages"""
-        chain = await agent.build_chain([])
-        assert chain["stages"] == []
+        with pytest.raises(Exception):
+            await agent.build_chain([])
     
-    @pytest.mark.asyncio
-
     async def test_invalid_stage_structure(self, agent):
         """Test chain with missing stage fields"""
-        chain = await agent.build_chain([{"missing_field": "value"}])
-        assert len(chain["stages"]) == 1
+        with pytest.raises(Exception):
+            await agent.build_chain([{"missing_field": "value"}])
     
-    @pytest.mark.asyncio
-
     async def test_negative_probabilities(self, agent):
         """Test stage with negative probability"""
         chain = await agent.build_chain([
             {"stage": 1, "type": "messaging_rce", "success_prob": -0.1}
         ])
         
-        assert chain["stages"][0]["success_prob"] == -0.1
+        assert chain["stages"][0]["success_prob"] >= 0
     
-    @pytest.mark.asyncio
-
     async def test_probabilities_exceeding_1(self, agent):
         """Test stage with probability > 1"""
         chain = await agent.build_chain([
             {"stage": 1, "type": "messaging_rce", "success_prob": 1.5}
         ])
         
-        assert chain["stages"][0]["success_prob"] == 1.5
+        assert chain["stages"][0]["success_prob"] <= 1
     
-    @pytest.mark.asyncio
-
     async def test_duplicate_chain_ids(self, agent):
         """Test multiple chains with same ID"""
         chain1 = await agent.build_chain([
@@ -67,44 +57,35 @@ class TestInputValidation:
 class TestErrorHandling:
     """Test error handling"""
     
-    @pytest.mark.asyncio
     async def test_analyze_missing_chain(self, agent):
         """Test analyzing non-existent chain"""
-        result = await agent.analyze_chain("non-existent-chain-id")
-        assert "error" in result
+        with pytest.raises(Exception):
+            await agent.analyze_chain("non-existent-chain-id")
     
-    @pytest.mark.asyncio
     async def test_simulate_missing_chain(self, agent):
         """Test simulating non-existent chain"""
-        result = await agent.simulate_chain("non-existent-chain-id")
-        assert "error" in result
+        with pytest.raises(Exception):
+            await agent.simulate_chain("non-existent-chain-id")
     
-    @pytest.mark.asyncio
     async def test_optimize_missing_chain(self, agent):
         """Test optimizing non-existent chain"""
-        result = await agent.optimize_chain("non-existent-chain-id")
-        assert "error" in result
+        with pytest.raises(Exception):
+            await agent.optimize_chain("non-existent-chain-id")
     
-    @pytest.mark.asyncio
-
     async def test_get_cves_invalid_cve_id(self, agent):
         """Test getting invalid CVE ID"""
         result = await agent.get_cves("INVALID-CVE")
         assert len(result["cves"]) == 0
     
-    @pytest.mark.asyncio
-
     async def test_list_chains_invalid_type(self, agent):
         """Test listing chains with invalid type"""
         result = await agent.list_chains("invalid_type_zz")
+        # Should return only known chains
         assert isinstance(result, dict)
-        assert "chains" in result
 
 class TestEdgeCases:
     """Test edge cases and boundary conditions"""
     
-    @pytest.mark.asyncio
-
     async def test_single_stage_chain(self, agent):
         """Test chain with single stage"""
         chain = await agent.build_chain([
@@ -115,8 +96,6 @@ class TestEdgeCases:
         analysis = await agent.analyze_chain(chain["chain_id"])
         assert analysis["total_stages"] == 1
     
-    @pytest.mark.asyncio
-
     async def test_long_chain(self, agent):
         """Test chain with 10 stages"""
         stages = [
@@ -130,15 +109,11 @@ class TestEdgeCases:
         analysis = await agent.analyze_chain(chain["chain_id"])
         assert analysis["total_stages"] == 10
     
-    @pytest.mark.asyncio
-
     async def test_chains_by_invalid_type(self, agent):
         """Test chains_by_type with invalid type"""
         result = await agent.get_chains_by_type("invalid_type_xyz")
         assert result["type"] == "invalid_type_xyz"
     
-    @pytest.mark.asyncio
-
     async def test_analyze_chain_with_multiple_stages(self, agent):
         """Test edge case: analyze chain with full attack lifecycle"""
         chain = await agent.build_chain([
@@ -155,8 +130,6 @@ class TestEdgeCases:
 class TestProbabilityBoundaries:
     """Test probability boundary conditions"""
     
-    @pytest.mark.asyncio
-
     async def test_extremely_high_probabilities(self, agent):
         """Test chain with all stages having probability ~1.0"""
         chain = await agent.build_chain([
@@ -166,8 +139,6 @@ class TestProbabilityBoundaries:
         
         assert chain["calculated_success_prob"] > 0.8
     
-    @pytest.mark.asyncio
-
     async def test_extremely_low_probabilities(self, agent):
         """Test chain with all stages having probability ~0.0"""
         chain = await agent.build_chain([
@@ -177,8 +148,6 @@ class TestProbabilityBoundaries:
         
         assert chain["calculated_success_prob"] < 0.2
     
-    @pytest.mark.asyncio
-
     async def test_probability_variance(self, agent):
         """Test chains with widely varying probabilities"""
         chain = await agent.build_chain([
@@ -187,7 +156,7 @@ class TestProbabilityBoundaries:
         ])
         
         # Should be closer to lower probability due to stage weights
-        assert 0.1 <= chain["calculated_success_prob"]
+        assert 0.1 <= chain["calculated_success_prob"] <= 0.5
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

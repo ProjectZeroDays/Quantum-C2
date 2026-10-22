@@ -60,7 +60,7 @@ class TestChainOptimization:
         ])
         optimization = await agent.optimize_chain(chain["chain_id"])
         assert "chain_id" in optimization
-        assert "weaknesses" in optimization
+        assert "solutions" in optimization
 
 class TestCVEAccess:
     @pytest.mark.asyncio

@@ -40,14 +40,18 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 #: The production trees the census covers.
 PRODUCTION_ROOTS = [
     os.path.join("src", "quantum"),
-    os.path.join("agents", "specialized"),
-    os.path.join("agents", "build"),
+    "agents",
     "quantum_cli.py",
 ]
 
 #: Directories that never hold production code.
 SKIP_DIRS = {"__pycache__", ".git", "node_modules", "build", "out",
              "dist", ".mimosa", ".pytest_cache", "site-packages"}
+
+#: The oldest Python the project supports (requirements.txt says 3.9+).
+#: A production file that only parses on a newer interpreter breaks every
+#: supported runtime, so the census parses with this version too.
+MIN_PYTHON = (3, 9)
 
 #: Hosts reserved for documentation - never a real service.
 PLACEHOLDER_HOST_PATTERNS = [
@@ -272,6 +276,31 @@ def census():
                 findings.append(Finding(rel_path, exc.lineno or 0,
                                         "syntax-error", str(exc)))
                 continue
+            # The project supports Python 3.9+ (requirements.txt), so the
+            # file must parse under 3.9 too. feature_version makes the
+            # parser reject newer grammar.
+            try:
+                ast.parse(source, filename=rel_path,
+                          feature_version=MIN_PYTHON)
+            except SyntaxError as exc:
+                findings.append(Finding(
+                    rel_path, exc.lineno or 0, "unsupported-syntax",
+                    "%s — this needs Python %d.%d or newer"
+                    % (exc.msg, MIN_PYTHON[0], MIN_PYTHON[1])))
+                continue
+            # PEP 701 relaxed f-strings in 3.12: a backslash inside a
+            # replacement field is legal there and a SyntaxError before
+            # it, so the module would not import on a supported runtime.
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.FormattedValue):
+                    continue
+                segment = ast.get_source_segment(source, node.value) or ""
+                if "\\" in segment:
+                    findings.append(Finding(
+                        rel_path, node.lineno, "unsupported-syntax",
+                        "f-string expression contains a backslash "
+                        "(%s) — that needs Python 3.12 or newer"
+                        % segment.strip()[:60]))
             _scan_python(rel_path, source, tree, findings)
         else:
             _scan_text(rel_path, source, findings)

@@ -1,24 +1,24 @@
 #!/usr/bin/env python3
-"""Tests for CookieHarvester agent."""
+"""Tests for CookieHarvesterAgent agent."""
 import pytest
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "agents" / "specialized"))
 
-from cookieharvesteragent import CookieHarvester
+from CookieHarvester.cookieharvesteragent import CookieHarvester
 
 
 def test_describe():
-    agent = CookieHarvester()
+    agent = CookieHarvesterAgent()
     result = agent.describe()
-    assert result["name"] == "cookie_harvester"
+    assert result["name"] == "cookieharvesteragent"
     assert "description" in result
     assert result["category"] == "red_teaming"
 
 
 def test_capabilities():
-    agent = CookieHarvester()
+    agent = CookieHarvesterAgent()
     desc = agent.describe()
     assert "capabilities" in desc
     assert len(desc["capabilities"]) > 0

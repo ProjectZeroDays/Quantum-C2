@@ -4,7 +4,7 @@ import pytest
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "agents" / "specialized"))
 
 from messagingrceagent import MessagingRCEAgent
 
@@ -12,7 +12,7 @@ from messagingrceagent import MessagingRCEAgent
 def test_describe():
     agent = MessagingRCEAgent()
     result = agent.describe()
-    assert result["name"] == "messaging_rce"
+    assert result["name"] == "messagingrceagent"
     assert "description" in result
     assert result["category"] == "red_teaming"
 

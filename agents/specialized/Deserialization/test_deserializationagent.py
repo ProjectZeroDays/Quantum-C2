@@ -4,7 +4,7 @@ import pytest
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "agents" / "specialized"))
 
 from deserializationagent import DeserializationAgent
 
@@ -12,7 +12,7 @@ from deserializationagent import DeserializationAgent
 def test_describe():
     agent = DeserializationAgent()
     result = agent.describe()
-    assert result["name"] == "deserialization"
+    assert result["name"] == "deserializationagent"
     assert "description" in result
     assert result["category"] == "red_teaming"
 

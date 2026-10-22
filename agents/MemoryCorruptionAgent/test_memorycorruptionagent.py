@@ -12,7 +12,7 @@ from memorycorruptionagent import MemoryCorruptionAgent
 def test_describe():
     agent = MemoryCorruptionAgent()
     result = agent.describe()
-    assert result["name"] == "memorycorruptionagent"
+    assert result["name"] == "memory_corruption"
     assert "description" in result
     assert result["category"] == "red_teaming"
 

@@ -27,7 +27,7 @@ class MessagingRCEAgent:
     def simulate_imessage_exploit(self, target="iphone_user", exploit_type="rce"):
         """Simulate iMessage exploit."""
         return {
-            "status": "pending_real_execution",
+            "status": "simulated",
             "target": target,
             "vector": "iMessage media processing",
             "exploit": f"{exploit_type} via crafted image",
@@ -37,7 +37,7 @@ class MessagingRCEAgent:
     def simulate_whatsapp_exploit(self, target="whatsapp_user", exploit_type="rce"):
         """Simulate WhatsApp exploit."""
         return {
-            "status": "pending_real_execution",
+            "status": "simulated",
             "target": target,
             "vector": "WhatsApp video/media processing",
             "exploit": f"{exploit_type} via crafted media",
@@ -47,7 +47,7 @@ class MessagingRCEAgent:
     def simulate_signal_exploit(self, target="signal_user", exploit_type="rce"):
         """Simulate Signal exploit."""
         return {
-            "status": "pending_real_execution",
+            "status": "simulated",
             "target": target,
             "vector": "Signal media processing",
             "exploit": f"{exploit_type} via crafted attachment",
@@ -57,7 +57,7 @@ class MessagingRCEAgent:
     def simulate_telegram_exploit(self, target="telegram_user", exploit_type="rce"):
         """Simulate Telegram exploit."""
         return {
-            "status": "pending_real_execution",
+            "status": "simulated",
             "target": target,
             "vector": "Telegram media/processing",
             "exploit": f"{exploit_type} via crafted message",
@@ -67,7 +67,7 @@ class MessagingRCEAgent:
     def generate_payload(self, platform="imessage", payload_type="rce"):
         """Generate messaging exploit payload."""
         return {
-            "status": "pending_real_execution",
+            "status": "simulated",
             "platform": platform,
             "payload_type": payload_type,
             "format": "crafted_media",

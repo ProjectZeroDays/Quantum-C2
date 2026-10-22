@@ -6,7 +6,10 @@ Run with: python -m pytest test_memory_primitives.py
 import pytest
 import pytest_asyncio
 import asyncio
-from memory_primitives import MemoryPrimitivesAgent
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "agents" / "specialized"))
+from MemoryPrimitives.memory_primitives import MemoryPrimitivesAgent
 
 @pytest_asyncio.fixture
 async def agent():
@@ -15,8 +18,7 @@ async def agent():
 
 class TestPrimitiveList:
     """Test listing primitives"""
-
-    @pytest.mark.asyncio
+    
     async def test_list_primitives(self, agent):
         """Test listing all primitives"""
         result = await agent.list_primitives()
@@ -24,13 +26,11 @@ class TestPrimitiveList:
         assert "primitives" in result
         assert "total_primitives" in result
         assert "classification" in result
-        assert result["total_primitives"] >= 10
+        assert result["total_primitives"] > 10
         # Import from the implementation module
-        from memory_primitives import PRIMITIVES
+        from agents.specialized.memory_primitives.memory_primitives import PRIMITIVES
         assert len(result["primitives"]) == len(PRIMITIVES)
     
-    @pytest.mark.asyncio
-
     async def test_primitives_classification(self, agent):
         """Test primitive classification counts"""
         result = await agent.list_primitives()
@@ -41,14 +41,11 @@ class TestPrimitiveList:
         assert "arbitrary_control_flow" in classification
         assert "denial_of_service" in classification
         assert "privilege_escalation" in classification
-        from memory_primitives import PRIMITIVES as _PRIMS
-        assert sum(classification.values()) == len(_PRIMS)
+        assert sum(classification.values()) == len(PRIMITIVES)
 
 class TestPrimitiveDetails:
     """Test getting primitive details"""
     
-    @pytest.mark.asyncio
-
     async def test_get_primitive(self, agent):
         """Test getting primitive details"""
         details = await agent.get_primitive("buffer_overflow")
@@ -62,8 +59,6 @@ class TestPrimitiveDetails:
         assert "available_cves" in details
         assert "mitigation_detection" in details
     
-    @pytest.mark.asyncio
-
     async def test_incorrect_primitive(self, agent):
         """Test handling of incorrect primitive name"""
         with pytest.raises(Exception):
@@ -72,8 +67,6 @@ class TestPrimitiveDetails:
 class TestPrimitiveSimulation:
     """Test primitive simulation"""
     
-    @pytest.mark.asyncio
-
     async def test_simulate_primitive(self, agent):
         """Test primitive simulation"""
         result = await agent.simulate_primitive("buffer_overflow", {
@@ -85,8 +78,6 @@ class TestPrimitiveSimulation:
         assert "execution_result" in result
         assert "probabilistic_modeling" in result
     
-    @pytest.mark.asyncio
-
     async def test_backward_compatibility(self, agent):
         """Test backward compatibility with legacy API"""
         result = await agent.simulate_primitive("buffer_overflow", {
@@ -95,13 +86,11 @@ class TestPrimitiveSimulation:
         })
         
         assert result["simulation_timestamp"] is not None
-        assert "execution_result" in result
+        assert result["execution_result"]["success"] is True or False
 
 class TestExploitMapping:
     """Test exploit mapping"""
     
-    @pytest.mark.asyncio
-
     async def test_map_to_exploit(self, agent):
         """Test mapping primitive to exploit techniques"""
         mapping = await agent.map_to_exploit("use_after_free")
@@ -114,8 +103,6 @@ class TestExploitMapping:
         assert "typical_architectures" in mapping
         assert len(mapping["exploit_techniques"]) > 0
     
-    @pytest.mark.asyncio
-
     async def test_map_all_primitives(self, agent):
         """Test mapping all primitives"""
         primitives = await agent.list_primitives()
@@ -124,14 +111,12 @@ class TestExploitMapping:
             mapping = await agent.map_to_exploit(primitive_name)
             assert mapping["primitive"] == primitive_name
             # Import CVE mappings
-            from memory_primitives import CVE_MAPPINGS
+            from agents.specialized.memory_primitives.memory_primitives import CVE_MAPPINGS
             assert primitive_name in CVE_MAPPINGS
 
 class TestMitigationDetection:
     """Test mitigation detection"""
     
-    @pytest.mark.asyncio
-
     async def test_find_mitigations(self, agent):
         """Test finding mitigations"""
         result = await agent.find_mitigations("buffer_overflow")
@@ -146,8 +131,6 @@ class TestMitigationDetection:
         assert "effectiveness" in mitig
         assert "practicality" in mitig
     
-    @pytest.mark.asyncio
-
     async def test_all_primitives_have_mitigations(self, agent):
         """Test all primitives have mitigations"""
         primitives = await agent.list_primitives()
@@ -159,21 +142,17 @@ class TestMitigationDetection:
 class TestCVEAccess:
     """Test CVE database access"""
     
-    @pytest.mark.asyncio
-
     async def test_get_cves_all(self, agent):
         """Test getting all CVEs"""
         result = await agent.get_cves()
         
         assert "cves" in result
         assert "total_found" in result
-        assert "query" in result
+        assert "date_generated" in result
         
         # Should have entries for each primitive
-        assert result["total_found"] >= 10
+        assert result["total_found"] > 10
     
-    @pytest.mark.asyncio
-
     async def test_get_cves_specific(self, agent):
         """Test getting CVEs for specific primitive"""
         result = await agent.get_cves("buffer_overflow")
@@ -182,8 +161,6 @@ class TestCVEAccess:
         for cve_info in result["cves"]:
             assert cve_info["primitive"] == "buffer_overflow"
     
-    @pytest.mark.asyncio
-
     async def test_primitive_cves_count(self, agent):
         """Test each primitive has associated CVEs"""
         primitives = await agent.list_primitives()
@@ -196,18 +173,32 @@ class TestCVEAccess:
 
 class TestStatistics:
     """Test statistics endpoint"""
-
-    @pytest.mark.asyncio
-
+    
     async def test_get_statistics(self, agent):
         """Test getting comprehensive statistics"""
-        from memory_primitives import PRIMITIVES as _PRIMS
-        stats = await agent.list_primitives()
-
+        stats = await agent.get_statistics()
+        
         assert "total_primitives" in stats
-        assert stats["total_primitives"] == len(_PRIMS)
-        assert "classification" in stats
-        assert sum(stats["classification"].values()) == len(_PRIMS)
+        assert "primitive_classification" in stats
+        assert "identified_cves" in stats
+        assert "complexity_distribution" in stats
+        assert "avoids_probability_distribution" in stats
+        assert "date_generated" in stats
+        
+        assert stats["total_primitives"] == len(PRIMITIVES)
+        assert stats["identified_cves"] == len([cve for cves in CVE_MAPPINGS.values() for cve in cves])
+        
+        # Test classification structure
+        class_stats = stats["primitive_classification"]
+        assert sum(class_stats.values()) == len(PRIMITIVES)
+        
+        # Test complexity distribution
+        complexity_stats = stats["complexity_distribution"]
+        assert sum(complexity_stats.values()) == len(PRIMITIVES)
+        
+        # Test probability distribution
+        prob_stats = stats["avoids_probability_distribution"]
+        assert sum(prob_stats.values()) == len(PRIMITIVES)
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

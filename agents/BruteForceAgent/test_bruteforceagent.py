@@ -12,7 +12,7 @@ from bruteforceagent import BruteForceAgent
 def test_describe():
     agent = BruteForceAgent()
     result = agent.describe()
-    assert result["name"] == "bruteforceagent"
+    assert result["name"] == "brute_force"
     assert "description" in result
     assert result["category"] == "red_teaming"
 

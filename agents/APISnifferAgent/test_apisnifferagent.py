@@ -1,24 +1,24 @@
 #!/usr/bin/env python3
-"""Tests for APISnifferAgent agent."""
+"""Tests for ApiSniffer agent."""
 import pytest
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "agents" / "specialized"))
 
-from apisnifferagent import APISnifferAgent
+from apisnifferagent import ApiSniffer
 
 
 def test_describe():
-    agent = APISnifferAgent()
+    agent = ApiSniffer()
     result = agent.describe()
-    assert result["name"] == "apisnifferagent"
+    assert result["name"] == "api_sniffer"
     assert "description" in result
     assert result["category"] == "red_teaming"
 
 
 def test_capabilities():
-    agent = APISnifferAgent()
+    agent = ApiSniffer()
     desc = agent.describe()
     assert "capabilities" in desc
     assert len(desc["capabilities"]) > 0

@@ -29,7 +29,7 @@ class VulnScanner:
     def nmap_scan(self, target, scan_type="syn", additional_opts=""):
         """Run nmap scan against target."""
         cmd = f"nmap -{scan_type} {additional_opts} {target}"
-        result = {"tool": "nmap", "target": target, "cmd": cmd, "status": "pending_real_execution"}
+        result = {"tool": "nmap", "target": target, "cmd": cmd, "status": "simulated"}
         # Simulated results for demo
         result["open_ports"] = [22, 80, 443, 8080]
         result["services"] = [
@@ -38,22 +38,24 @@ class VulnScanner:
             {"port": 443, "service": "https", "version": "nginx 1.18"},
         ]
         result["vulns"] = [
+            {"cve": "CVE-2023-1234", "severity": "medium", "desc": "OpenSSH info disclosure",
+             "mitre": "T1046 - Network Service Discovery"},
         ]
         self.findings.append(result)
         return result
 
     def nuclei_scan(self, target, templates="default"):
         """Run nuclei scan."""
-        result = {"tool": "nuclei", "target": target, "status": "pending_real_execution"}
+        result = {"tool": "nuclei", "target": target, "status": "simulated"}
         result["findings"] = [
-            {"template": "Nuclei-Templates/Default", "severity": "high", "match": target},
+            {"template": "CVE-2023-1234", "severity": "high", "match": target},
         ]
         self.findings.append(result)
         return result
 
     def ffuf_scan(self, target, wordlist="SecLists/Discovery/Web-Content/raft-medium-directories.txt"):
         """Run ffuf fuzzing."""
-        result = {"tool": "ffuf", "target": target, "wordlist": wordlist, "status": "pending_real_execution"}
+        result = {"tool": "ffuf", "target": target, "wordlist": wordlist, "status": "simulated"}
         result["findings"] = [
             {"path": "/admin", "status": 200, "words": 42, "lines": 150},
             {"path": "/api/v1", "status": 200, "words": 12, "lines": 30},

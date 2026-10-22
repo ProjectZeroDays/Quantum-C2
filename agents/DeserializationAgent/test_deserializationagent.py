@@ -12,7 +12,7 @@ from deserializationagent import DeserializationAgent
 def test_describe():
     agent = DeserializationAgent()
     result = agent.describe()
-    assert result["name"] == "deserializationagent"
+    assert result["name"] == "deserialization"
     assert "description" in result
     assert result["category"] == "red_teaming"
 

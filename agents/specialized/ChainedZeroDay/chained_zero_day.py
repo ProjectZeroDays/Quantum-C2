@@ -111,7 +111,7 @@ class ChainedZeroDayAgent:
         
         if chain_type:
             chains = {k: v for k, v in chains.items() 
-                      if isinstance(v, dict) and v.get("stages") and len(v.get("stages", [])) > 0 and v.get("stages", [{}])[0].get("type") == chain_type}
+                     if isinstance(v, dict) and v.get("stages", []).get(0, {}).get("type") == chain_type}
         
         return {
             "chains": list(chains.values()),
@@ -159,7 +159,7 @@ class ChainedZeroDayAgent:
             "solutions": []
         }
         
-        optimized_score = self._calculate_viability(analysis["stages"])
+        optimized_score = self._calculate_viability([analysis["stages"]])
         analysis["optimized_success_prob"] = min(0.95, optimized_score)
         
         return analysis
@@ -343,11 +343,6 @@ class ChainedZeroDayAgent:
         
         return recommendations[:3]
 
-
-    async def get_chains_by_type(self, chain_type: str) -> Dict:
-        """Get chains filtered by type"""
-        chains = await self.list_chains(chain_type)
-        return {"type": chain_type, "chains": chains["chains"]}
 # API Implementation
 from fastapi import FastAPI, HTTPException, Query
 

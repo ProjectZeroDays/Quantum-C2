@@ -1,9 +1,8 @@
 """Architecture Agent — System Design, DDD, Infrastructure"""
-import asyncio
 import json
 import logging
-from typing import Optional, Dict, List, Any
-from dataclasses import dataclass, field
+from typing import Dict, List
+from dataclasses import dataclass
 from enum import Enum
 import sqlite3
 
@@ -78,7 +77,7 @@ class ArchitectureAgent:
                 "apiVersion": "apps/v1",
                 "kind": "Deployment",
                 "metadata": {"name": svc.name},
-                "spec": {"replicas": svc.scaled, "template": {"spec": {"containers": [{"name": svc.name}]}}}}
+                "spec": {"replicas": svc.scaled, "template": {"spec": {"containers": [{"name": svc.name}]}}}
             })
         return {"terraform": terraform_config, "kubernetes": k8s_manifests}
 

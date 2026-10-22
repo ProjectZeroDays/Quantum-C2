@@ -142,6 +142,59 @@ def test_endpoint_manifest_has_no_duplicate_hosts():
         assert host not in seen, "%s is both example-only and catalogued" % host
 
 
+def test_placeholder_census_detects_a_newer_only_f_string():
+    """An f-string with a backslash needs Python 3.12 and breaks 3.9.
+
+    This is the exact construct that failed the windows-latest 3.9 and
+    3.11 CI jobs, so the census has to catch it on every platform.
+    """
+    sys.path.insert(0, SCRIPTS)
+    import ast
+
+    source = ('def f():\n'
+              '    return {"c": f"{\'\\\\x90\' * 100} shellcode"}\n')
+    tree = ast.parse(source)
+    found = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FormattedValue):
+            segment = ast.get_source_segment(source, node.value) or ""
+            if "\\" in segment:
+                found.append(segment)
+    assert found, "the newer-only f-string was not detected"
+
+    # and a portable f-string must not be flagged
+    portable = ('def f():\n'
+                '    nop = b"\\x90"\n'
+                '    return {"c": nop * 100}\n')
+    tree = ast.parse(portable)
+    segments = [ast.get_source_segment(portable, n.value) or ""
+                for n in ast.walk(tree)
+                if isinstance(n, ast.FormattedValue)]
+    assert not any("\\" in s for s in segments)
+
+
+def test_census_parses_the_tree_at_the_minimum_python():
+    """Every production file must parse under the oldest supported Python."""
+    sys.path.insert(0, SCRIPTS)
+    import ast
+    import placeholder_census as pc
+
+    checked = 0
+    for rel_path in pc._walk_files():
+        if not rel_path.endswith(".py"):
+            continue
+        full = os.path.join(ROOT, rel_path)
+        source = open(full, encoding="utf-8", errors="replace").read()
+        try:
+            ast.parse(source, filename=rel_path,
+                      feature_version=pc.MIN_PYTHON)
+        except SyntaxError as exc:
+            raise AssertionError("%s needs a newer Python: %s"
+                                 % (rel_path, exc.msg))
+        checked += 1
+    assert checked > 50, "the census barely scanned anything (%d)" % checked
+
+
 # ---- the gates must fire end to end -------------------------------------
 
 PROBE = os.path.join(ROOT, "src", "quantum", "ops", "__census_probe__.py")
