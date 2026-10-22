@@ -18,27 +18,18 @@ Integrated Modules:
     - COMPATIBILITY: Python 3.9+ / Windows / Linux / MacOS
 """
 
-import argparse
 import asyncio
-import base64
-import concurrent.futures
 import hashlib
 import json
 import logging
 import os
 import platform
-import random
 import re
 import shutil
-import socket
 import subprocess
 import sys
-import threading
 import time
-import uuid
 from datetime import datetime
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
 
 # ---------------------------------------------------------------------------
 # DEPENDENCIES & CHECKS
@@ -87,22 +78,16 @@ def check_and_install_deps():
 
 check_and_install_deps()
 
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 try:
     from cryptography.hazmat.primitives.asymmetric import kem, signature  # cryptography >= 41
     _HAS_PQ_CRYPTO = True
 except ImportError:  # older cryptography - PQ algorithms degrade gracefully
     _HAS_PQ_CRYPTO = False
-from cryptography.hazmat.primitives import hashes
-import paramiko
-from paramiko import SSHClient
 import requests
 from scapy.all import *
-from scapy.layers.l2 import ARP, Ether
 import colorama
-from colorama import Fore, Style, Back
+from colorama import Fore
 import websockets
-import dns.resolver
 
 # Initialize Colorama for Windows Terminal rendering (Critical Fix)
 colorama.init()

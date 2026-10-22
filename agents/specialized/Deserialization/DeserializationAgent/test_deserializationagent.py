@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """Tests for DeserializationAgent agent."""
 import pytest
-import sys
-from pathlib import Path
 
 
 from Deserialization.deserializationagent import DeserializationAgent

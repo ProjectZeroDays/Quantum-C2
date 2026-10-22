@@ -6,7 +6,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "agents" / "specialized"))
 
-from SecurityScanner.securityscanneragent import SecurityScanner
 
 
 def test_describe():

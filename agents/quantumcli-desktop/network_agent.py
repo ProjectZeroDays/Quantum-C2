@@ -1,8 +1,7 @@
 """Network Agent — VPN, Proxy, DNS, Wireless, SCADA, TAO Network Parity"""
-import asyncio
 import json
 import logging
-from typing import Optional, Dict, List
+from typing import Dict, List
 from dataclasses import dataclass
 from enum import Enum
 import sqlite3

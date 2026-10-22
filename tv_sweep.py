@@ -15,7 +15,7 @@ import argparse, importlib.util, ipaddress, json, re, socket, struct, sys
 import threading, time, urllib.request, functools
 from pathlib import Path
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 ROOT = Path(__file__).resolve().parent
 EXPLOITS = ROOT / "exploits"

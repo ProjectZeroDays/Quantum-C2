@@ -6,7 +6,6 @@ Run with: python -m pytest test_chained_zero_day_production.py -v
 
 import pytest
 import pytest_asyncio
-import asyncio
 from chained_zero_day import ChainedZeroDayAgent
 
 @pytest_asyncio.fixture

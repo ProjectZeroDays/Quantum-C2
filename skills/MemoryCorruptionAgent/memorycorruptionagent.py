@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """Memory Corruption Exploit Simulation Agent."""
-import json
 import threading
-import time
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent

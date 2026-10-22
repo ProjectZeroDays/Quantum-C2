@@ -1,8 +1,6 @@
 """Intelligence Agent — SIGINT, OSINT, IMINT, HUMINT, IC"""
-import asyncio
-import json
 import logging
-from typing import Optional, Dict, List
+from typing import Dict, List
 from dataclasses import dataclass
 from enum import Enum
 import sqlite3

@@ -4,7 +4,6 @@ Run with: python -m pytest test_chained_zero_day.py
 """
 
 import pytest
-import asyncio
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "agents" / "specialized"))

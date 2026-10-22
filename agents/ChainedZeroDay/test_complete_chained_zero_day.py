@@ -5,7 +5,6 @@ Run with: python test_complete_chained_zero_day.py
 """
 
 import pytest
-import asyncio
 import sys
 import os
 import pytest_asyncio

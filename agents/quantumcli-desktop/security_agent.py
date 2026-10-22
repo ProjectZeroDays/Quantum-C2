@@ -1,13 +1,10 @@
 """Security Agent — Vulnerability, Crypto, Compliance, TAO/CIA CCI Parity"""
-import asyncio
-import json
 import logging
 import hashlib
-from typing import Optional, Dict, List
+from typing import Dict, List
 from dataclasses import dataclass
 from enum import Enum
 import sqlite3
-from datetime import datetime
 
 logger = logging.getLogger("security_agent")
 

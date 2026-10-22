@@ -9,7 +9,7 @@ TVs checking in appear in real time.
   python3 watch.py --interval 30
   python3 watch.py --cidr 192.168.1.0/24 --only roku,vizio --interval 60
 """
-import argparse, collections, os, sys, threading, time
+import argparse, collections, os, threading, time
 from datetime import datetime
 from pathlib import Path
 

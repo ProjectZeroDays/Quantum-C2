@@ -1,10 +1,9 @@
 """Coding Agent — Code Generation, Review, Refactoring"""
-import asyncio
 import json
 import logging
 import ast
 import hashlib
-from typing import Optional, Dict, List, Any
+from typing import Dict, List
 from dataclasses import dataclass
 from enum import Enum
 import sqlite3

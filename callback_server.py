@@ -10,7 +10,7 @@ data in the DNS QNAME — reverse callback over HTTPS that blends with DNS.
   python3 callback_server.py                 # 0.0.0.0:8443
   python3 callback_server.py --port 8443 --http 8444
 """
-import argparse, base64, datetime, ipaddress, json, os, socket, ssl, struct, sys, threading
+import argparse, base64, datetime, ipaddress, json, os, socket, ssl, struct, threading
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 

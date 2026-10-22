@@ -14,7 +14,6 @@ import argparse
 import json
 import os
 import sys
-from datetime import datetime, timezone
 from urllib import request, error
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))

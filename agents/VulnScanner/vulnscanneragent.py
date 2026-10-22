@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Vulnerability Scanner Agent — nmap, nuclei, sqlmap, ffuf, OWASP ZAP, Burp."""
 import json
-import subprocess
 import time
 from pathlib import Path
 

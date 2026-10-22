@@ -4,7 +4,6 @@ Run with: python test_chained_zero_day_working.py
 """
 
 import pytest
-import asyncio
 import sys
 import os
 import pytest_asyncio

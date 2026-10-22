@@ -6,7 +6,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "agents" / "specialized"))
 
-from PayloadEngine.payloadengineagent import PayloadEngine
 
 
 def test_describe():

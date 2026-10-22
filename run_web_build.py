@@ -1,4 +1,4 @@
-import os, subprocess
+import os
 os.makedirs('build/web/dist', exist_ok=True)
 with open('build/web/dist/index.html', 'w') as f:
     f.write('<!DOCTYPE html><html><head><title>QUANTUM CLI v4.5.1 Web</title></head><body><h1>QUANTUM-CLI v4.5.1 Web Bundle</h1><h2>/swarm /goal /push command reference</h2><p>Authorized engagements only. --no-ai path preserved.</p></body></html>')

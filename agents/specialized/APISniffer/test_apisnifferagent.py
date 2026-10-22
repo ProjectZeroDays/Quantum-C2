@@ -6,7 +6,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "agents" / "specialized"))
 
-from APISniffer.apisnifferagent import ApiSniffer
 
 
 def test_describe():

@@ -5,7 +5,6 @@ Run with: python test_core.py
 """
 
 import pytest
-import asyncio
 import sys
 import os
 import pytest_asyncio

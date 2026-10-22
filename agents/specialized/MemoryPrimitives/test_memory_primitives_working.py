@@ -4,7 +4,6 @@ Run with: python test_memory_primitives_working.py
 """
 
 import pytest
-import asyncio
 import sys
 import os
 import pytest_asyncio

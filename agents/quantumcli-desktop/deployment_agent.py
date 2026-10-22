@@ -1,6 +1,4 @@
 """Deployment Agent — CI/CD, Zero-Downtime, Rollback"""
-import asyncio
-import json
 import logging
 import subprocess
 from typing import Optional, Dict, List

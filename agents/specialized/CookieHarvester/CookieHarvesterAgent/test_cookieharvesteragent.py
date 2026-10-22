@@ -1,11 +1,8 @@
 #!/usr/bin/env python3
 """Tests for CookieHarvesterAgent agent."""
 import pytest
-import sys
-from pathlib import Path
 
 
-from CookieHarvester.cookieharvesteragent import CookieHarvester
 
 
 def test_describe():

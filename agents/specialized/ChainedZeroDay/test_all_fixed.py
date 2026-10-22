@@ -5,7 +5,6 @@ Run with: python test_all_fixed.py
 """
 
 import pytest
-import asyncio
 import sys
 import os
 import pytest_asyncio

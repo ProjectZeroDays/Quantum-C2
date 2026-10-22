@@ -4,7 +4,7 @@ Memory Corruption Primitives Agent with Real API Endpoints
 Provides 10 primitives with real exploitation analysis, mitigation detection, and AI assistance
 """
 
-from typing import List, Dict, Optional
+from typing import List, Dict
 from datetime import datetime
 import random
 
@@ -484,7 +484,7 @@ class MemoryPrimitivesAgent:
         return arch_map.get(primitive, ["Multiple Architectures"])
 
 # API Implementation
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, Query
 
 app = FastAPI(title="Memory Corruption Primitives Agent", version="1.0.0")
 agent = MemoryPrimitivesAgent()

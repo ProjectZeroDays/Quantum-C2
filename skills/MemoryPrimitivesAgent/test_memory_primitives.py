@@ -4,7 +4,6 @@ Run with: python -m pytest test_memory_primitives.py
 """
 
 import pytest
-import asyncio
 from agents.specialized.memory_primitives.memory_primitives import MemoryPrimitivesAgent
 
 @pytest.fixture

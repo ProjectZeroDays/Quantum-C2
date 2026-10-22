@@ -1,14 +1,10 @@
 """Planning Agent — SLDC Requirements, Scoping, Scheduling"""
-import asyncio
-import json
 import logging
 from datetime import datetime, timedelta
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, List
 from dataclasses import dataclass, field
 from enum import Enum
 import sqlite3
-import hashlib
-import uuid
 
 logger = logging.getLogger("planning_agent")
 

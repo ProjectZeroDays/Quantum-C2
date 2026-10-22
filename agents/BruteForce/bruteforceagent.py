@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """Brute Force Agent — hashcat GPU, rainbow tables, SecLists, hydra."""
 import json
-import subprocess
-import time
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
