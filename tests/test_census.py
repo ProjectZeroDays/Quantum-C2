@@ -12,6 +12,8 @@ import subprocess
 import sys
 import tempfile
 
+import pytest
+
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPTS = os.path.join(ROOT, "scripts")
@@ -148,8 +150,12 @@ def test_placeholder_census_detects_a_newer_only_f_string():
     This is the exact construct that failed the windows-latest 3.9 and
     3.11 CI jobs, so the census has to catch it on every platform.
     """
+    if sys.version_info < (3, 12):
+        pytest.skip("a newer-only f-string cannot be parsed by this "
+                    "interpreter - the end-to-end gate test covers it")
     sys.path.insert(0, SCRIPTS)
     import ast
+    import placeholder_census as pc
 
     source = ('def f():\n'
               '    return {"c": f"{\'\\\\x90\' * 100} shellcode"}\n')
@@ -157,7 +163,7 @@ def test_placeholder_census_detects_a_newer_only_f_string():
     found = []
     for node in ast.walk(tree):
         if isinstance(node, ast.FormattedValue):
-            segment = ast.get_source_segment(source, node.value) or ""
+            segment = pc._source_of(source, node.value)
             if "\\" in segment:
                 found.append(segment)
     assert found, "the newer-only f-string was not detected"
@@ -167,7 +173,7 @@ def test_placeholder_census_detects_a_newer_only_f_string():
                 '    nop = b"\\x90"\n'
                 '    return {"c": nop * 100}\n')
     tree = ast.parse(portable)
-    segments = [ast.get_source_segment(portable, n.value) or ""
+    segments = [pc._source_of(portable, n.value)
                 for n in ast.walk(tree)
                 if isinstance(n, ast.FormattedValue)]
     assert not any("\\" in s for s in segments)

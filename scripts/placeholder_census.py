@@ -148,6 +148,37 @@ class Finding:
                                     self.detail)
 
 
+def _source_of(source, node):
+    """The source text of a node, decoded leniently.
+
+    ast.get_source_segment slices the source by UTF-8 byte offset and
+    decodes it strictly, which raises UnicodeDecodeError when the cut
+    lands inside a multi-byte character. Python 3.9 and 3.11 have that
+    behaviour, so the census does its own slicing and decodes with
+    errors="replace".
+    """
+    try:
+        lineno = node.lineno - 1
+        end_lineno = node.end_lineno - 1
+        col = node.col_offset
+        end_col = node.end_col_offset
+    except AttributeError:
+        return ""
+    lines = source.splitlines()
+    if not lines or lineno >= len(lines):
+        return ""
+    if end_lineno >= len(lines):
+        end_lineno = len(lines) - 1
+    if end_lineno == lineno:
+        raw = lines[lineno].encode("utf-8")[col:end_col]
+    else:
+        head = lines[lineno].encode("utf-8")[col:]
+        middle = [l.encode("utf-8") for l in lines[lineno + 1:end_lineno]]
+        tail = lines[end_lineno].encode("utf-8")[:end_col]
+        raw = head + b"".join(middle) + tail
+    return raw.decode("utf-8", "replace")
+
+
 def _walk_files():
     """Every production source file, relative to the repo root."""
     for entry in PRODUCTION_ROOTS:
@@ -294,7 +325,7 @@ def census():
             for node in ast.walk(tree):
                 if not isinstance(node, ast.FormattedValue):
                     continue
-                segment = ast.get_source_segment(source, node.value) or ""
+                segment = _source_of(source, node.value)
                 if "\\" in segment:
                     findings.append(Finding(
                         rel_path, node.lineno, "unsupported-syntax",
