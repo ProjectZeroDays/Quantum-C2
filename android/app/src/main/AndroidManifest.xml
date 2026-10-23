@@ -43,5 +43,11 @@
             android:name=".core.SafeModeActivity"
             android:exported="false"
             android:excludeFromRecents="true" />
+
+        <!-- Autonomous network scan GUI with authorization disclaimer. -->
+        <activity
+            android:name=".ui.AutonomousScanActivity"
+            android:exported="false"
+            android:theme="@style/Theme.QuantumCli" />
     </application>
 </manifest>

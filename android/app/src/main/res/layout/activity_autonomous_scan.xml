@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    activity_autonomous_scan.xml — UI for the autonomous network scan GUI.
+    Authorized engagements / lab work only.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/scan_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#0d1117"
+    android:padding="16dp">
+
+    <!-- Authorization reminder banner -->
+    <TextView
+        android:id="@+id/auth_banner"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="⚠ AUTHORIZED USE ONLY — Only targets you have expressed permission to test."
+        android:textColor="#f85149"
+        android:textSize="14sp"
+        android:background="#21262d"
+        android:padding="12dp"
+        android:textStyle="bold" />
+
+    <!-- Scope input -->
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/scope_layout"
+        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:hint="Scope (CIDR / Range / Single IP)">
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/scope_input"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="192.168.1.0/24"
+            android:textColor="#e6edf3"
+            android:textColorHint="#8b94d9" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <!-- Device type selector chips -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Target Device Types (select all that apply):"
+        android:textColor="#c9d1d9"
+        android:layout_marginTop="12dp" />
+
+    <com.google.android.material.chip.ChipGroup
+        android:id="@+id/device_chip_group"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp" />
+
+    <!-- Aggression mode radio group -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Aggression / Payload Mode:"
+        android:textColor="#c9d1d9"
+        android:layout_marginTop="12dp" />
+
+    <RadioGroup
+        android:id="@+id/aggression_group"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp">
+        <RadioButton android:id="@+id/radio_balanced"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Balanced"
+            android:textColor="#c9d1d9"
+            android:checked="true" />
+        <RadioButton android:id="@+id/radio_aggressive"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Aggressive"
+            android:textColor="#c9d1d9" />
+        <RadioButton android:id="@+id/radio_patient"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Patient (Stealth)"
+            android:textColor="#c9d1d9" />
+    </RadioGroup>
+
+    <!-- Scan button -->
+    <Button
+        android:id="@+id/scan_button"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="▶ START AUTONOMOUS SCAN"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:backgroundTint="#238636"
+        android:textColor="#ffffff"
+        android:layout_marginTop="16dp"
+        android:enabled="false" />
+
+    <!-- Stop button -->
+    <Button
+        android:id="@+id/stop_button"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="⏹ STOP SCAN"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:backgroundTint="#da3633"
+        android:textColor="#ffffff"
+        android:layout_marginTop="8dp"
+        android:enabled="false" />
+
+    <!-- Results summary -->
+    <TextView
+        android:id="@+id/results_summary"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="No connections yet."
+        android:textColor="#8b949e"
+        android:layout_marginTop="12dp"
+        android:fontFamily="monospace" />
+
+    <!-- Results/recycler -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/results_recycler"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="8dp" />
+
+</LinearLayout>
