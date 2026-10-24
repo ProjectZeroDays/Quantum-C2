@@ -1,0 +1,534 @@
+name: Catalog Auto-Update
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # Daily at 02:00 UTC
+  workflow_dispatch:
+    inputs:
+      force_full_release:
+        description: 'Force full release build (normally only on version tags)'
+        type: boolean
+        default: false
+      tag_version:
+        description: 'Version tag for release (e.g., v4.6.4)'
+        type: string
+        required: false
+
+  push:
+    tags:
+      - 'v*.*.*'  # Trigger on version tags
+
+permissions:
+  contents: write
+  actions: read
+  packages: write
+
+env:
+  PYTHON_VERSION: '3.12'
+  CATALOG_DIR: '${{ runner.temp }}/catalog'
+  ARTIFACT_DIR: '${{ runner.temp }}/artifacts'
+  QCLI_NO_AI: '1'  # Ensure deterministic offline mode
+
+jobs:
+  catalog-update:
+    name: Update Catalog & Create Artifacts
+    runs-on: ubuntu-latest
+    timeout-minutes: 360  # 6 hours
+
+    steps:
+      # ------------------------------------------------------------ Checkout
+      - name: Checkout repository (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+          lfs: true
+
+      - name: Configure Git
+        run: |
+          git config user.name "catalog-bot"
+          git config user.email "catalog-bot@quantum-cli.local"
+
+      # ------------------------------------------------------------ Setup Python
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+          pip install requests tqdm
+
+      # ------------------------------------------------------------ Prepare directories
+      - name: Create working directories
+        run: |
+          mkdir -p "${{ env.CATALOG_DIR }}"
+          mkdir -p "${{ env.ARTIFACT_DIR }}/daily"
+          mkdir -p "${{ env.ARTIFACT_DIR }}/release"
+
+      # ------------------------------------------------------------ Sync Exploit-DB
+      - name: Sync Exploit-DB (exploits + GHDB + shellcodes)
+        run: |
+          python -c "
+import sys
+sys.path.insert(0, 'src')
+from quantum.catalog.exploitdb import sync
+result = sync(timeout=300)
+print('Exploit-DB sync:', result)
+"
+        env:
+          HOME: ${{ runner.temp }}
+
+      - name: Copy Exploit-DB data to catalog
+        run: |
+          cp -r ~/.qcli/catalog/* "${{ env.CATALOG_DIR }}/" 2>/dev/null || true
+
+      # ------------------------------------------------------------ Sync PayloadsAllTheThings
+      - name: Sync PayloadsAllTheThings
+        run: |
+          python -c "
+import sys
+sys.path.insert(0, 'src')
+from quantum.catalog.payloads_all import sync
+result = sync(timeout=300)
+print('PayloadsAllTheThings sync:', result)
+"
+        env:
+          HOME: ${{ runner.temp }}
+
+      - name: Copy PayloadsAllTheThings data to catalog
+        run: |
+          cp -r ~/.qcli/catalog/* "${{ env.CATALOG_DIR }}/" 2>/dev/null || true
+
+      # ------------------------------------------------------------ Sync Nuclei Templates
+      - name: Sync Nuclei Templates (projectdiscovery/nuclei-templates)
+        run: |
+          NUCLEI_DIR="${{ env.CATALOG_DIR }}/nuclei-templates"
+          git clone --depth 1 https://github.com/projectdiscovery/nuclei-templates.git "${NUCLEI_DIR}" 2>/dev/null || \
+          (cd "${NUCLEI_DIR}" && git pull --depth 1)
+          echo "Nuclei templates synced to ${NUCLEI_DIR}"
+
+      # ------------------------------------------------------------ Sync PoC-in-GitHub (nomi-sec)
+      - name: Sync PoC-in-GitHub (nomi-sec)
+        run: |
+          POC_DIR="${{ env.CATALOG_DIR }}/PoC-in-GitHub"
+          git clone --depth 1 https://github.com/nomi-sec/PoC-in-GitHub.git "${POC_DIR}" 2>/dev/null || \
+          (cd "${POC_DIR}" && git pull --depth 1)
+          echo "PoC-in-GitHub synced to ${POC_DIR}"
+
+      # ------------------------------------------------------------ Sync CVE Data (NVD + GitHub Advisories)
+      - name: Sync CVE Data - NVD
+        run: |
+          CVE_DIR="${{ env.CATALOG_DIR }}/cve"
+          mkdir -p "${CVE_DIR}"
+          
+          # Download recent NVD feeds (last 8 + current year)
+          for year in $(seq $(date -d '8 years ago' +%Y) $(date +%Y)); do
+            url="https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-${year}.json.gz"
+            echo "Downloading ${url}"
+            wget -q -O "${CVE_DIR}/nvdcve-1.1-${year}.json.gz" "${url}" || echo "Failed: ${year}"
+          done
+          
+          # Download modified feed
+          wget -q -O "${CVE_DIR}/nvdcve-1.1-modified.json.gz" \
+            "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-modified.json.gz" || true
+
+      - name: Sync CVE Data - GitHub Advisories
+        run: |
+          CVE_DIR="${{ env.CATALOG_DIR }}/cve"
+          mkdir -p "${CVE_DIR}"
+          
+          # GitHub Security Advisories
+          gh api --paginate /advisories?per_page=100 \
+            -q '.[] | select(.summary != null) | {ghsa_id, cve_id: .identifiers[] | select(.type=="CVE") | .value, summary, severity, published_at, updated_at, vulnerabilities[] | {package: .package.name, ecosystem: .package.ecosystem, first_patched_version: .first_patched_version, vulnerable_version_range: .vulnerable_version_range}}' \
+            > "${CVE_DIR}/github-advisories.jsonl" 2>/dev/null || echo "GitHub advisories fetch failed (token may be needed)"
+
+      # ------------------------------------------------------------ Sync Top Exploit Repos
+      - name: Sync Top Exploit Repositories
+        run: |
+          REPO_BASE="${{ env.CATALOG_DIR }}/exploit-repos"
+          mkdir -p "${REPO_BASE}"
+          
+          declare -A REPOS=(
+            ["trickest-cve"]="https://github.com/trickest/cve"
+            ["0xdea-exploits"]="https://github.com/0xdea/exploits"
+            ["payloadsallthethings"]="https://github.com/swisskyrepo/PayloadsAllTheThings"
+            ["nuclei-templates"]="https://github.com/projectdiscovery/nuclei-templates"
+            ["poc-in-github"]="https://github.com/nomi-sec/PoC-in-GitHub"
+            ["metasploit-framework"]="https://github.com/rapid7/metasploit-framework"
+            ["exploitdb"]="https://gitlab.com/exploit-database/exploitdb"
+            ["windows-kernel-exploits"]="https://github.com/SecWiki/windows-kernel-exploits"
+            ["linux-kernel-exploits"]="https://github.com/SecWiki/linux-kernel-exploits"
+            ["secLists"]="https://github.com/danielmiessler/SecLists"
+            ["intruderpayloads"]="https://github.com/1N3/IntruderPayloads"
+            ["red-teaming-toolkit"]="https://github.com/infosecn1nja/Red-Teaming-Toolkit"
+            ["activedirectory-cheatsheet"]="https://github.com/Integration-IT/Active-Directory-Exploitation-Cheat-Sheet"
+            ["bugbounty-cheatsheet"]="https://github.com/EdOverflow/bugbounty-cheatsheet"
+            ["sharpcollection"]="https://github.com/Flangvik/SharpCollection"
+            ["payloads"]="https://github.com/foospidy/payloads"
+          )
+          
+          for name in "${!REPOS[@]}"; do
+            url="${REPOS[$name]}"
+            target="${REPO_BASE}/${name}"
+            echo "Syncing ${name} from ${url}"
+            if [ -d "${target}/.git" ]; then
+              git -C "${target}" pull --depth 1 --rebase || echo "Failed to update ${name}"
+            else
+              git clone --depth 1 "${url}" "${target}" 2>/dev/null || echo "Failed to clone ${name}"
+            fi
+          done
+
+      # ------------------------------------------------------------ Sync Exploit-Catalog (local exploit_catalog dir)
+      - name: Sync Local Exploit Catalog
+        run: |
+          if [ -d "exploit_catalog" ]; then
+            rsync -av --exclude='.git' exploit_catalog/ "${{ env.CATALOG_DIR }}/exploit_catalog/"
+          fi
+
+      # ------------------------------------------------------------ Build SQLite Index
+      - name: Build Exploit Repository Index
+        run: |
+          python build_exploit_index.py
+        continue-on-error: true
+
+      # ------------------------------------------------------------ Create Daily Artifacts (Individual ZIPs)
+      - name: Create daily exploits.zip
+        run: |
+          cd "${{ env.CATALOG_DIR }}"
+          if [ -d "exploit_catalog/exploits" ] || [ -d "exploit-repos" ]; then
+            zip -r "${{ env.ARTIFACT_DIR }}/daily/exploits.zip" \
+              exploit_catalog/exploits exploit-repos \
+              -x "*/.git/*" "*/__pycache__/*" "*.pyc" 2>/dev/null || true
+          fi
+
+      - name: Create daily payloads.zip
+        run: |
+          cd "${{ env.CATALOG_DIR }}"
+          if [ -d "exploit_catalog/payloads" ] || [ -d "exploit-repos/PayloadsAllTheThings" ] || [ -d "exploit-repos/payloads" ]; then
+            zip -r "${{ env.ARTIFACT_DIR }}/daily/payloads.zip" \
+              exploit_catalog/payloads exploit-repos/PayloadsAllTheThings exploit-repos/payloads \
+              -x "*/.git/*" "*/__pycache__/*" "*.pyc" 2>/dev/null || true
+          fi
+
+      - name: Create daily google_hacking.zip
+        run: |
+          cd "${{ env.CATALOG_DIR }}"
+          if [ -d "exploit_catalog/google_hacking" ] || [ -d "exploit-repos/PayloadsAllTheThings/Google Hacking" ]; then
+            zip -r "${{ env.ARTIFACT_DIR }}/daily/google_hacking.zip" \
+              exploit_catalog/google_hacking exploit-repos/PayloadsAllTheThings/Google* \
+              -x "*/.git/*" 2>/dev/null || true
+          fi
+
+      - name: Create daily shellcodes.zip
+        run: |
+          cd "${{ env.CATALOG_DIR }}"
+          if [ -d "exploit_catalog/shellcodes" ] || [ -d "exploit-repos/0xdea-exploits" ] || [ -d "exploit-repos/shellcodes" ]; then
+            zip -r "${{ env.ARTIFACT_DIR }}/daily/shellcodes.zip" \
+              exploit_catalog/shellcodes exploit-repos/0xdea-exploits exploit-repos/shellcodes \
+              -x "*/.git/*" 2>/dev/null || true
+          fi
+
+      - name: Create daily whitepapers.zip
+        run: |
+          cd "${{ env.CATALOG_DIR }}"
+          if [ -d "exploit_catalog/whitepapers" ] || [ -d "exploit-repos" ]; then
+            find exploit_catalog exploit-repos -type f \( -name "*.pdf" -o -name "*.md" -o -name "*.txt" \) \
+              -path "*whitepaper*" -o -path "*paper*" -o -path "*writeup*" 2>/dev/null | \
+              head -2000 | zip -r "${{ env.ARTIFACT_DIR }}/daily/whitepapers.zip" -@ 2>/dev/null || true
+          fi
+
+      - name: Create daily cve_metadata.zip
+        run: |
+          cd "${{ env.CATALOG_DIR }}"
+          if [ -d "cve" ] || [ -f "exploit_catalog/exploit_db_index/top_repos.sqlite" ]; then
+            zip -r "${{ env.ARTIFACT_DIR }}/daily/cve_metadata.zip" \
+              cve exploit_catalog/exploit_db_index \
+              -x "*/.git/*" 2>/dev/null || true
+          fi
+
+      - name: Create daily nuclei_templates.zip
+        run: |
+          cd "${{ env.CATALOG_DIR }}"
+          if [ -d "nuclei-templates" ] || [ -d "exploit-repos/nuclei-templates" ]; then
+            zip -r "${{ env.ARTIFACT_DIR }}/daily/nuclei_templates.zip" \
+              nuclei-templates exploit-repos/nuclei-templates \
+              -x "*/.git/*" 2>/dev/null || true
+          fi
+
+      # ------------------------------------------------------------ Create Combined Daily Catalog
+      - name: Create combined daily catalog
+        run: |
+          DATE_TAG=$(date -u +%Y%m%d)
+          cd "${{ env.CATALOG_DIR }}"
+          zip -r "${{ env.ARTIFACT_DIR }}/daily/quantum-catalog-${DATE_TAG}.zip" \
+            . \
+            -x "*/.git/*" "*/__pycache__/*" "*.pyc" "*.log" 2>/dev/null || true
+          echo "Created quantum-catalog-${DATE_TAG}.zip"
+
+      # ------------------------------------------------------------ Prepare for Release (on tags or forced)
+      - name: Determine if full release build
+        id: release_check
+        run: |
+          IS_TAG=false
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            IS_TAG=true
+            VERSION="${{ github.ref_name }}"
+            echo "VERSION=${VERSION#v}" >> $GITHUB_OUTPUT
+          fi
+          
+          FORCED="${{ github.event.inputs.force_full_release }}"
+          if [[ "${FORCED}" == "true" ]]; then
+            IS_TAG=true
+            VERSION="${{ github.event.inputs.tag_version }}"
+            if [[ -z "${VERSION}" ]]; then
+              VERSION="$(date -u +%Y%m%d)-manual"
+            fi
+            echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "IS_TAG=${IS_TAG}" >> $GITHUB_OUTPUT
+          echo "Running as full release: ${IS_TAG}"
+
+      # ------------------------------------------------------------ Build Full Release Artifacts
+      - name: Build full release artifacts
+        if: steps.release_check.outputs.IS_TAG == 'true'
+        run: |
+          VERSION="${{ steps.release_check.outputs.VERSION }}"
+          echo "Building full release for version: ${VERSION}"
+          
+          # Run package_release.py for exploit + payload archives
+          python package_release.py --version "${VERSION}" --outdir "${{ env.ARTIFACT_DIR }}/release"
+          
+          # Copy release artifacts to artifacts dir for upload
+          cp -r "release/v${VERSION}/"* "${{ env.ARTIFACT_DIR }}/release/" 2>/dev/null || true
+
+      # ------------------------------------------------------------ Create zero_click_exploits.zip (release only)
+      - name: Create zero_click_exploits.zip
+        if: steps.release_check.outputs.IS_TAG == 'true'
+        run: |
+          VERSION="${{ steps.release_check.outputs.VERSION }}"
+          cd "${{ env.CATALOG_DIR }}"
+          find . -type f \( -name "*.py" -o -name "*.c" -o -name "*.cpp" -o -name "*.rb" -o -name "*.go" \) \
+            -path "*zero*click*" -o -path "*zeroclick*" -o -path "*0click*" 2>/dev/null | \
+            head -500 | zip -r "${{ env.ARTIFACT_DIR }}/release/zero_click_exploits.zip" -@ 2>/dev/null || true
+
+      # ------------------------------------------------------------ Create whitepapers_all.zip (release only)
+      - name: Create whitepapers_all.zip
+        if: steps.release_check.outputs.IS_TAG == 'true'
+        run: |
+          VERSION="${{ steps.release_check.outputs.VERSION }}"
+          cd "${{ env.CATALOG_DIR }}"
+          find . -type f \( -name "*.pdf" -o -name "*.md" -o -name "*.txt" -o -name "*.html" \) \
+            2>/dev/null | head -3000 | zip -r "${{ env.ARTIFACT_DIR }}/release/whitepapers_all.zip" -@ 2>/dev/null || true
+
+      # ------------------------------------------------------------ Create openfable_skills.zip (release only)
+      - name: Create openfable_skills.zip
+        if: steps.release_check.outputs.IS_TAG == 'true'
+        run: |
+          VERSION="${{ steps.release_check.outputs.VERSION }}"
+          cd "${{ env.CATALOG_DIR }}"
+          if [ -d "../../skills" ] || [ -d "../../agents" ]; then
+            zip -r "${{ env.ARTIFACT_DIR }}/release/openfable_skills.zip" \
+              ../../skills ../../agents \
+              -x "*/.git/*" "*/__pycache__/*" "*.pyc" "*/.venv/*" "*/venv/*" "*/env/*" 2>/dev/null || true
+          fi
+
+      # ------------------------------------------------------------ Copy executables (release only)
+      - name: Collect executables (.exe, .apk)
+        if: steps.release_check.outputs.IS_TAG == 'true'
+        run: |
+          VERSION="${{ steps.release_check.outputs.VERSION }}"
+          EXE_DIR="${{ env.ARTIFACT_DIR }}/release/executables"
+          mkdir -p "${EXE_DIR}"
+          
+          # Windows executables
+          find . -name "*.exe" -type f 2>/dev/null | head -50 | while read f; do
+            cp "$f" "${EXE_DIR}/" 2>/dev/null || true
+          done
+          
+          # Android APKs
+          find . -name "*.apk" -type f 2>/dev/null | head -20 | while read f; do
+            cp "$f" "${EXE_DIR}/" 2>/dev/null || true
+          done
+          
+          # Source archives
+          find . -name "*.tar.gz" -o -name "*.tar.7z" -o -name "*.zip" 2>/dev/null | \
+            grep -E "(release|dist)" | head -20 | while read f; do
+            cp "$f" "${EXE_DIR}/" 2>/dev/null || true
+          done
+
+      # ------------------------------------------------------------ Upload Daily Artifacts
+      - name: Upload daily artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-catalog-${{ github.run_id }}
+          path: |
+            ${{ env.ARTIFACT_DIR }}/daily/*.zip
+          retention-days: 30
+          compression-level: 0
+
+      # ------------------------------------------------------------ Upload Release Artifacts
+      - name: Upload release artifacts
+        if: steps.release_check.outputs.IS_TAG == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ steps.release_check.outputs.VERSION }}-${{ github.run_id }}
+          path: |
+            ${{ env.ARTIFACT_DIR }}/release/**/*
+          retention-days: 365
+          compression-level: 0
+
+      # ------------------------------------------------------------ Commit & Push Catalog Updates
+      - name: Check for catalog changes
+        id: catalog_changes
+        run: |
+          # Copy updated catalog back to repo
+          if [ -d "${{ env.CATALOG_DIR }}/exploit_catalog" ]; then
+            rsync -av --delete --exclude='.git' "${{ env.CATALOG_DIR }}/exploit_catalog/" exploit_catalog/
+          fi
+          
+          # Check if there are changes
+          if git diff --quiet && git diff --cached --quiet; then
+            echo "CHANGED=false" >> $GITHUB_OUTPUT
+            echo "No catalog changes to commit"
+          else
+            echo "CHANGED=true" >> $GITHUB_OUTPUT
+            echo "Catalog changes detected"
+          fi
+
+      - name: Commit and push catalog updates
+        if: steps.catalog_changes.outputs.CHANGED == 'true'
+        run: |
+          git add exploit_catalog/
+          git commit -m "chore(catalog): automated daily update $(date -u +%Y-%m-%d)
+          
+          Updated catalogs:
+          - Exploit-DB (exploits, GHDB, shellcodes)
+          - PayloadsAllTheThings
+          - Nuclei Templates (projectdiscovery/nuclei-templates)
+          - PoC-in-GitHub (nomi-sec/PoC-in-GitHub)
+          - CVE Data (NVD feeds + GitHub Advisories)
+          - Top exploit repositories (trickest/cve, 0xdea, etc.)
+          
+          Automated by catalog-bot via GitHub Actions
+          "
+          git push origin HEAD:${{ github.ref_name }}
+
+      # ------------------------------------------------------------ Create Daily Draft Release
+      - name: Create daily draft release
+        uses: softprops/action-gh-release@v2
+        if: steps.release_check.outputs.IS_TAG == 'false'
+        with:
+          tag_name: daily-${{ github.run_id }}
+          name: "Daily Catalog ${{ github.run_id }} - $(date -u +%Y-%m-%d)"
+          draft: true
+          prerelease: true
+          body: |
+            ## Daily Catalog Update
+            
+            **Date:** $(date -u +%Y-%m-%d %H:%M:%S UTC)
+            **Run:** ${{ github.run_id }}
+            
+            ### Updated Catalogs
+            - Exploit-DB (exploits + GHDB + shellcodes)
+            - PayloadsAllTheThings
+            - Nuclei Templates (projectdiscovery/nuclei-templates)
+            - PoC-in-GitHub (nomi-sec/PoC-in-GitHub)
+            - CVE Data (NVD feeds + GitHub Advisories)
+            - Top exploit repositories
+            
+            ### Artifacts
+            Individual ZIPs and combined catalog available as release assets.
+          files: |
+            ${{ env.ARTIFACT_DIR }}/daily/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ------------------------------------------------------------ Create/Publish Tag Release
+      - name: Publish tag release
+        if: steps.release_check.outputs.IS_TAG == 'true' && github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "Quantum CLI ${{ github.ref_name }}"
+          draft: false
+          prerelease: false
+          body: |
+            ## Quantum CLI ${{ github.ref_name }}
+            
+            **Release Date:** $(date -u +%Y-%m-%d %H:%M:%S UTC)
+            **Commit:** ${{ github.sha }}
+            
+            ### Release Artifacts
+            - **quantum-exploits-v${{ steps.release_check.outputs.VERSION }}.zip** — Exploit modules + operator harness
+            - **quantum-payloads-v${{ steps.release_check.outputs.VERSION }}.zip** — Built payload artifacts
+            
+            ### Catalog Assets
+            - **exploits.zip** — All exploit repositories
+            - **payloads.zip** — All payload collections
+            - **google_hacking.zip** — Google Hacking Database
+            - **shellcodes.zip** — Shellcode repository
+            - **whitepapers.zip** — Selected whitepapers
+            - **cve_metadata.zip** — CVE data + SQLite index
+            - **nuclei_templates.zip** — Nuclei YAML templates
+            - **quantum-catalog-$(date -u +%Y%m%d).zip** — Complete daily catalog
+            
+            ### Additional Release Assets
+            - **zero_click_exploits.zip** — Zero-click exploit collection
+            - **whitepapers_all.zip** — Full whitepaper archive
+            - **openfable_skills.zip** — OpenFable skills & agents
+            - **executables/** — Windows .exe, Android .apk, source archives
+            
+            ### Updated Catalogs
+            - Exploit-DB (exploits + GHDB + shellcodes)
+            - PayloadsAllTheThings
+            - Nuclei Templates (projectdiscovery/nuclei-templates)
+            - PoC-in-GitHub (nomi-sec/PoC-in-GitHub)
+            - CVE Data (NVD feeds + GitHub Advisories)
+            - Top exploit repositories
+            
+            ---
+            *Authorized engagements / lab / contracted authorization only.*
+          files: |
+            ${{ env.ARTIFACT_DIR }}/release/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ------------------------------------------------------------ Cleanup
+      - name: Cleanup temporary files
+        if: always()
+        run: |
+          rm -rf "${{ env.CATALOG_DIR }}" "${{ env.ARTIFACT_DIR }}" ~/.qcli/catalog 2>/dev/null || true
+
+  # ------------------------------------------------------------ LFS Check Job
+  lfs-check:
+    name: Check Large Files for LFS
+    runs-on: ubuntu-latest
+    needs: catalog-update
+    if: always() && needs.catalog-update.result == 'success'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      - name: Check for large files
+        run: |
+          # Find files > 100MB that should be in LFS
+          LARGE_FILES=$(find . -type f -size +100M ! -path "./.git/*" ! -path "./.github/*" 2>/dev/null | head -20)
+          if [ -n "${LARGE_FILES}" ]; then
+            echo "Large files found that may need LFS tracking:"
+            echo "${LARGE_FILES}"
+            echo "Consider adding to .gitattributes:"
+            for f in ${LARGE_FILES}; do
+              echo "${f} filter=lfs diff=lfs merge=lfs -text"
+            done
+          else
+            echo "No files > 100MB found"
+          fi
