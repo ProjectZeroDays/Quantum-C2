@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quantum CLI — /app</title>
+<style>
+@import url('css/tokens.css');
+*{box-sizing:border-box;margin:0;padding:0}
+html{font-family:system-ui,sans-serif;background:#0b0c10;color:#e2e8f0}
+body{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
+#sidebar{background:#111827;border-right:1px solid #1f2937;padding:1rem}
+#sidebar h2{font-size:1.1rem;color:#60a5fa;margin-bottom:1rem}
+#sidebar nav a{display:block;padding:.45rem .3rem;color:#e2e8f0;border-radius:.25rem;text-decoration:none;font-size:.85rem}
+#sidebar nav a:hover{background:#1f2937}
+#main{padding:1.5rem;overflow:auto}
+.header{display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap}
+.header h1{font-size:1.5rem;font-weight:700;color:#f97316}
+.badge{padding:.2rem .5rem;border-radius:.25rem;font-size:.75rem;background:#1f2937;border:1px solid #374151}
+.badge.ok{background:#064e3b;border-color:#10b981;color:#6ee7b7}
+.card{background:#111827;border:1px solid #1f2937;border-radius:.5rem;padding:1rem;margin-bottom:1rem}
+.card h3{font-size:1rem;color:#bae6fd;margin-bottom:.5rem}
+.table{width:100%;border-collapse:collapse;font-size:.85rem}
+.table th{text-align:left;padding:.4rem .3rem;color:#94a3b8;border-bottom:1px solid #334155}
+.table td{padding:.4rem .3rem;border-bottom:1px solid #1f2937;color:#e2e8f0}
+.btn{padding:.4rem .8rem;border-radius:.25rem;border:1px solid #374151;background:#0ea5e9;color:#fff;font-size:.85rem;cursor:pointer;text-decoration:none;display:inline-block}
+.btn:hover{background:#0284c7}
+.tk{font-family:monospace;font-size:.8rem;color:#14b8a6}
+.source-glyph{color:#f59e0b;font-weight:700;font-size:.7rem}
+</style>
+</head>
+<body>
+<aside id="sidebar">
+  <h2>QUANTUM-CLI</h2>
+  <nav>
+    <a href="#/fleet">Fleet</a>
+    <a href="#/device/">Device</a>
+    <a href="#/postex">PostEx</a>
+    <a href="#/scan">Scan</a>
+    <a href="#/telemetry">Telemetry</a>
+    <a href="#/control">Control</a>
+    <a href="#/loot">Loot</a>
+    <a href="#/settings">Settings</a>
+  </nav>
+  <div style="margin-top:2rem;padding-top:1rem;border-top:1px solid #1f2937;font-size:.7rem;color:#64748b">
+    v4.7.0 · <span id="bus-status">BUS: --</span><br>
+    <span id="online-count">Online: 0</span>
+  </div>
+</aside>
+<main id="main">
+  <div class="header">
+    <h1>Fleet <span class="badge">LIVE</span></h1>
+    <a class="btn" href="#/device/new">+ Register</a>
+    <span class="badge ok" id="fleet-kpi">0 devices</span>
+  </div>
+
+  <section id="fleet-grid" class="card">
+    <h3>Device WebCards <span style="float:right;font-weight:400;color:#94a3b8">Grid view</span></h3>
+    <table class="table" id="fleet-table">
+      <thead><tr><th>ID</th><th>Device</th><th>Platform</th><th>State</th><th>Root</th><th>Last seen</th><th>Loot</th><th>Actions</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section class="card" id="quick-stats">
+    <h3>KPI Strip</h3>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:.75rem">
+      <div><strong id="kpi-online">0</strong> Online</div>
+      <div><strong id="kpi-ghost">0</strong> Ghost</div>
+      <div><strong id="kpi-dead">0</strong> Dead</div>
+      <div><strong id="kpi-tasks">0</strong> Queued</div>
+      <div><strong id="kpi-loot">0</strong> MB Loot</div>
+    </div>
+  </section>
+
+  <section class="card" id="device-detail" style="display:none">
+    <h3>Device Manage <span id="dev-id" class="tk"></span></h3>
+    <p><strong>State:</strong> <span id="dev-state">DISCOVERED</span> <span id="dev-source" class="source-glyph">✓</span></p>
+    <p><strong>Channel:</strong> <span id="dev-channel">none</span></p>
+    <p><strong>Identity:</strong> <span id="dev-ident">--</span></p>
+    <p><strong>Power:</strong> <span id="dev-power">--</span> <strong>Network:</strong> <span id="dev-net">--</span></p>
+    <p><strong>Caps:</strong> <span id="dev-caps">0</span></p>
+    <div style="margin-top:.5rem">
+      <a class="btn" href="#/device/">MANAGE</a>
+      <a class="btn" href="#/postex">POST-EX</a>
+      <a class="btn" href="#/scan">SCAN</a>
+      <a class="btn" href="#/telemetry">TELEMETRY</a>
+      <a class="btn" href="#/control">CONTROL</a>
+      <a class="btn" href="#/killswitch">KILL</a>
+    </div>
+  </section>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
