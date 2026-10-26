@@ -170,6 +170,7 @@ print('PayloadsAllTheThings sync:', result)
             ["bugbounty-cheatsheet"]="https://github.com/EdOverflow/bugbounty-cheatsheet"
             ["sharpcollection"]="https://github.com/Flangvik/SharpCollection"
             ["payloads"]="https://github.com/foospidy/payloads"
+            ["exploit-index"]="https://github.com/SecureWithUmer/Exploit-Index"
           )
           
           for name in "${!REPOS[@]}"; do
