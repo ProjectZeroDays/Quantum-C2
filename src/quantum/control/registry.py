@@ -94,12 +94,13 @@ class DeviceRegistry:
                     first_seen TIMESTAMP NOT NULL,
                     channel TEXT,
                     auth_token TEXT,
-                    metadata TEXT,
-                    INDEX idx_state (state),
-                    INDEX idx_last_seen (last_seen),
-                    INDEX idx_vendor_os (vendor, os_version)
+                    metadata TEXT
                 )
             """)
+            # Create indexes separately
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_state ON devices(state)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_last_seen ON devices(last_seen)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_vendor_os ON devices(vendor, os_version)")
 
             # State transitions table for audit
             conn.execute("""
@@ -156,11 +157,11 @@ class DeviceRegistry:
                     completed_at TIMESTAMP,
                     result TEXT,
                     error TEXT,
-                    artifacts TEXT,
-                    INDEX idx_device_state (device_id, state),
-                    INDEX idx_created (created_at)
+                    artifacts TEXT
                 )
             """)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_device_state ON tasks(device_id, state)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_created ON tasks(created_at)")
 
             # Capabilities table for discovered capabilities
             conn.execute("""
@@ -173,6 +174,41 @@ class DeviceRegistry:
                     discovered_at TIMESTAMP NOT NULL,
                     FOREIGN KEY (device_id) REFERENCES devices (id),
                     PRIMARY KEY (device_id, capability)
+                )
+            """)
+
+            # Kill switches table
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS kill_switches (
+                    device_id TEXT NOT NULL,
+                    mode TEXT NOT NULL,
+                    armed_at TIMESTAMP NOT NULL,
+                    trigger_conditions TEXT,
+                    executed_at TIMESTAMP,
+                    PRIMARY KEY (device_id, mode),
+                    FOREIGN KEY (device_id) REFERENCES devices (id)
+                )
+            """)
+
+            # Loot table for FTS5 search
+            conn.execute("""
+                CREATE VIRTUAL TABLE IF NOT EXISTS loot USING fts5(
+                    id, device_id, type, title, content, tags, created_at,
+                    tokenize = 'porter unicode61'
+                )
+            """)
+
+            # Device diff snapshots table
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS device_diff_snapshots (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    device_id TEXT NOT NULL,
+                    apps TEXT,
+                    files TEXT,
+                    settings TEXT,
+                    network TEXT,
+                    timestamp TIMESTAMP NOT NULL,
+                    FOREIGN KEY (device_id) REFERENCES devices (id)
                 )
             """)
 
@@ -387,9 +423,9 @@ class DeviceRegistry:
     def create_task(self, device_id: str, module: str, operation: str, 
                    args: Dict = None, task_id: str = None) -> str:
         """Create a new task for a device."""
-        from quantum.core.env import generate_id
+        from quantum.core.ids import new_task_id
         
-        task_id = task_id or generate_id()
+        task_id = task_id or new_task_id(device_id)
         created_at = datetime.now().isoformat()
         
         with device_db() as conn:

