@@ -1,6 +1,7 @@
 # QUANTUM-C2 [Public Version] V4.5.0
 
-![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows) ![macOS](https://img.shields.io/badge/macOS-000000?logo=apple) ![Android](https://img.shields.io/badge/Android-3DDC84?logo=android) ![iOS](https://img.shields.io/badge/iOS-000000?logo=apple) ![Kali](https://img.shields.io/badge/Kali-557C94?logo=linux) ![Ubuntu](https://img.shields.io/badge/Ubuntu-E95420?logo=ubuntu)
+![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows) ![macOS](https://img.shields.io/badge/macOS-000000?logo=apple) ![Android](https://img.shields.io/badge/Android-3DDC84?logo=android) ![iOS](https://img.shields.io/badge/iOS-000000?logo=apple) ![Kali](https://img.shields.io/badge/Kali-268BEE?logo=kalilinux) ![Ubuntu](https://img.shields.io/badge/Ubuntu-E95420?logo=ubuntu)
+![GitHub Repo stars](https://img.shields.io/github/stars/ProjectZeroDays/Quantum-C2?style=for-the-badge) ![Last Commit](https://img.shields.io/github/last-commit/ProjectZeroDays/Quantum-C2?style=for-the-badge) ![License: MIT](https://img.shields.io/badge/License-MIT-green.svg) ![Release](https://img.shields.io/github/v/release/ProjectZeroDays/Quantum-C2?style=for-the-badge)
 
 | Asset | Path / Status | Note |
 |---|---|---|
@@ -105,7 +106,7 @@ python quantum_cli.py camshot -t 10.0.0.42      # one-shot single camera (auto i
 
 # RECON / PROBE
 python quantum_cli.py zerocheck -t 10.0.0.42   # 9-probe battery: log4shell, citrixbleed, citrix path,
-                                                 #   PAN-OS, Confluence OGNL, WebLogic, IOS XE, vCenter, MOVEit
+                                                  #   PAN-OS, Confluence OGNL, WebLogic, IOS XE, vCenter, MOVEit
 python quantum_cli.py recon -t 10.0.0.42        # fingerprint
 python quantum_cli.py osint -t example.com       # OSINT lookup
 python quantum_cli.py validator -t 10.0.0.42    # target-value scoring (exploit gate)
