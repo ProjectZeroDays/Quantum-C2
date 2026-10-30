@@ -529,5 +529,3 @@ SOFTWARE.
 - Repository: [github.com/ProjectZeroDays](https://github.com/ProjectZeroDays)
 - Releases: [github.com/ProjectZeroDays/Quantum-C2/releases](https://github.com/ProjectZeroDays/Quantum-C2/releases)
 - Issues: [github.com/ProjectZeroDays/Quantum-C2/issues](https://github.com/ProjectZeroDays/Quantum-C2/issues)
-
-
