@@ -48,6 +48,28 @@ It is not a wrapper around someone else's tooling. The C2, the implant transport
 | **Listener manager** | Unique port allocation per engagement; every listener serves and receives callbacks independently. |
 | **Android operator app** | On-device dashboard, tasking, and telemetry against the same API. |
 
+## What this is not
+
+Read this before you file an issue.
+
+**Not a Metasploit replacement.** The catalog indexes 3,372 CVEs. It does not fire 3,372 exploits. Catalogued means "known, referenced, and linked" — a much smaller set is weaponized into a module that actually runs, and an even smaller set is validator-gated. Check `exploit_catalog/` for what a given CVE actually is before assuming `auto` will land it.
+
+**Not a Cobalt Strike clone.** There is a C2, malleable-enough transports, and a kill-switch. There is no team server, no multi-operator session sharing, no Malleable C2 profile language. One operator, one box, one engagement.
+
+**Not a commercial spyware equivalent.** The Mobile RAT and Pegasus tabs document real technique categories — location, SMS, calls, media, contacts, OTP interception. The Pegasus material is *reference and technique mapping*, not an implementation of NSO's implant. No zero-click iMessage chain ships here.
+
+**Not quiet.** Recon is a sweep. A default autonomous run on a /24 is loud, and `--aggression aggressive` is louder still. If the engagement has an IDS budget, plan for it.
+
+**Not Windows-first.** A meaningful number of modules are POSIX-only or were developed against Linux targets. Windows coverage exists and is tested in CI, but the bias is toward Linux, routers, and cameras.
+
+**Not an AV-evasion product.** PolyMorph changes wire bytes, not on-disk signatures. Nothing here guarantees a bypass against a current EDR.
+
+**Not a hosted service.** Everything runs locally. No account, no telemetry, no license server, no phone-home. That also means no one is going to fix your environment for you.
+
+**Not affiliated with the real thing.** The QUANTUM, FOXACID, and CAMWAR names are homage to the published TAO tooling. This is an independent reimplementation and shares no code with it.
+
+**Not a supported product.** Single maintainer, best-effort, no SLA. Issues get read; not all of them get fixed.
+
 ## Quick start
 
 ```bash
