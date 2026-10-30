@@ -1,5 +1,30 @@
 # QUANTUM-C2
 
+[![Release](https://img.shields.io/github/v/release/ProjectZeroDays/Quantum-C2?style=flat-square&color=268bee&label=release)](https://github.com/ProjectZeroDays/Quantum-C2/releases)
+[![License](https://img.shields.io/badge/license-MIT-3fb950?style=flat-square)](https://github.com/ProjectZeroDays/Quantum-C2/blob/main/LICENSE)
+[![Python](https://img.shields.io/badge/python-3.9%2B-3776ab?style=flat-square&logo=python&logoColor=white)](https://www.python.org/downloads/)
+[![CVE catalog](https://img.shields.io/badge/catalog-3%2C372%20CVEs-8957e5?style=flat-square)](https://github.com/ProjectZeroDays/Quantum-C2/tree/main/exploit_catalog)
+[![Post-ex modules](https://img.shields.io/badge/post--ex-175%20modules-d29922?style=flat-square)](https://github.com/ProjectZeroDays/Quantum-C2/tree/main/src/quantum/rat/modules)
+[![Commits](https://img.shields.io/github/last-commit/ProjectZeroDays/Quantum-C2?style=flat-square)](https://github.com/ProjectZeroDays/Quantum-C2/commits/main)
+[![Stars](https://img.shields.io/github/stars/ProjectZeroDays/Quantum-C2?style=flat-square)](https://github.com/ProjectZeroDays/Quantum-C2/stargazers)
+
+[![CI](https://img.shields.io/github/actions/workflow/status/ProjectZeroDays/Quantum-C2/ci.yml?style=flat-square&label=ci)](https://github.com/ProjectZeroDays/Quantum-C2/actions/workflows/ci.yml)
+[![Payloads](https://img.shields.io/github/actions/workflow/status/ProjectZeroDays/Quantum-C2/payloads.yml?style=flat-square&label=payloads)](https://github.com/ProjectZeroDays/Quantum-C2/actions/workflows/payloads.yml)
+[![Kernel exploits](https://img.shields.io/github/actions/workflow/status/ProjectZeroDays/Quantum-C2/kernel-exploits.yml?style=flat-square&label=kernel%20exploits)](https://github.com/ProjectZeroDays/Quantum-C2/actions/workflows/kernel-exploits.yml)
+[![Android](https://img.shields.io/github/actions/workflow/status/ProjectZeroDays/Quantum-C2/android-apk.yml?style=flat-square&label=android%20apk)](https://github.com/ProjectZeroDays/Quantum-C2/actions/workflows/android-apk.yml)
+
+[![Windows](https://img.shields.io/badge/windows-exe-3fb950?style=flat-square&logo=windows&logoColor=white)](#platforms)
+[![Linux](https://img.shields.io/badge/linux-supported-3fb950?style=flat-square&logo=linux&logoColor=white)](#platforms)
+[![Android](https://img.shields.io/badge/android-apk-3fb950?style=flat-square&logo=android&logoColor=white)](#platforms)
+[![macOS](https://img.shields.io/badge/macOS-build%20script-d29922?style=flat-square&logo=apple&logoColor=white)](#platforms)
+[![iOS](https://img.shields.io/badge/iOS-target%20only-8b949e?style=flat-square&logo=apple&logoColor=white)](#platforms)
+[![Packaging](https://img.shields.io/badge/deb%20%2F%20snap-not%20produced-8b949e?style=flat-square)](#platforms)
+
+**## Platforms
+
+- **Ships:** Windows (PyInstaller EXE), Linux, Android (APK built in CI)
+- **Script only, no artifact committed:** macOS (`build/mac/build-dmg.sh`)
+- **Not produced:** iOS (`.ipa` needs an Apple toolchain), `.deb`, `.snap`**
 **One launcher. One engagement. Recon to sealed loot to MITRE report — with no operator in the loop.**
 
 QUANTUM-C2 is an autonomous offensive security framework built for authorized penetration tests, lab ranges, and contracted engagements. Point it at a scope and the Overlord runs the loop itself: camera-first sweep, fingerprinting, validator-gated exploitation, post-exploitation staging, harvest, AES-256-GCM sealing, MITRE mapping. `Ctrl-C` seals the loot and exits clean.
