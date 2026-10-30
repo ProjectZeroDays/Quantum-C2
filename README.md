@@ -1,5 +1,7 @@
 # QUANTUM-CLI V4.5.0 — Screenshots & Assets
 
+![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows) ![macOS](https://img.shields.io/badge/macOS-000000?logo=apple) ![Android](https://img.shields.io/badge/Android-3DDC84?logo=android) ![iOS](https://img.shields.io/badge/iOS-000000?logo=apple) ![Kali](https://img.shields.io/badge/Kali-557C94?logo=linux) ![Ubuntu](https://img.shields.io/badge/Ubuntu-E95420?logo=ubuntu)
+
 | Asset | Path / Status | Note |
 |---|---|---|
 | **Android APK (full)** | `android/app/build/outputs/apk/` — stale 9/29; rebuild parked (Gradle jar failure) | Full-release build; fresh build needed after Gradle env fix |
