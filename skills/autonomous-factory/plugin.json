@@ -1,0 +1,99 @@
+{
+  "name": "autonomous-factory",
+  "version": "1.0.0",
+  "description": "Autonomous Software Factory - Turns OpenCode into a full autonomous development pipeline from requirements to production deployment using SLDR subagents with artifact handoffs and verification gates.",
+  "author": "Project Zero",
+  "license": "MIT",
+  "main": "factory.py",
+  "commands": "commands.py",
+  "entryPoints": {
+    "skill": "factory:AutonomousFactory",
+    "commands": "commands:register_commands"
+  },
+  "provides": [
+    "autonomous-development",
+    "sldr-pipeline",
+    "artifact-handoffs",
+    "verification-gates",
+    "auto-resume",
+    "production-deployment"
+  ],
+  "requires": {
+    "opencode": ">=1.0.0",
+    "python": ">=3.10",
+    "docker": ">=24.0",
+    "kubectl": ">=1.28",
+    "node": ">=20.0"
+  },
+  "keywords": [
+    "autonomous",
+    "factory",
+    "sldr",
+    "software-development",
+    "ci-cd",
+    "deployment",
+    "full-stack",
+    "ai-agents"
+  ],
+  "commands": {
+    "auto": {
+      "description": "Run autonomous software factory from requirements to production",
+      "usage": "/auto [init|resume|status|handoff|gate]",
+      "examples": [
+        "/auto",
+        "/auto init",
+        "/auto resume",
+        "/auto status",
+        "/auto handoff lifecycle",
+        "/auto gate security"
+      ],
+      "subcommands": {
+        "init": "Initialize new project with interactive requirements gathering",
+        "resume": "Resume from last checkpoint",
+        "status": "Show current pipeline state",
+        "handoff": "Manual handoff trigger for specific role",
+        "gate": "Run specific verification gate"
+      }
+    }
+  },
+  "autocomplete": {
+    "command": "auto",
+    "filter": true,
+    "fuzzy": true,
+    "subcommands": true
+  },
+  "agent": {
+    "name": "Autonomous Factory",
+    "description": "Orchestrates SLDR subagents (Strategist, Lifecycle, Deploy, Review) to autonomously build, test, and deploy full-stack applications from requirements to production.",
+    "model": "anthropic/claude-sonnet-4",
+    "readonly": false,
+    "systemPrompt": "You are the Autonomous Factory orchestrator. You coordinate four specialized SLDR subagents:\n\n1. STRATEGIST - Transforms requirements into architecture, task graphs, and API contracts\n2. LIFECYCLE - Implements architecture as clean, tested, production-ready code\n3. DEPLOY - Deploys validated code to production infrastructure with manifests\n4. REVIEW - Enforces quality gates (build, test, lint, security) between every handoff\n\nAll communication happens via JSON artifacts in .opencode/handoffs/. The pipeline:\n- Runs sequentially where dependencies exist (S → L → D with R gates between)\n- Runs in parallel where independent (multiple L tasks, multiple D targets)\n- Has verification gates between every handoff\n- Auto-resumes from last checkpoint when /auto is invoked\n- Prompts only for missing requirements\n- Runs to completion without human intervention\n\nYour job: Execute the pipeline, manage handoffs, run gates, and deliver a production-deployed application.",
+    "capabilities": [
+      "requirements-analysis",
+      "architecture-design",
+      "task-graph-generation",
+      "api-contract-design",
+      "full-stack-implementation",
+      "test-generation",
+      "deployment-manifest-generation",
+      "production-deployment",
+      "quality-gate-enforcement",
+      "security-scanning",
+      "auto-resume",
+      "parallel-execution"
+    ]
+  },
+  "workflows": {
+    "auto": {
+      "description": "Full autonomous pipeline from requirements to production",
+      "steps": [
+        {"role": "strategist", "gates": ["lint", "security"]},
+        {"role": "lifecycle", "gates": ["build", "test", "lint", "security"], "parallel": true},
+        {"role": "deploy", "gates": ["build", "test", "security"]},
+        {"role": "review", "gates": ["build", "test", "lint", "security"]}
+      ],
+      "resume": true,
+      "prompt_missing": true
+    }
+  }
+}

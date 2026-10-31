@@ -1,0 +1,28 @@
+app-id: com.quantum.QuantumCLI
+runtime: org.freedesktop.Platform
+runtime-version: '23.08'
+sdk: org.freedesktop.Sdk
+command: quantum-cli
+rename-icon: quantum-cli
+finish-args:
+  - --socket=system-bus
+  - --socket=session-bus
+  - --share=network
+  - --share=ipc
+  - --device=all  # Authorized only; raw device access for camera/recon
+  - --filesystem=host  # Authorized only; target scope access
+build-commands:
+  - pip3 install --prefix=/app flask requests waitress pycryptodome impacket pysmb colorama
+  - install -Dm755 quantum_cli.py /app/bin/quantum-cli
+  - cp -r src/quantum /app/lib/quantum/
+modules:
+  - python3.yaml
+  - name: python-packages
+    buildsystem: simple
+    build-commands:
+      - pip3 install flask requests waitress pycryptodome impacket pysmb colorama --prefix=/app/lib/python3/site-packages
+  - name: quantum-cli
+    buildsystem: simple
+    sources:
+      - type: dir
+        path: .

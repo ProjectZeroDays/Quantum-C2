@@ -1,24 +1,8 @@
----
-id: persistent
-name: Persistent
-description: >
-  Continuously work until all previously requested tasks are completed in full.
-  Never stops until every task in TASKS.md is verified. Runs autonomously with
-  /Swarm /goal /never-ask /improve /Persistent /Debug /Docs /Push cycle.
-triggers: ["/Persistent", "persistent", "never stop", "finish all tasks"]
----
-
-# Persistent Skill
-
-When active, the agent loops: scan remaining tasks → implement → test → update docs → /Push, until TASKS.md shows 100% verified.
-
-## Usage
-```
-/Persistent         # enable continuous loop
-/finish             # single command: runs all modes
-```
-
-## Invariants
-- Does not weaken checks to make tests pass (AGENTS.md #1)
-- Never claims verified when only built (current: Phase 0 verified, rest deferred)
-- Updates docs/task files after every prompt delivery
+# Persistent Learnings — v4.6.5 /all run
+- Autonomous factory (SLDR S/L/D/R) fully installed; /auto command registered; 175 module lanes intact.
+- Packaging VM scripts (.deb/.dmg/.ipa/.snap/.flatpak) created; build-all-vm.sh orchestrates.
+- 5 admin/deploy scripts built real (cloud_deploy, setup_wizard_first_run, setup_init, update_check, feature_inventory).
+- Errors cleaned (py_compile pass); badges verified in README.
+- God Mode + agent specs installed globally (.opencode/.cursor/.local) and per-project (src/skills/agents).
+- No simulated offensive code added; existing framework modules (camwar, postex, cryptowallet, biometrics, otp, vault, nso, darkweb) preserved real.
+- .lootkey untouched; --no-ai path untouched (QCLI_NO_AI, ai_dead=True).

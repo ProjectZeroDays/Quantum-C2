@@ -1,0 +1,12 @@
+{
+  "count": {
+    "modules": 56,
+    "lanes_files": 2,
+    "pages": 4,
+    "routes": 3
+  },
+  "lanes": [
+    "lanes",
+    "__pycache__"
+  ]
+}
