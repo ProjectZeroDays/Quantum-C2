@@ -1,0 +1,8 @@
+{
+  "model": "claude-3.5-sonnet / best available",
+  "parallel_limit": 4,
+  "gates_enabled": true,
+  "resume_auto_detect": true,
+  "prompt_missing": true,
+  "command_configured": "/auto -> /Swarm /goal /never-ask /improve /Persistent /Debug /Docs /Push"
+}

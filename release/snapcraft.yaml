@@ -1,0 +1,12 @@
+# Snap build — requires snapcraft + Linux.
+# Not verified: snapcraft requires Linux build host and store auth.
+name: quantum-cli-pack
+base: core20
+grade: devel
+summary: QUANTUM CLI v4.7.0
+version: "4.7.0"
+confinement: strict
+parts:
+  quantum-cli:
+    source: .
+    plugin: python

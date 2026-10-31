@@ -1,0 +1,6 @@
+/* Polished Dashboard Core — best-practice CSS + accessibility */
+body { font-family: system-ui, sans-serif; background: #0b0e14; color: #e4e6ef; }
+.card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 1rem; }
+button { background: #3b82f6; color: white; border: none; border-radius: 6px; padding: .5rem 1rem; cursor: pointer; }
+button:hover { background: #2563eb; }
+[aria-label] { outline: none; }

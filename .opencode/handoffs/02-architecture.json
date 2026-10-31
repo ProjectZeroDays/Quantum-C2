@@ -1,0 +1,23 @@
+{
+  "architecture": "Autonomous Software Factory (SLDR)",
+  "subagents": {
+    "S-Strategist": "Requirements -> architecture + task-graph",
+    "L-Dev": "Architecture -> implementation (modules, APIs, UI, exploits)",
+    "D-Deploy": "Source -> manifests + deployment reports",
+    "R-Review": "Quality gates (build/test/lint/security)"
+  },
+  "handoff_contracts": [
+    "01-requirements.json",
+    "02-architecture.json",
+    "03-task-graph.json",
+    "04-api-contracts.json",
+    "05-implementation/",
+    "06-build-report.json",
+    "07-security-report.json",
+    "08-deployment-manifests/",
+    "09-deployment-report.json",
+    "10-gate-results.json"
+  ],
+  "verification_gates": ["build", "test", "lint", "security"],
+  "model_preference": "claude-3.5-sonnet or best available"
+}

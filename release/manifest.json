@@ -1,0 +1,6 @@
+[Flatpak Manifest]
+app-id: cli.quantum.v4
+runtime: org.freedesktop.Platform
+runtime-version: '21.08'
+command: cli
+# Not executed: requires flatpak-builder Linux host; see docs.
